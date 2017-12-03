@@ -1,0 +1,53 @@
+use std
+
+let bdcolor = 0xd020
+let bgcolor = 0xd021
+let screen = 0x0400
+let colors = 0xd800
+let black = 0
+
+let conv-tbl = [0x80, 0x00, 0xc0, 0xe0, 0x40, 0xc0, 0x80, 0x80]
+let msg = "phelix fallus! pheces fallus!"
+
+clear()
+std.set-isr(flash)
+std.spin()
+
+isr flash{vic:0}
+
+    let mut k = 0
+    let stash color = 1
+    while msg[k] != 0
+        (screen + 0x01bd)[k] = conv(msg[k])
+        (colors + 0x01bd)[k] = color
+        k += 1
+    end
+
+    let stash frame = 0
+    if frame == 7 then
+        frame = 0
+        color += 1
+        if color == 9 then
+            color = 1
+        end
+    else
+       frame += 1
+       return
+    end
+
+endisr
+
+fun conv(c)
+    return conv-tbl[c >> 5]
+endfun
+
+fun clear()
+    bdcolor <- black
+    bgcolor <- black
+    for x in 0 to 256
+        (screen + 0x0000)[x] = 0
+        (screen + 0x0100)[x] = 0
+        (screen + 0x0200)[x] = 0
+        (screen + 0x0300)[x] = 0
+    end
+endfun
