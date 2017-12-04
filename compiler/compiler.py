@@ -1,6 +1,7 @@
 import enum
 import io
 import sys
+import argparse
 
 
 class EmptyNode:
@@ -250,14 +251,25 @@ def readinput(stream):
             column += 1
 
 
+def usage(stream):
+    basename = os.path.basename(sys.argv[0])
+    print(f"usage: {basename} [optiions] input_file", file=stream)
+    print("  -h, --help\t\tPrint this help and exit.", file=stream)
+
+
 def main():
-    parser = Parser(readinput(sys.stdin))
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("input_file", help="the file to compile")
+    args = arg_parser.parse_args()
+    input_file = open(args.input_file, 'r')
+    parser = Parser(readinput(input_file))
     for tok in parser.scanner:
         print(tok)
         if tok[0] == Token.eof:
             break
     # ast = parser.parse()
     # print(repr(ast))
+    input_file.close()
 
 
 if __name__ == "__main__":
