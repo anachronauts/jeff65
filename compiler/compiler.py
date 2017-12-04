@@ -169,12 +169,6 @@ class Parser:
                 yield (Token.single_quote, c, position)
             elif c == '"':
                 yield (Token.double_quote, c, position)
-            elif c.isspace():
-                ws = self.scanrun(c, lambda v, _: v.isspace())
-                yield (Token.whitespace, ws, position)
-            elif c.isdigit():
-                num = self.scanrun(c, lambda v, _: not v.isspace())
-                yield (Token.numeric, num, position)
             elif c == '(':
                 yield (Token.left_paren, c, position)
             elif c == ')':
@@ -187,8 +181,14 @@ class Parser:
                 yield (Token.left_brace, c, position)
             elif c == '}':
                 yield (Token.right_brace, c, position)
+            elif c.isspace():
+                ws = self.scanrun(c, lambda v, _: v.isspace())
+                yield (Token.whitespace, ws, position)
+            elif c.isdigit():
+                num = self.scanrun(c, lambda v, _: not v.isspace() and v not in "()[]{}")
+                yield (Token.numeric, num, position)
             elif c.isalpha():
-                word = self.scanrun(c, lambda v, _: not v.isspace())
+                word = self.scanrun(c, lambda v, _: not v.isspace() and v not in "()[]{}")
                 if word in Parser.keywords:
                     yield (Token.keyword, word, position)
                 else:
