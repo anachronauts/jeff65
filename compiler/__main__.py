@@ -1,7 +1,7 @@
 import argparse
 
 from .parser import Parser
-from .compiler import *
+from .token import Token
 
 def readinput(stream):
     line = 1
