@@ -1,5 +1,3 @@
-from .token import Token
-
 class EmptyNode:
     def __init__(self):
         pass
