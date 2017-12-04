@@ -10,10 +10,10 @@ let conv-tbl = [0x80, 0x00, 0xc0, 0xe0, 0x40, 0xc0, 0x80, 0x80]
 let msg = "phelix fallus! pheces fallus!"
 
 clear()
-std.set-isr(flash)
+std.set-vic-isr(flash, 0)
 std.spin()
 
-isr flash{vic:0}
+isr flash
 
     let mut k = 0
     let stash color = 1

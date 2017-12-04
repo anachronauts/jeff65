@@ -13,16 +13,16 @@
   hoff = $0400 + boff
   coff = $d800 + boff
   ldx #$00
-	lda text,x
+  lda text,x
 copy:
   jsr conv
-	sta hoff,x
+  sta hoff,x
 col:
-	lda #$01
-	sta coff,x
-	inx
-	lda text,x
-	bne copy
+  lda #$01
+  sta coff,x
+  inx
+  lda text,x
+  bne copy
 
   inc frame
   lda #$7
@@ -67,19 +67,19 @@ frame:  .byte $0
 .endproc
 
 .proc clear
-	lda #$00
-	sta $d020
-	sta $d021
-	tax
-	lda #$20
+  lda #$00
+  sta $d020
+  sta $d021
+  tax
+  lda #$20
 loop:
   sta $0400, x
-	sta $0500, x
-	sta $0600, x
-	sta $0700, x
-	dex
-	bne loop
-	rts
+  sta $0500, x
+  sta $0600, x
+  sta $0700, x
+  dex
+  bne loop
+  rts
 .endproc
 
 .proc loadirq
