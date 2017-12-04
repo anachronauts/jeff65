@@ -1,4 +1,6 @@
+from . import ast
 from .token import Token
+from .lexer import Redo
 
 
 def production(node, n):
@@ -15,9 +17,14 @@ def production(node, n):
 
 
 class ParseError(Exception):
-    def __init__(self, message, pos):
+    def __init__(self, what, t, v, p, soft=False):
+        message = f"expected {what}, got {t}={repr(v)}"
         super().__init__(message)
-        self.position = pos
+        self.what = what
+        self.token = t
+        self.value = v
+        self.position = p
+        self.soft = soft
 
     def __str__(self):
         msg = super().__str__()
@@ -25,142 +32,132 @@ class ParseError(Exception):
 
 
 class Parser:
-    operators = [
-        '->', '<-', '=', '+=', '-=',
-        '+', '-', '*', '/', '|', '&', '^', '>>', '<<',
-        '!=', '==', '<=', '>=', '<', '>',
-        '/*', '*/' ]
-    keywords = [
-        'byte', 'do', 'dword', 'else', 'end', 'endfun', 'endisr', 'for', 'if',
-        'in', 'isr', 'let', 'mut', 'qword', 'return', 'stash', 'then', 'to',
-        'use', 'while', 'word' ]
-
-    def __init__(self, source):
-        self.source = Redo(source)
-        self.scanner = Redo(self.scan())
-
-    def startsoperator(self, v):
-        return any(op for op in Parser.operators if op.startswith(v))
-
-    def scanrun(self, c, cond):
-        run = [c]
-        while True:
-            try:
-                c, _ = next(self.source)
-            except StopIteration:
-                break
-            run.append(c)
-            if not cond(c, "".join(run)):
-                self.source.redo()
-                run.pop()
-                break
-        return "".join(run)
-
-    def scan(self):
-        while True:
-            try:
-                c, position = next(self.source)
-            except StopIteration:
-                break
-            if self.startsoperator(c):
-                op = self.scanrun(c, lambda _, v: self.startsoperator(v))
-                # did we actually form an operator or just a prefix?
-                if op in Parser.operators:
-                    yield (Token.operator, op, position)
-                else:
-                    yield (Token.unknown, op, position)
-            elif c == "'":
-                yield (Token.single_quote, c, position)
-            elif c == '"':
-                yield (Token.double_quote, c, position)
-            elif c == '(':
-                yield (Token.left_paren, c, position)
-            elif c == ')':
-                yield (Token.right_paren, c, position)
-            elif c == '[':
-                yield (Token.left_bracket, c, position)
-            elif c == ']':
-                yield (Token.right_bracket, c, position)
-            elif c == '{':
-                yield (Token.left_brace, c, position)
-            elif c == '}':
-                yield (Token.right_brace, c, position)
-            elif c.isspace():
-                ws = self.scanrun(c, lambda v, _: v.isspace())
-                yield (Token.whitespace, ws, position)
-            elif c.isdigit():
-                num = self.scanrun(c, lambda v, _: not v.isspace() and v not in "()[]{}")
-                yield (Token.numeric, num, position)
-            elif c.isalpha():
-                word = self.scanrun(c, lambda v, _: not v.isspace() and v not in "()[]{}")
-                if word in Parser.keywords:
-                    yield (Token.keyword, word, position)
-                else:
-                    yield (Token.word, word, position)
-            else:
-                yield (Token.unknown, c, position)
-        while True:
-            # fuse the scanner
-            yield (Token.eof, None, None)
-
-    def matchtok(self, *toks):
-        return self.matchcond(lambda t, *_: t in toks)
-
-    def unmatchtok(self, *toks):
-        return self.matchcond(lambda t, *_: t not in toks)
-
-    def match(self, tok, val):
-        return self.matchcond(lambda t, v, _: t is tok and v == val)
-
-    def matchcond(self, cond):
-        if cond(*next(self.scanner)):
-            return True
-        self.scanner.redo()
-        return False
+    def __init__(self, tokens):
+        self.tokens = Redo(tokens)
 
     def parse(self):
+        self.maybe(self.whitespace)
         while True:
-            yield self.statement()
-            if self.matchtok(Token.eof):
+            yield self.stmt_toplevel()
+            if self.maybe(self.eof) is not None:
                 break
 
-    def anyof(self, *productions):
-        for p in productions:
-            try:
-                return p()
-            except StopIteration:
-                pass
-        raise StopIteration
+    def match(self, what, cond, soft=False):
+        t, v, p = next(self.tokens)
+        if cond(t, v):
+            return v
+        self.tokens.redo()
+        raise ParseError(what, t, v, p, soft)
 
-    def maybe(self, p):
+    def maybe(self, parse, *args, **kwargs):
         try:
-            return p()
-        except StopIteration:
+            return parse(*args, soft=True, **kwargs)
+        except ParseError as e:
+            if not e.soft:
+                raise
             return None
 
+    def oneof(self, *parses, soft=False):
+        laste = None
+        whats = []
+        for parse in parses:
+            what, fun, *args = parse
+            whats.append(what)
+            try:
+                return fun(*args, soft=True)
+            except ParseError as e:
+                if not e.soft:
+                    raise
+                last_e = e
+        raise ParseError(", ".join(whats), last_e.token, last_e.value, last_e.position, soft)
 
-class Redo:
-    def __init__(self, source):
-        self.source = source
-        self.current = None
-        self.last = None
+    def make_node(self, node, *args, **kwargs):
+        return node(self.tokens.current[2], *args, **kwargs)
 
-    def __iter__(self):
-        return self
+    def token(self, what, token, soft=False):
+        return self.match(what, lambda t, v: t == token, soft)
 
-    def __next__(self):
-        if self.last is None:
-            self.current = next(self.source)
-        else:
-            self.current = self.last
-            self.last = None
-        return self.current
+    def whitespace(self, soft=False):
+        return self.token("whitespace", Token.whitespace, soft)
 
-    def redo(self):
-        self.last = self.current
+    def eof(self, soft=False):
+        return self.token("end-of-file", Token.eof, soft)
 
-    def peek(self):
-        if self.last is None:
-            next(self)
-            self.redo()
-        return self.last
+    def keyword(self, kws, soft=False):
+        fkws = "' or '".join(kws)
+        return self.match(
+            f"keyword '{fkws}'",
+            lambda t, v: t == Token.keyword and v in kws,
+            soft)
+
+    def identifier(self, soft=False):
+        text = self.match(
+            "identifier",
+            lambda t, v: t == Token.word,
+            soft)
+        return self.make_node(ast.IdentifierNode, text)
+
+    def operator(self, ops, soft=False):
+        fops = "' or '".join(ops)
+        return self.match(
+            f"operator '{fops}'",
+            lambda t, v: t == Token.operator and v in ops,
+            soft)
+
+    def numeric(self, soft=False):
+        num = self.match(
+            "numeric",
+            lambda t, v: t == Token.numeric,
+            soft)
+        return self.make_node(ast.NumericNode, num)
+
+    def expression(self, soft=False):
+        # TODO handle expressions
+        val = self.numeric(soft)
+        self.maybe(self.whitespace)
+        return val
+
+    def array_init(self, soft=False):
+        vals = []
+        self.token("[", Token.left_bracket, soft)
+        self.maybe(self.whitespace)
+        while self.maybe(self.token, "]", Token.left_bracket) is None:
+            vals.append(self.expression())
+            sep = self.oneof(
+                ("separator", self.operator, [',']),
+                ("end of list", self.token, "]", Token.right_bracket))
+            self.maybe(self.whitespace)
+            if sep == "]":
+                break
+        return self.make_node(ast.ArrayNode, vals)
+
+    def stmt_use(self, soft=False):
+        self.keyword(["use"], soft)
+        self.whitespace()
+        unit = self.identifier()
+        self.whitespace()
+        return self.make_node(ast.UseNode, unit)
+
+    def stmt_let(self, soft=False):
+        self.keyword(["let"], soft)
+        self.whitespace()
+        storage = self.maybe(self.keyword, ["mut", "stash"])
+        if storage:
+            self.whitespace()
+        name = self.identifier()
+        self.whitespace()
+        self.operator(['='])
+        self.whitespace()
+        rvalue = self.oneof(
+            ("expression", self.expression),
+            ("array initializer", self.array_init))
+        return self.make_node(ast.LetNode, storage, name, rvalue)
+
+    def stmt_toplevel(self):
+        return self.oneof(
+            ("'use' statement", self.stmt_use),
+            ("'let' statement", self.stmt_let),
+            soft=True)
+
+def parse(tokens):
+    return Parser(tokens).parse()
