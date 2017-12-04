@@ -17,7 +17,7 @@ isr flash{vic:0}
 
     let mut k = 0
     let stash color = 1
-    while msg[k] != 0
+    while msg[k] != 0 do
         (screen + 0x01bd)[k] = conv(msg[k])
         (colors + 0x01bd)[k] = color
         k += 1
@@ -44,7 +44,7 @@ endfun
 fun clear()
     bdcolor <- black
     bgcolor <- black
-    for x in 0 to 256
+    for x in 0 to 256 do
         (screen + 0x0000)[x] = 0
         (screen + 0x0100)[x] = 0
         (screen + 0x0200)[x] = 0

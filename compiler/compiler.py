@@ -127,8 +127,8 @@ class Parser:
         '!=', '==', '<=', '>=', '<', '>',
         '/*', '*/' ]
     keywords = [
-        'byte', 'dword', 'else', 'end', 'endfun', 'endisr', 'for', 'if', 'in',
-        'isr', 'let', 'mut', 'qword', 'repeat', 'return', 'stash', 'then', 'to',
+        'byte', 'do', 'dword', 'else', 'end', 'endfun', 'endisr', 'for', 'if',
+        'in', 'isr', 'let', 'mut', 'qword', 'return', 'stash', 'then', 'to',
         'use', 'while', 'word' ]
 
     def __init__(self, source):
