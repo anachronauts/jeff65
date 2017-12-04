@@ -9,10 +9,6 @@ let black = 0
 let conv-tbl = [0x80, 0x00, 0xc0, 0xe0, 0x40, 0xc0, 0x80, 0x80]
 let msg = "phelix fallus! pheces fallus!"
 
-clear()
-std.set-vic-isr(flash, 0)
-std.spin()
-
 isr flash
 
     let mut k = 0
@@ -50,4 +46,10 @@ fun clear()
         (screen + 0x0200)[x] = 0
         (screen + 0x0300)[x] = 0
     end
+endfun
+
+fun main()
+    clear()
+    std.set-vic-isr(flash, 0)
+    std.spin()
 endfun
