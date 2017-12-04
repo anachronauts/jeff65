@@ -1,36 +1,73 @@
 import enum
 import io
+import sys
 
 
 class EmptyNode:
+    def __init__(self):
+        pass
+
     def __repr__(self):
         return "<empty>"
 
 
 class LetNode:
-    def __init__(self, )
-    def __iter__(self):
-        pass
+    def __init__(self, storage, name, rvalue):
+        self.storage = storage
+        self.name = name
+        self.rvalue = rvalue
 
     def __repr__(self):
-        pass
+        return f"let {self.storage} {self.name} = {self.rvalue}"
+
+
+class UseNode:
+    def __init__(self, unit_name):
+        self.unit_name = unit_name
+
+    def __repr__(self):
+        return f"use {self.unit_name}"
+
+
+class ParamListNode:
+    def __init__(self, param_list):
+        self.param_list = param_list
+
+    def __repr__(self):
+        return ", ".join(repr(p) for p in param_list)
+
+
+class FunNode:
+    def __init__(self, name, param_list, stmt_list):
+        self.name = name
+        self.param_list = param_list
+        self.stmt_list = stmt_list
+
+    def __repr__(self):
+        r = []
+        r.append(f"fun {self.name}({repr(self.param_list)})")
+        for stmt in self.stmt_list:
+            r.append(repr(stmt))
+        r.append("endfun")
+        return "\n".join(r)
 
 
 class Token(enum.Enum):
+    unknown = -2
     eof = -1
     whitespace = 0
     word = 1
     numeric = 2
     left_paren = 3
     right_paren = 4
-    left_braket = 5
-    right_braket = 6
+    left_bracket = 5
+    right_bracket = 6
     left_brace = 7
     right_brace = 8
     double_quote = 9
     single_quote = 10
     operator = 11
-    unknown = 12
+    keyword = 12
 
 
 def production(node, n):
@@ -88,8 +125,11 @@ class Parser:
         '->', '<-', '=', '+=', '-=',
         '+', '-', '*', '/', '|', '&', '^', '>>', '<<',
         '!=', '==', '<=', '>=', '<', '>',
-        '/*', '*/'
-    ]
+        '/*', '*/' ]
+    keywords = [
+        'byte', 'dword', 'else', 'end', 'endfun', 'endisr', 'for', 'if', 'in',
+        'isr', 'let', 'mut', 'qword', 'repeat', 'return', 'stash', 'then', 'to',
+        'use', 'while', 'word' ]
 
     def __init__(self, source):
         self.source = Redo(source)
@@ -135,9 +175,24 @@ class Parser:
             elif c.isdigit():
                 num = self.scanrun(c, lambda v, _: not v.isspace())
                 yield (Token.numeric, num, position)
+            elif c == '(':
+                yield (Token.left_paren, c, position)
+            elif c == ')':
+                yield (Token.right_paren, c, position)
+            elif c == '[':
+                yield (Token.left_bracket, c, position)
+            elif c == ']':
+                yield (Token.right_bracket, c, position)
+            elif c == '{':
+                yield (Token.left_brace, c, position)
+            elif c == '}':
+                yield (Token.right_brace, c, position)
             elif c.isalpha():
                 word = self.scanrun(c, lambda v, _: not v.isspace())
-                yield (Token.word, word, position)
+                if word in Parser.keywords:
+                    yield (Token.keyword, word, position)
+                else:
+                    yield (Token.word, word, position)
             else:
                 yield (Token.unknown, c, position)
         while True:
@@ -179,5 +234,31 @@ class Parser:
         except StopIteration:
             return None
 
-        def 
 
+def readinput(stream):
+    line = 1
+    column = 0
+    while True:
+        c = stream.read(1)
+        if len(c) == 0:
+            break
+        yield (c, (line, column))
+        if c == '\n':
+            line += 1
+            column = 0
+        else:
+            column += 1
+
+
+def main():
+    parser = Parser(readinput(sys.stdin))
+    for tok in parser.scanner:
+        print(tok)
+        if tok[0] == Token.eof:
+            break
+    # ast = parser.parse()
+    # print(repr(ast))
+
+
+if __name__ == "__main__":
+    main()
