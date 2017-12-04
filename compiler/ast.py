@@ -15,6 +15,7 @@ class NumericNode:
     def __repr__(self):
         return self.value
 
+
 class ArrayNode:
     def __init__(self, pos, values):
         self.values = values
@@ -24,6 +25,7 @@ class ArrayNode:
         vs = ", ".join(repr(v) for v in self.values)
         return f"[{vs}]"
 
+
 class LetNode:
     def __init__(self, pos, storage, name, rvalue):
         self.storage = storage
@@ -32,7 +34,9 @@ class LetNode:
         self.pos = pos
 
     def __repr__(self):
-        return f"let {self.storage} {self.name} = {self.rvalue}"
+        if self.storage is not None:
+            return f"let {self.storage} {self.name} = {self.rvalue}"
+        return f"let {self.name} = {self.rvalue}"
 
 
 class UseNode:
