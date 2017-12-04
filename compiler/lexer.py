@@ -7,7 +7,7 @@ operators = [
     '!=', '==', '<=', '>=', '<', '>',
     '/*', '*/', ',' ]
 
-specials = "()[]{},"
+specials = "()[]{},\"\\"
 
 keywords = [
     'byte', 'do', 'dword', 'else', 'end', 'endfun', 'endisr', 'for', 'if',
@@ -95,6 +95,8 @@ def lex(stream):
             yield (Token.single_quote, c, position)
         elif c == '"':
             yield (Token.double_quote, c, position)
+        elif c == '\\':
+            yield (Token.backslash, c, position)
         elif c == '(':
             yield (Token.left_paren, c, position)
         elif c == ')':

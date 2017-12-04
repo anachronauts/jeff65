@@ -74,6 +74,9 @@ class Parser:
     def make_node(self, node, *args, **kwargs):
         return node(self.tokens.current[2], *args, **kwargs)
 
+    def anything(self, soft=False):
+        return self.match("!!! PARSER BUG !!!", lambda t, v: True, soft)
+
     def token(self, what, token, soft=False):
         return self.match(what, lambda t, v: t == token, soft)
 
@@ -121,7 +124,7 @@ class Parser:
         vals = []
         self.token("[", Token.left_bracket, soft)
         self.maybe(self.whitespace)
-        while self.maybe(self.token, "]", Token.left_bracket) is None:
+        while self.maybe(self.token, "]", Token.right_bracket) is None:
             vals.append(self.expression())
             sep = self.oneof(
                 ("separator", self.operator, [',']),
@@ -130,6 +133,15 @@ class Parser:
             if sep == "]":
                 break
         return self.make_node(ast.ArrayNode, vals)
+
+    def string_init(self, soft=False):
+        vals = []
+        self.token("\"", Token.double_quote, soft)
+        while self.maybe(self.token, "\"", Token.double_quote) is None:
+            vals.append(self.anything())
+            if vals[-1] == "\\":
+                vals[-1] = self.anything()
+        return self.make_node(ast.StringNode, vals)
 
     def stmt_use(self, soft=False):
         self.keyword(["use"], soft)
@@ -150,7 +162,8 @@ class Parser:
         self.whitespace()
         rvalue = self.oneof(
             ("expression", self.expression),
-            ("array initializer", self.array_init))
+            ("array initializer", self.array_init),
+            ("string initializer", self.string_init))
         return self.make_node(ast.LetNode, storage, name, rvalue)
 
     def stmt_toplevel(self):

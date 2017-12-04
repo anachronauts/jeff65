@@ -26,6 +26,16 @@ class ArrayNode:
         return f"[{vs}]"
 
 
+class StringNode:
+    def __init__(self, pos, values):
+        self.values = values
+        self.pos = pos
+
+    def __repr__(self):
+        vs = "".join(self.values)
+        return repr(vs)
+
+
 class LetNode:
     def __init__(self, pos, storage, name, rvalue):
         self.storage = storage

@@ -14,5 +14,6 @@ class Token(enum.Enum):
     right_brace = 8
     double_quote = 9
     single_quote = 10
-    operator = 11
-    keyword = 12
+    backslash = 11
+    operator = 12
+    keyword = 13
