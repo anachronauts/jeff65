@@ -58,6 +58,23 @@ class UseNode:
         return f"use {self.unit}"
 
 
+class WhileNode:
+    def __init__(self, pos, cond, stmt_list):
+        self.cond = cond
+        self.stmt_list = stmt_list
+        self.pos = pos
+
+    def __repr__(self):
+        r = []
+        # TODO: represent the condition
+        r.append(f"while [...] do")
+        if self.stmt_list is not None:
+            for stmt in self.stmt_list:
+                r.append(repr(stmt))
+        r.append("end")
+        return "\n".join(r)
+
+
 class ParamListNode:
     def __init__(self, pos, param_list):
         self.param_list = param_list
@@ -67,17 +84,34 @@ class ParamListNode:
         return ", ".join(repr(p) for p in param_list)
 
 
+class IsrNode:
+    def __init__(self, pos, name, stmt_list):
+        self.name = name
+        self.stmt_list = stmt_list
+        self.pos = pos
+
+    def __repr__(self):
+        r = []
+        r.append(f"isr {self.name}")
+        if self.stmt_list is not None:
+            for stmt in self.stmt_list:
+                r.append(repr(stmt))
+        r.append("endisr")
+        return "\n".join(r)
+
+
 class FunNode:
     def __init__(self, pos, name, param_list, stmt_list):
         self.name = name
         self.param_list = param_list
         self.stmt_list = stmt_list
-        self.pos
+        self.pos = pos
 
     def __repr__(self):
         r = []
         r.append(f"fun {self.name}({repr(self.param_list)})")
-        for stmt in self.stmt_list:
-            r.append(repr(stmt))
+        if self.stmt_list is not None:
+            for stmt in self.stmt_list:
+                r.append(repr(stmt))
         r.append("endfun")
         return "\n".join(r)

@@ -141,6 +141,7 @@ class Parser:
             vals.append(self.anything())
             if vals[-1] == "\\":
                 vals[-1] = self.anything()
+        self.whitespace()
         return self.make_node(ast.StringNode, vals)
 
     def stmt_use(self, soft=False):
@@ -166,10 +167,43 @@ class Parser:
             ("string initializer", self.string_init))
         return self.make_node(ast.LetNode, storage, name, rvalue)
 
+    def stmt_while(self, soft=False):
+        self.keyword(["while"], soft)
+        self.whitespace()
+        condition = None
+        while self.maybe(self.keyword, "do") is None:
+            # TODO: parse the condition rather than just eating it
+            self.anything()
+        self.whitespace()
+        stmt_list = []
+        while self.maybe(self.keyword, "end") is None:
+            # TODO: parse the body rather than just eating it
+            self.anything()
+        self.whitespace()
+        return self.make_node(ast.WhileNode, condition, stmt_list)
+
+    def stmt_isr(self, soft=False):
+        self.keyword(["isr"], soft)
+        self.whitespace()
+        name = self.identifier()
+        self.whitespace()
+        stmt_list = []
+        while self.maybe(self.keyword, "endisr") is None:
+            stmt_list.append(self.stmt())
+        self.whitespace()
+        return self.make_node(ast.IsrNode, name, stmt_list)
+
+    def stmt(self):
+        return self.oneof(
+            ("'let' statement", self.stmt_let),
+            ("'while' statement", self.stmt_while),
+            soft=True)
+
     def stmt_toplevel(self):
         return self.oneof(
             ("'use' statement", self.stmt_use),
             ("'let' statement", self.stmt_let),
+            ("'isr' statement", self.stmt_isr),
             soft=True)
 
 def parse(tokens):
