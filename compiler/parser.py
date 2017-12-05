@@ -245,8 +245,7 @@ class Parser:
         self.whitespace()
         stmt_list = []
         while self.maybe(self.keyword, "end") is None:
-            # TODO: parse the body rather than just eating it
-            self.anything()
+            stmt_list.append(self.stmt())
         self.whitespace()
         return self.make_node(ast.WhileNode, condition, stmt_list)
 
