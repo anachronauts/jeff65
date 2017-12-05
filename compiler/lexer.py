@@ -5,14 +5,16 @@ operators = [
     '->', '<-', '=', '+=', '-=',
     '+', '-', '*', '/', '|', '&', '^', '>>', '<<',
     '!=', '==', '<=', '>=', '<', '>',
-    '/*', '*/', ',' ]
+    '/*', '*/', ','
+]
 
 specials = "()[]{},\"\\"
 
 keywords = [
     'byte', 'do', 'dword', 'else', 'end', 'endfun', 'endisr', 'for', 'if',
     'in', 'isr', 'let', 'mut', 'qword', 'return', 'stash', 'then', 'to',
-    'use', 'while', 'word' ]
+    'use', 'while', 'word'
+]
 
 
 class Redo:
@@ -76,7 +78,6 @@ def scan(source, c, cond):
     return "".join(run)
 
 
-
 def lex(stream):
     source = Redo(annotate_chars(stream))
     while True:
@@ -113,10 +114,12 @@ def lex(stream):
             ws = scan(source, c, lambda v, _: v.isspace())
             yield (Token.whitespace, ws, position)
         elif c.isdigit():
-            num = scan(source, c, lambda v, _: not v.isspace() and v not in specials)
+            num = scan(source, c,
+                       lambda v, _: not v.isspace() and v not in specials)
             yield (Token.numeric, num, position)
         elif c.isalpha():
-            word = scan(source, c, lambda v, _: not v.isspace() and v not in specials)
+            word = scan(source, c,
+                        lambda v, _: not v.isspace() and v not in specials)
             if word in keywords:
                 yield (Token.keyword, word, position)
             else:

@@ -108,7 +108,7 @@ class ParamListNode:
         self.pos = pos
 
     def __repr__(self):
-        return ", ".join(repr(p) for p in param_list)
+        return ", ".join(repr(p) for p in self.param_list)
 
 
 class IsrNode:
