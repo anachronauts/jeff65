@@ -21,6 +21,10 @@ class CommentNode:
         self.values = values
         self.pos = pos
 
+    def __repr__(self):
+        vs = "".join(self.values)
+        return f"/*{vs}*/"
+
 
 class ArrayNode:
     def __init__(self, pos, values):

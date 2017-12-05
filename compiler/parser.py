@@ -152,7 +152,7 @@ class Parser:
         self.maybe(self.whitespace)
         return val
 
-    def comment_init(self, soft=False):
+    def comment(self, soft=False):
         vals = []
         self.token("/*", Token.operator, soft)
         while self.maybe(self.token, "*/", Token.operator) is None:
@@ -262,7 +262,7 @@ class Parser:
 
     def stmt(self):
         return self.oneof(
-            ("comment", self.comment_init),
+            ("comment", self.comment),
             ("'let' statement", self.stmt_let),
             ("'if' statement", self.stmt_if),
             ("'while' statement", self.stmt_while),
@@ -270,7 +270,7 @@ class Parser:
 
     def stmt_toplevel(self):
         return self.oneof(
-            ("comment", self.comment_init),
+            ("comment", self.comment),
             ("'use' statement", self.stmt_use),
             ("'let' statement", self.stmt_let),
             ("'isr' statement", self.stmt_isr),
