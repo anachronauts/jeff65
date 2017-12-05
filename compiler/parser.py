@@ -36,6 +36,8 @@ class Parser:
         self.tokens = Redo(tokens)
 
     def parse(self):
+        """Begin the parse operation on this token stream.
+        """
         self.maybe(self.whitespace)
         while True:
             yield self.stmt_toplevel()
@@ -43,6 +45,14 @@ class Parser:
                 break
 
     def match(self, what, cond, soft=False):
+        """Consume something specific from the token stream based on a condition. If that condition
+        is not met, this function does not consume anything and will (by default) raise ParseError.
+
+        Keyword arguments:
+        what -- A human-readable description of what is being consumed (for ParseError messages).
+        cond -- The condition for consumption.
+        soft -- Set this to True if a ParseError should not be thrown when the condition is unmet.
+        """
         t, v, p = next(self.tokens)
         if cond(t, v):
             return v
@@ -81,12 +91,34 @@ class Parser:
         return self.match(what, lambda t, v: t == token, soft)
 
     def whitespace(self, soft=False):
+        """Consume a whitespace token from the token stream. If the next token is not whitespace,
+        this function does not consume anything and will (by default) raise ParseError.
+
+        Keyword arguments:
+        soft -- Set this to True if a ParseError should not be thrown if the next token is not
+                whitespace.
+        """
         return self.token("whitespace", Token.whitespace, soft)
 
     def eof(self, soft=False):
+        """Consume an end-of-file token from the token stream. If the next token is not an
+        end-of-file, this function does not consume anything and will (by default) raise ParseError.
+
+        Keyword arguments:
+        soft -- Set this to True if a ParseError should not be thrown if the next token is not
+                end-of-file.
+        """
         return self.token("end-of-file", Token.eof, soft)
 
     def keyword(self, kws, soft=False):
+        """Consume a specific keyword token from the token stream. If that keyword is not the next
+        token, this function does not consume anything and will (by default) raise ParseError.
+
+        Keyword arguments:
+        kws -- The keyword string.
+        soft -- Set this to True if a ParseError should not be thrown if the next token is not the
+                specified keyword.
+        """
         fkws = "' or '".join(kws)
         return self.match(
             f"keyword '{fkws}'",
@@ -206,5 +238,12 @@ class Parser:
             ("'isr' statement", self.stmt_isr),
             soft=True)
 
+
 def parse(tokens):
+    """Parse a token stream into an Abstract Syntax Tree.
+
+    Keyword arguments:
+    tokens -- A generator of tokens annotated with file position information.
+              Such a generator can be acquired from `Lexer.lex()`.
+    """
     return Parser(tokens).parse()
