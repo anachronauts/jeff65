@@ -68,7 +68,7 @@ class Parser:
             return None
 
     def oneof(self, *parses, soft=False):
-        laste = None
+        last_e = None
         whats = []
         for parse in parses:
             what, fun, *args = parse
@@ -152,6 +152,14 @@ class Parser:
         self.maybe(self.whitespace)
         return val
 
+    def comment_init(self, soft=False):
+        vals = []
+        self.token("/*", Token.operator, soft)
+        while self.maybe(self.token, "*/", Token.operator) is None:
+            vals.append(self.anything())
+        self.whitespace()
+        return self.make_node(ast.CommentNode, vals)
+
     def array_init(self, soft=False):
         vals = []
         self.token("[", Token.left_bracket, soft)
@@ -199,6 +207,34 @@ class Parser:
             ("string initializer", self.string_init))
         return self.make_node(ast.LetNode, storage, name, rvalue)
 
+    def stmt_if(self, soft=False):
+        self.keyword(["if"], soft)
+        self.whitespace()
+        condition = None
+        while self.maybe(self.keyword, "then") is None:
+            # TODO: parse the condition rather than just eating it
+            self.anything()
+        self.whitespace()
+        stmt_list = []
+        # TODO: support else and elif
+        while True:
+            ctrl = self.oneof(
+                ("'else' statement", self.keyword, "else"),
+                ("'elif' statement", self.keyword, "elif"),
+                ("'end' statement", self.keyword, "end"),
+                soft=True)
+            if ctrl == "elif":
+                while self.maybe(self.keyword, "then") is None:
+                    # TODO: parse the condition rather than just eating it
+                    self.anything()
+                self.whitespace()
+            elif ctrl == "end":
+                break
+            # TODO: parse the body rather than just eating it
+            self.anything()
+        self.whitespace()
+        return self.make_node(ast.IfNode, condition, stmt_list)
+
     def stmt_while(self, soft=False):
         self.keyword(["while"], soft)
         self.whitespace()
@@ -227,12 +263,15 @@ class Parser:
 
     def stmt(self):
         return self.oneof(
+            ("comment", self.comment_init),
             ("'let' statement", self.stmt_let),
+            ("'if' statement", self.stmt_if),
             ("'while' statement", self.stmt_while),
             soft=True)
 
     def stmt_toplevel(self):
         return self.oneof(
+            ("comment", self.comment_init),
             ("'use' statement", self.stmt_use),
             ("'let' statement", self.stmt_let),
             ("'isr' statement", self.stmt_isr),

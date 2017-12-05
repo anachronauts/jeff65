@@ -16,6 +16,12 @@ class NumericNode:
         return self.value
 
 
+class CommentNode:
+    def __init__(self, pos, values):
+        self.values = values
+        self.pos = pos
+
+
 class ArrayNode:
     def __init__(self, pos, values):
         self.values = values
@@ -56,6 +62,23 @@ class UseNode:
 
     def __repr__(self):
         return f"use {self.unit}"
+
+
+class IfNode:
+    def __init__(self, pos, cond, stmt_list):
+        self.cond = cond
+        self.stmt_list = stmt_list
+        self.pos = pos
+
+    def __repr__(self):
+        r = []
+        # TODO: represent the condition
+        r.append(f"if [...] then")
+        if self.stmt_list is not None:
+            for stmt in self.stmt_list:
+                r.append(repr(stmt))
+        r.append("end")
+        return "\n".join(r)
 
 
 class WhileNode:
