@@ -30,8 +30,9 @@ class Power(IntEnum):
         return count * 10
 
     eof = auto()
+    unit = auto()
     statement = auto()
-    identifier = auto()
+    term = auto()
     storage_class = auto()
     operator_assign = auto()
     operator_or = auto()
@@ -129,20 +130,20 @@ class Node:
 
 class UnitNode(Node):
     def __init__(self):
-        super().__init__(None, None, "UNIT")
+        super().__init__(Power.unit, None, "UNIT")
         self.statements = None
 
     def nud(self, right):
         self.statements = []
-        while True:
+        while right.current.lbp > self.rbp:
             self.statements.append(self.parse(right, Power.statement))
             print(self.statements[-1])
         return self
 
     def describe(self):
         if self.statements is None:
-            return None
-        lines = "\n".join(self.statements)
+            return "<UNIT>"
+        lines = "\n".join(repr(s) for s in self.statements)
         return lines
 
 
@@ -159,12 +160,18 @@ class WhitespaceNode(Node):
 
 class EofNode(Node):
     def __init__(self):
-        super().__init__(Power.eof, None, "EOF")
+        # putting a newline in the text field allows this token to terminate
+        # line-comments naturally, instead of special-casing the token in the
+        # comment code.
+        super().__init__(Power.eof, None, "EOF\n")
+
+    def describe(self):
+        return "<EOF>"
 
 
 class NumericNode(Node):
     def __init__(self, position, text):
-        super().__init__(None, position, text)
+        super().__init__(Power.term, position, text)
 
     def nud(self, right):
         return self
@@ -175,7 +182,7 @@ class NumericNode(Node):
 
 class StringNode(Node):
     def __init__(self, position, text):
-        super().__init__(None, position, text)
+        super().__init__(Power.term, position, text)
 
     def nud(self, right):
         return self
@@ -255,7 +262,7 @@ class OperatorDivideNode(Node):
 
 class IdentifierNode(Node):
     def __init__(self, position, text):
-        super().__init__(Power.identifier, position, text)
+        super().__init__(Power.term, position, text)
 
     def nud(self, right):
         return self
