@@ -10,7 +10,7 @@
 class MemIter:
     def __init__(self, source):
         self.source = iter(source)
-        self.current = None
+        self.current = next(self.source)
 
     def next(self):
         self.current = next(self.source)
@@ -18,7 +18,6 @@ class MemIter:
 
 def parse_all(stream):
     s = MemIter(stream)
-    s.next()
     return parse(s, 0)
 
 
@@ -26,45 +25,71 @@ def parse(stream, rbp):
     t = stream.current
     stream.next()
     left = t.nud(stream)
-    print(f"left0={left}")
     while rbp < stream.current.lbp:
         t = stream.current
         stream.next()
         left = t.led(left, stream)
-        print(f"left={left}")
-    print(f"parse={left}")
     return left
 
+class NodeBase:
+    def __init__(self, position, value):
+        self.position = position
+        self.value = value
 
-class EofNode:
+    def nud(self, right):
+        return NotImplemented
+
+    def led(self, left, right):
+        return NotImplemented
+
+    def __repr__(self):
+        return repr(self.value)
+
+
+class WhitespaceNode(NodeBase):
+    lbp = 1000
+
+    def __init__(self, position, value):
+        NodeBase.__init__(self, position, value)
+
+    def nud(self, right):
+        return parse(right, 1000)
+
+    def __repr__(self):
+        return f"<{repr(self.value)}>"
+
+
+class EofNode(NodeBase):
     lbp = 0
 
-    def __init__(self, text, position):
-        self.text = text
-        self.position = position
+    def __init__(self):
+        NodeBase.__init__(self, None, None)
 
     def __repr__(self):
         return f"<EOF>"
 
 
-class NumericNode:
-    def __init__(self, text, position):
-        self.text = text
-        self.position = position
+class NumericNode(NodeBase):
+    def __init__(self, position, value):
+        NodeBase.__init__(self, position, value)
 
     def nud(self, right):
         return self
 
-    def __repr__(self):
-        return self.text
+
+class StringNode(NodeBase):
+    def __init__(self, position, value):
+        NodeBase.__init__(self, position, value)
+
+    def nud(self, right):
+        return self
 
 
-class OperatorAddNode:
+class OperatorAddNode(NodeBase):
     lbp = 10
 
-    def __init__(self, text, position):
-        self.text = text
-        self.position = position
+    def __init__(self, position):
+        NodeBase.__init__(self, position, "+")
         self.first = None
         self.second = None
 
@@ -83,26 +108,11 @@ class OperatorAddNode:
         return f"(+ {self.first} {self.second})"
 
 
-class WhitespaceNode:
-    lbp = 1000
-
-    def __init__(self, text, position):
-        self.text = text
-        self.position = position
-
-    def nud(self, right):
-        return parse(right, 1000)
-
-    def __repr__(self):
-        return f"<{repr(self.text)}>"
-
-
-class OperatorMultiplyNode:
+class OperatorMultiplyNode(NodeBase):
     lbp = 20
 
-    def __init__(self, text, position):
-        self.text = text
-        self.position = position
+    def __init__(self, position):
+        NodeBase.__init__(self, position, "*")
         self.first = None
         self.second = None
 

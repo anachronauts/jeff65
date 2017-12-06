@@ -59,10 +59,6 @@ def annotate_chars(stream):
             column += 1
 
 
-def is_operator_prefix(prefix):
-    return any(op for op in operators if op.startswith(prefix))
-
-
 def scan(source, c, cond):
     run = [c]
     while True:
@@ -86,67 +82,14 @@ def lex(stream):
         except StopIteration:
             break
         if c == "+":
-            yield ast.OperatorAddNode(c, position)
+            yield ast.OperatorAddNode(position)
         elif c == "*":
-            yield ast.OperatorMultiplyNode(c, position)
+            yield ast.OperatorMultiplyNode(position)
         elif c.isspace():
             ws = scan(source, c, lambda v, _: v.isspace())
-            yield ast.WhitespaceNode(ws, position)
+            yield ast.WhitespaceNode(position, ws)
         elif c.isdigit():
             num = scan(source, c,
                        lambda v, _: not v.isspace() and v not in specials)
-            yield ast.NumericNode(num, position)
-    yield ast.EofNode("<EOF>", None)
-
-
-def lex_old(stream):
-    source = Redo(annotate_chars(stream))
-    while True:
-        try:
-            c, position = next(source)
-        except StopIteration:
-            break
-        if is_operator_prefix(c):
-            op = scan(source, c, lambda _, v: is_operator_prefix(v))
-            # did we actually form an operator or just a prefix?
-            if op in operators:
-                yield (Token.operator, op, position)
-            else:
-                yield (Token.unknown, op, position)
-        elif c == "'":
-            yield (Token.single_quote, c, position)
-        elif c == '"':
-            yield (Token.double_quote, c, position)
-        elif c == '\\':
-            yield (Token.backslash, c, position)
-        elif c == '(':
-            yield (Token.left_paren, c, position)
-        elif c == ')':
-            yield (Token.right_paren, c, position)
-        elif c == '[':
-            yield (Token.left_bracket, c, position)
-        elif c == ']':
-            yield (Token.right_bracket, c, position)
-        elif c == '{':
-            yield (Token.left_brace, c, position)
-        elif c == '}':
-            yield (Token.right_brace, c, position)
-        elif c.isspace():
-            ws = scan(source, c, lambda v, _: v.isspace())
-            yield (Token.whitespace, ws, position)
-        elif c.isdigit():
-            num = scan(source, c,
-                       lambda v, _: not v.isspace() and v not in specials)
-            yield (Token.numeric, num, position)
-        elif c.isalpha():
-            word = scan(source, c,
-                        lambda v, _: not v.isspace() and v not in specials)
-            if word in keywords:
-                yield (Token.keyword, word, position)
-            else:
-                yield (Token.word, word, position)
-        else:
-            yield (Token.unknown, c, position)
-    while True:
-        # fuse the scanner
-        yield (Token.eof, "<EOF>", None)
+            yield ast.NumericNode(position, num)
+    yield ast.EofNode()
