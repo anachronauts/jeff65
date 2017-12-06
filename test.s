@@ -9,7 +9,7 @@
   lda #$ff
   sta $d019
 
-  boff = $01bd
+  boff = $01be
   hoff = $0400 + boff
   coff = $d800 + boff
   ldx #$00
@@ -113,4 +113,4 @@ loop:
 
 .rodata
 choff:  .byte $80,$00,$c0,$e0,$40,$c0,$80,$80
-text:   .asciiz "phelix fallus! pheces fallus!"
+text:   .asciiz "hello world! hello friends!"
