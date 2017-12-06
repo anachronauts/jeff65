@@ -46,7 +46,7 @@ sprinkles = {
 
     # assorted punctuation
     ':': ast.PunctuationValueTypeNode,
-    ',': NotImplemented,
+    ',': ast.PunctuationCommaNode,
     '.': NotImplemented,
     '->': NotImplemented,
 }

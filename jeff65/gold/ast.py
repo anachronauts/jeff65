@@ -35,6 +35,7 @@ class Power(IntEnum):
     storage_class = auto()
     term = auto()
     operator_assign = auto()
+    punctuation_comma = auto()
     operator_or = auto()
     operator_and = auto()
     operator_not = auto()
@@ -49,6 +50,7 @@ class Power(IntEnum):
     operator_sign = auto()
     punctuation_value_type = auto()
     whitespace = auto()
+    mystery = auto()
 
 
 class MemIter:
@@ -128,6 +130,45 @@ class Node:
         return other(self.position, self.text)
 
 
+class InfixNode(Node):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lhs = None
+        self.rhs = None
+
+    def led(self, left, right):
+        self.lhs = left
+        self.rhs = self.parse(right)
+        return self
+
+    def describe(self):
+        return self.lhs and f"({self.lhs} {self.text} {self.rhs})"
+
+
+class TermNode(Node):
+    def __init__(self, position, text):
+        super().__init__(Power.term, position, text)
+
+    def nud(self, right):
+        return self
+
+    def describe(self):
+        return self.text
+
+
+class PrefixNode(Node):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rhs = None
+
+    def nud(self, right):
+        self.rhs = self.parse(right)
+        return self
+
+    def describe(self):
+        return self.rhs and f"({self.text} {self.rhs})"
+
+
 class UnitNode(Node):
     def __init__(self):
         super().__init__(Power.unit, None, "UNIT")
@@ -169,154 +210,86 @@ class EofNode(Node):
         return "<EOF>"
 
 
-class NumericNode(Node):
-    def __init__(self, position, text):
-        super().__init__(Power.term, position, text)
-
-    def nud(self, right):
-        return self
-
-    def describe(self):
-        return self.text
+class NumericNode(TermNode):
+    pass
 
 
-class StringNode(Node):
-    def __init__(self, position, text):
-        super().__init__(Power.term, position, text)
-
-    def nud(self, right):
-        return self
+class StringNode(TermNode):
+    pass
 
 
-class OperatorAddNode(Node):
+class OperatorAddNode(InfixNode):
     def __init__(self, position):
         super().__init__(Power.operator_add_subtract, position, "+")
-        self.first = None
-        self.second = None
 
     def nud(self, right):
         """ unary plus """
-        self.first = self.parse(right, Power.operator_sign)
-        self.second = None
-        return self
-
-    def led(self, left, right):
-        self.first = left
-        self.second = self.parse(right)
+        self.lhs = self.parse(right, Power.operator_sign)
         return self
 
     def describe(self):
-        return self.first and f"(+ {self.first} {self.second})"
+        if self.lhs and not self.rhs:
+            return f"(+ {self.lhs})"
 
 
-class OperatorSubtractNode(Node):
+class OperatorSubtractNode(InfixNode):
     def __init__(self, position):
         super().__init__(Power.operator_add_subtract, position, "-")
-        self.first = None
-        self.second = None
 
     def nud(self, right):
         """ unary minus """
-        self.first = self.parse(right, Power.operator_sign)
-        self.second = None
-        return self
-
-    def led(self, left, right):
-        self.first = left
-        self.second = self.parse(right)
+        self.lhs = self.parse(right, Power.operator_sign)
         return self
 
     def describe(self):
-        return self.first and f"(- {self.first} {self.second})"
+        if self.lhs and not self.rhs:
+            return f"(- {self.lhs})"
 
 
-class OperatorMultiplyNode(Node):
+class OperatorMultiplyNode(InfixNode):
     def __init__(self, position):
         super().__init__(Power.operator_multiply_divide, position, "*")
-        self.first = None
-        self.second = None
-
-    def led(self, left, right):
-        self.first = left
-        self.second = self.parse(right)
-        return self
-
-    def describe(self):
-        return self.first and f"(* {self.first} {self.second})"
 
 
-class OperatorDivideNode(Node):
+class OperatorDivideNode(InfixNode):
     def __init__(self, position):
         super().__init__(Power.operator_multiply_divide, position, "/")
-        self.first = None
-        self.second = None
-
-    def led(self, left, right):
-        self.first = left
-        self.second = self.parse(right)
-        return self
-
-    def describe(self):
-        return self.first and f"(/ {self.first} {self.second})"
 
 
-class IdentifierNode(Node):
-    def __init__(self, position, text):
-        super().__init__(Power.term, position, text)
-
-    def nud(self, right):
-        return self
-
-    def describe(self):
-        return self.text
+class PunctuationCommaNode(InfixNode):
+    def __init__(self, position, text=','):
+        super().__init__(Power.punctuation_comma, position, text)
 
 
-class StorageClassNode(Node):
+class IdentifierNode(TermNode):
+    pass
+
+
+class StorageClassNode(PrefixNode):
     def __init__(self, position, text):
         super().__init__(Power.storage_class, position, text)
-        self.binding = None
 
-    def nud(self, right):
-        self.binding = self.parse(right)
-        return self
-
-    def describe(self):
-        return f"({self.text} {self.binding})"
+    @property
+    def binding(self):
+        return self.rhs
 
 
-class OperatorAssignNode(Node):
+class OperatorAssignNode(InfixNode):
     def __init__(self, position):
         super().__init__(Power.operator_assign, position, "=")
-        self.lvalue = None
-        self.rvalue = None
-
-    def led(self, left, right):
-        self.lvalue = left
-        self.rvalue = self.parse(right)
-        return self
-
-    def describe(self):
-        return self.lvalue and f"({self.lvalue} = {self.rvalue})"
 
 
 class MysteryNode(Node):
     def __init__(self, position, text):
-        super().__init__(-1000, position, text)
-
-
-class PunctuationValueTypeNode(Node):
-    def __init__(self, position):
-        super().__init__(Power.punctuation_value_type, position, ":")
-        self.name = None
-        self.type = None
-
-    def led(self, left, right):
-        self.name = left
-        self.type = self.parse(right)
-        return self
+        super().__init__(Power.mystery, position, text)
 
     def describe(self):
-        return self.name and f"({self.name} : {self.type})"
+        return f"<{repr(self.text)}?>"
+
+
+class PunctuationValueTypeNode(InfixNode):
+    def __init__(self, position):
+        super().__init__(Power.punctuation_value_type, position, ":")
 
 
 class CommentNode(Node):
@@ -337,40 +310,28 @@ class CommentNode(Node):
         return self.comment and f"-- {self.comment}"
 
 
-class StatementUseNode(Node):
+class StatementUseNode(PrefixNode):
     def __init__(self, position):
         super().__init__(Power.statement, position, "use")
-        self.unit = None
 
-    def nud(self, right):
-        self.unit = self.parse(right)
-        return self
-
-    def describe(self):
-        return self.unit and f"(use {self.unit})"
+    @property
+    def unit(self):
+        return self.rhs
 
 
-class StatementConstantNode(Node):
+class StatementConstantNode(PrefixNode):
     def __init__(self, position):
         super().__init__(Power.statement, position, "constant")
-        self.binding = None
 
-    def nud(self, right):
-        self.binding = self.parse(right)
-        return self
-
-    def describe(self):
-        return self.binding and f"(constant {self.binding})"
+    @property
+    def binding(self):
+        return self.rhs
 
 
-class StatementLetNode(Node):
+class StatementLetNode(PrefixNode):
     def __init__(self, position):
         super().__init__(Power.statement, position, "let")
-        self.binding = None
 
-    def nud(self, right):
-        self.binding = self.parse(right)
-        return self
-
-    def describe(self):
-        return self.binding and f"(let {self.binding})"
+    @property
+    def binding(self):
+        return self.rhs
