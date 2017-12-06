@@ -133,7 +133,7 @@ class OperatorSubtractNode(Node):
         self.second = self.parse(right)
         return self
 
-    def __repr__(self):
+    def describe(self):
         return self.first and f"(- {self.first} {self.second})"
 
 
@@ -148,7 +148,7 @@ class OperatorMultiplyNode(Node):
         self.second = self.parse(right)
         return self
 
-    def __repr__(self):
+    def describe(self):
         return self.first and f"(* {self.first} {self.second})"
 
 
@@ -163,5 +163,5 @@ class OperatorDivideNode(Node):
         self.second = self.parse(right)
         return self
 
-    def __repr__(self):
+    def describe(self):
         return self.first and f"(/ {self.first} {self.second})"
