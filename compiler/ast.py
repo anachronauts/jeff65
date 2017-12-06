@@ -18,10 +18,10 @@ class MemIter:
 
 def parse_all(stream):
     s = MemIter(stream)
-    return parse(s, 0)
+    return _parse(s, 0)
 
 
-def parse(stream, rbp):
+def _parse(stream, rbp):
     t = stream.current
     stream.next()
     left = t.nud(stream)
@@ -33,9 +33,11 @@ def parse(stream, rbp):
 
 
 class Node:
-    def __init__(self, position, text):
+    def __init__(self, lbp, position, text, right=False):
+        self.lbp = lbp
         self.position = position
         self.text = text
+        self.right = right
 
     def nud(self, right):
         return NotImplemented
@@ -43,123 +45,123 @@ class Node:
     def led(self, left, right):
         return NotImplemented
 
+    @property
+    def rbp(self):
+        if self.right:
+            return self.lbp - 1
+        return self.lbp
+
+    def parse(self, right, rbp=None):
+        return _parse(right, rbp or self.rbp)
+
     def __repr__(self):
-        return repr(self.text)
+        return self.describe() or f"<{repr(self.text)}>"
+
+    def describe(self):
+        return None
 
 
 class WhitespaceNode(Node):
-    lbp = 1000
-
     def __init__(self, position, text):
-        super().__init__(position, text)
+        super().__init__(1000, position, text)
 
     def nud(self, right):
-        return parse(right, 1000)
+        return self.parse(right)
 
-    def __repr__(self):
-        return f"<{repr(self.text)}>"
+    def led(self, left, right):
+        return left
 
 
 class EofNode(Node):
-    lbp = 0
-
     def __init__(self):
-        super().__init__(None, None)
-
-    def __repr__(self):
-        return f"<EOF>"
+        super().__init__(0, None, "EOF")
 
 
 class NumericNode(Node):
     def __init__(self, position, text):
-        super().__init__(position, text)
+        super().__init__(None, position, text)
 
     def nud(self, right):
         return self
 
+    def describe(self):
+        return self.text
+
 
 class StringNode(Node):
     def __init__(self, position, text):
-        super().__init__(position, text)
+        super().__init__(None, position, text)
 
     def nud(self, right):
         return self
 
 
 class OperatorAddNode(Node):
-    lbp = 10
-
     def __init__(self, position):
-        super().__init__(position, "+")
+        super().__init__(10, position, "+")
         self.first = None
         self.second = None
 
     def nud(self, right):
         """ unary plus """
-        self.first = parse(right, 100)
+        self.first = self.parse(right, 100)
         self.second = None
         return self
 
     def led(self, left, right):
         self.first = left
-        self.second = parse(right, 10)
+        self.second = self.parse(right)
         return self
 
-    def __repr__(self):
-        return f"(+ {self.first} {self.second})"
+    def describe(self):
+        return self.first and f"(+ {self.first} {self.second})"
 
 
 class OperatorSubtractNode(Node):
-    lbp = 10
-
     def __init__(self, position):
-        super().__init__(position, "-")
+        super().__init__(10, position, "-")
         self.first = None
         self.second = None
 
     def nud(self, right):
         """ unary minus """
-        self.first = parse(right, 100)
+        self.first = self.parse(right, 100)
         self.second = None
 
     def led(self, left, right):
         self.first = left
-        self.second = parse(right, 10)
+        self.second = self.parse(right)
         return self
 
     def __repr__(self):
-        return f"(- {self.first} {self.second})"
+        return self.first and f"(- {self.first} {self.second})"
 
 
 class OperatorMultiplyNode(Node):
-    lbp = 20
-
     def __init__(self, position):
-        super().__init__(position, "*")
+        super().__init__(20, position, "*")
         self.first = None
         self.second = None
 
     def led(self, left, right):
         self.first = left
-        self.second = parse(right, 20)
+        self.second = self.parse(right)
         return self
 
     def __repr__(self):
-        return f"(* {self.first} {self.second})"
+        return self.first and f"(* {self.first} {self.second})"
 
 
 class OperatorDivideNode(Node):
-    lbp = 20
-
     def __init__(self, position):
-        super().__init__(position, "/")
+        super().__init__(20, position, "/")
         self.first = None
         self.second = None
 
     def led(self, left, right):
         self.first = left
-        self.second = parse(right, 20)
+        self.second = self.parse(right)
         return self
 
     def __repr__(self):
-        return f"(/ {self.first} {self.second})"
+        return self.first and f"(/ {self.first} {self.second})"
