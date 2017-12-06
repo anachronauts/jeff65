@@ -32,8 +32,8 @@ class Power(IntEnum):
     eof = auto()
     unit = auto()
     statement = auto()
-    term = auto()
     storage_class = auto()
+    term = auto()
     operator_assign = auto()
     operator_or = auto()
     operator_and = auto()
@@ -274,9 +274,14 @@ class IdentifierNode(Node):
 class StorageClassNode(Node):
     def __init__(self, position, text):
         super().__init__(Power.storage_class, position, text)
+        self.binding = None
+
+    def nud(self, right):
+        self.binding = self.parse(right)
+        return self
 
     def describe(self):
-        return self.text
+        return f"({self.text} {self.binding})"
 
 
 class OperatorAssignNode(Node):
@@ -361,13 +366,11 @@ class StatementConstantNode(Node):
 class StatementLetNode(Node):
     def __init__(self, position):
         super().__init__(Power.statement, position, "let")
-        self.storage = None
         self.binding = None
 
     def nud(self, right):
-        self.storage = self.parse(right, Power.storage_class - 1)
         self.binding = self.parse(right)
         return self
 
     def describe(self):
-        return self.storage and f"(let {self.storage} {self.binding})"
+        return self.binding and f"(let {self.binding})"
