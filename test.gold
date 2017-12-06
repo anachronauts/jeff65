@@ -9,8 +9,8 @@ constant black: u8 = 0
 
 -- this is a top-level comment
 
-let conv-tbl: byte[] = [0x80, 0x00, 0xc0, 0xe0, 0x40, 0xc0, 0x80, 0x80]
-let msg: byte[] = "hello world! hello friends!"
+let conv-tbl: u8[] = [0x80, 0x00, 0xc0, 0xe0, 0x40, 0xc0, 0x80, 0x80]
+let msg: u8[] = "hello world! hello friends!"
 
 isr flash
     let stash color: u8 = 1
