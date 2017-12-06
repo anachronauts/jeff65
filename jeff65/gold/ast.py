@@ -30,6 +30,10 @@ class Power(IntEnum):
         return count * 10
 
     eof = auto()
+    statement = auto()
+    identifier = auto()
+    storage_class = auto()
+    operator_assign = auto()
     operator_or = auto()
     operator_and = auto()
     operator_not = auto()
@@ -42,6 +46,7 @@ class Power(IntEnum):
     operator_bitand = auto()
     operator_bitnot = auto()
     operator_sign = auto()
+    punctuation_value_type = auto()
     whitespace = auto()
 
 
@@ -56,18 +61,38 @@ class MemIter:
 
 def parse_all(stream):
     s = MemIter(stream)
-    return _parse(s, 0)
+    return _parse(s, Power.statement)
 
 
 def _parse(stream, rbp):
     t = stream.current
     stream.next()
     left = t.nud(stream)
-    while rbp < stream.current.lbp:
+    if left is NotImplemented:
+        raise ParseError(f"nud not implemented on {type(t)} {t}", t)
+    while True:
+        if stream.current.lbp is None:
+            raise ParseError(
+                f"token type {type(stream.current)} is non-binding",
+                stream.current)
+        if rbp >= stream.current.lbp:
+            break
         t = stream.current
         stream.next()
         left = t.led(left, stream)
+        if left is NotImplemented:
+            raise ParseError(f"led not implemented on {type(t)} {t}", t)
     return left
+
+
+class ParseError(Exception):
+    def __init__(self, message, token):
+        super().__init__(message)
+        self.token = token
+
+    def __str__(self):
+        msg = super().__str__()
+        return f"{msg} (at {self.token.position})"
 
 
 class Node:
@@ -97,6 +122,28 @@ class Node:
 
     def describe(self):
         return None
+
+    def transmute(self, other):
+        return other(self.position, self.text)
+
+
+class UnitNode(Node):
+    def __init__(self):
+        super().__init__(None, None, "UNIT")
+        self.statements = None
+
+    def nud(self, right):
+        self.statements = []
+        while True:
+            self.statements.append(self.parse(right, Power.statement))
+            print(self.statements[-1])
+        return self
+
+    def describe(self):
+        if self.statements is None:
+            return None
+        lines = "\n".join(self.statements)
+        return lines
 
 
 class WhitespaceNode(Node):
@@ -165,6 +212,7 @@ class OperatorSubtractNode(Node):
         """ unary minus """
         self.first = self.parse(right, Power.operator_sign)
         self.second = None
+        return self
 
     def led(self, left, right):
         self.first = left
@@ -203,3 +251,116 @@ class OperatorDivideNode(Node):
 
     def describe(self):
         return self.first and f"(/ {self.first} {self.second})"
+
+
+class IdentifierNode(Node):
+    def __init__(self, position, text):
+        super().__init__(Power.identifier, position, text)
+
+    def nud(self, right):
+        return self
+
+    def describe(self):
+        return self.text
+
+
+class StorageClassNode(Node):
+    def __init__(self, position, text):
+        super().__init__(Power.storage_class, position, text)
+
+    def describe(self):
+        return self.text
+
+
+class OperatorAssignNode(Node):
+    def __init__(self, position):
+        super().__init__(Power.operator_assign, position, "=")
+        self.lvalue = None
+        self.rvalue = None
+
+    def led(self, left, right):
+        self.lvalue = left
+        self.rvalue = self.parse(right)
+        return self
+
+    def describe(self):
+        return self.lvalue and f"({self.lvalue} = {self.rvalue})"
+
+
+class MysteryNode(Node):
+    def __init__(self, position, text):
+        super().__init__(-1000, position, text)
+
+
+class PunctuationValueTypeNode(Node):
+    def __init__(self, position):
+        super().__init__(Power.punctuation_value_type, position, ":")
+        self.name = None
+        self.type = None
+
+    def led(self, left, right):
+        self.name = left
+        self.type = self.parse(right)
+        return self
+
+    def describe(self):
+        return self.name and f"({self.name} : {self.type})"
+
+
+class CommentNode(Node):
+    def __init__(self, position):
+        super().__init__(Power.statement, position, "--")
+        self.comment = None
+
+    def nud(self, right):
+        # TODO maybe implement this in the lexer instead
+        spans = []
+        while '\n' not in right.current.text:
+            spans.append(right.current.text)
+            right.next()
+        self.comment = "".join(spans).strip()
+        return self
+
+    def describe(self):
+        return self.comment and f"-- {self.comment}"
+
+
+class StatementUseNode(Node):
+    def __init__(self, position):
+        super().__init__(Power.statement, position, "use")
+        self.unit = None
+
+    def nud(self, right):
+        self.unit = self.parse(right)
+        return self
+
+    def describe(self):
+        return self.unit and f"(use {self.unit})"
+
+
+class StatementConstantNode(Node):
+    def __init__(self, position):
+        super().__init__(Power.statement, position, "constant")
+        self.binding = None
+
+    def nud(self, right):
+        self.binding = self.parse(right)
+        return self
+
+    def describe(self):
+        return self.binding and f"(constant {self.binding})"
+
+
+class StatementLetNode(Node):
+    def __init__(self, position):
+        super().__init__(Power.statement, position, "let")
+        self.storage = None
+        self.binding = None
+
+    def nud(self, right):
+        self.storage = self.parse(right, Power.storage_class - 1)
+        self.binding = self.parse(right)
+        return self
+
+    def describe(self):
+        return self.storage and f"(let {self.storage} {self.binding})"

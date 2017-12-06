@@ -31,5 +31,7 @@ def open_input(name):
 
 
 with open_input(args.input_file) as input_file:
-    tree = ast.parse_all(lexer.lex(input_file))
+    lex = list(lexer.lex(input_file))
+    print(lex)
+    tree = ast.parse_all(lex)
     print(tree)

@@ -17,20 +17,80 @@
 from . import ast
 
 
-operators = [
-    '->', '<-', '=', '+=', '-=',
-    '+', '-', '*', '/', '|', '&', '^', '>>', '<<',
-    '!=', '==', '<=', '>=', '<', '>',
-    '/*', '*/', ','
-]
+sprinkles = {
+    # arithmetic operators
+    '+': ast.OperatorAddNode,
+    '-': ast.OperatorSubtractNode,
+    '*': ast.OperatorMultiplyNode,
+    '/': ast.OperatorDivideNode,
 
-specials = "()[]{},\"\\"
+    # bitwise operators
+    '>>': NotImplemented,
+    '<<': NotImplemented,
 
-keywords = [
-    'byte', 'do', 'dword', 'else', 'end', 'endfun', 'endisr', 'for', 'if',
-    'in', 'isr', 'let', 'mut', 'qword', 'return', 'stash', 'then', 'to',
-    'use', 'while', 'word'
-]
+    # comparison operators
+    '!=': NotImplemented,
+    '==': NotImplemented,
+    '<=': NotImplemented,
+    '>=': NotImplemented,
+    '<': NotImplemented,
+    '>': NotImplemented,
+
+    # assignment operators
+    '=': ast.OperatorAssignNode,
+    '+=': NotImplemented,
+    '-=': NotImplemented,
+
+    # comment statement
+    '--': ast.CommentNode,
+
+    # assorted punctuation
+    ':': ast.PunctuationValueTypeNode,
+    ',': NotImplemented,
+    '.': NotImplemented,
+    '->': NotImplemented,
+}
+
+delimiters = {
+    '(': NotImplemented,
+    ')': NotImplemented,
+    '[': NotImplemented,
+    ']': NotImplemented,
+    '{': NotImplemented,
+    '}': NotImplemented,
+}
+
+sprinkle_chars = set("".join(sprinkles.keys()))
+
+# non-whitespace characters which can end words.
+specials = "()[]{}:.,\"\\"
+
+keywords = {
+    # statement leaders
+    'constant': ast.StatementConstantNode,
+    'for': NotImplemented,
+    'if': NotImplemented,
+    'isr': NotImplemented,
+    'let': ast.StatementLetNode,
+    'return': NotImplemented,
+    'use': ast.StatementUseNode,
+    'while': NotImplemented,
+
+    # storage classes
+    'mut': ast.StorageClassNode,
+    'stash': ast.StorageClassNode,
+
+    # assorted punctuation
+    'do': NotImplemented,
+    'else': NotImplemented,
+    'elseif': NotImplemented,
+    'end': NotImplemented,
+    'endfun': NotImplemented,
+    'endisr': NotImplemented,
+    'in': NotImplemented,
+    'then': NotImplemented,
+    'to': NotImplemented,
+}
 
 
 class Redo:
@@ -92,24 +152,47 @@ def scan(source, c, cond):
 
 def lex(stream):
     source = Redo(annotate_chars(stream))
+    yield ast.UnitNode()
     while True:
         try:
             c, position = next(source)
         except StopIteration:
             break
-        if c == "+":
-            yield ast.OperatorAddNode(position)
-        elif c == "-":
-            yield ast.OperatorSubtractNode(position)
-        elif c == "*":
-            yield ast.OperatorMultiplyNode(position)
-        elif c == "/":
-            yield ast.OperatorDivideNode(position)
-        elif c.isspace():
+        if c.isspace():
             ws = scan(source, c, lambda v, _: v.isspace())
             yield ast.WhitespaceNode(position, ws)
         elif c.isdigit():
             num = scan(source, c,
                        lambda v, _: not v.isspace() and v not in specials)
             yield ast.NumericNode(position, num)
+        elif c in sprinkle_chars:
+            sprinkle = scan(source, c, lambda v, _: v in sprinkle_chars)
+            if sprinkle in sprinkles:
+                cls = sprinkles[sprinkle]
+                if cls is NotImplemented:
+                    yield ast.MysteryNode(position, sprinkle)
+                else:
+                    # TODO maybe pass text here after all, so that the same
+                    #      token type can be used for multiple things
+                    yield cls(position)
+            else:
+                yield ast.SprinkleNode(position, sprinkle)
+        elif c.isalpha():
+            word = scan(source, c,
+                        lambda v, _: not v.isspace() and v not in specials)
+            if word in keywords:
+                cls = keywords[word]
+                if cls is NotImplemented:
+                    yield ast.MysteryNode(position, word)
+                elif cls is ast.StorageClassNode:
+                    # TODO hacky special case; see following TODO
+                    yield cls(position, word)
+                else:
+                    # TODO maybe pass text here after all, so that the same
+                    #      token type can be used for multiple things
+                    yield cls(position)
+            else:
+                yield ast.IdentifierNode(position, word)
+        else:
+            yield ast.MysteryNode(position, c)
     yield ast.EofNode()
