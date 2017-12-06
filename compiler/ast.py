@@ -31,10 +31,11 @@ def parse(stream, rbp):
         left = t.led(left, stream)
     return left
 
-class NodeBase:
-    def __init__(self, position, value):
+
+class Node:
+    def __init__(self, position, text):
         self.position = position
-        self.value = value
+        self.text = text
 
     def nud(self, right):
         return NotImplemented
@@ -43,53 +44,53 @@ class NodeBase:
         return NotImplemented
 
     def __repr__(self):
-        return repr(self.value)
+        return repr(self.text)
 
 
-class WhitespaceNode(NodeBase):
+class WhitespaceNode(Node):
     lbp = 1000
 
-    def __init__(self, position, value):
-        NodeBase.__init__(self, position, value)
+    def __init__(self, position, text):
+        super().__init__(position, text)
 
     def nud(self, right):
         return parse(right, 1000)
 
     def __repr__(self):
-        return f"<{repr(self.value)}>"
+        return f"<{repr(self.text)}>"
 
 
-class EofNode(NodeBase):
+class EofNode(Node):
     lbp = 0
 
     def __init__(self):
-        NodeBase.__init__(self, None, None)
+        super().__init__(None, None)
 
     def __repr__(self):
         return f"<EOF>"
 
 
-class NumericNode(NodeBase):
-    def __init__(self, position, value):
-        NodeBase.__init__(self, position, value)
+class NumericNode(Node):
+    def __init__(self, position, text):
+        super().__init__(position, text)
 
     def nud(self, right):
         return self
 
 
-class StringNode(NodeBase):
-    def __init__(self, position, value):
-        NodeBase.__init__(self, position, value)
+class StringNode(Node):
+    def __init__(self, position, text):
+        super().__init__(position, text)
 
     def nud(self, right):
         return self
 
 
-class OperatorAddNode(NodeBase):
+class OperatorAddNode(Node):
     lbp = 10
 
     def __init__(self, position):
-        NodeBase.__init__(self, position, "+")
+        super().__init__(position, "+")
         self.first = None
         self.second = None
 
@@ -108,11 +109,33 @@ class OperatorAddNode(NodeBase):
         return f"(+ {self.first} {self.second})"
 
 
-class OperatorMultiplyNode(NodeBase):
+class OperatorSubtractNode(Node):
+    lbp = 10
+
+    def __init__(self, position):
+        super().__init__(position, "-")
+        self.first = None
+        self.second = None
+
+    def nud(self, right):
+        """ unary minus """
+        self.first = parse(right, 100)
+        self.second = None
+
+    def led(self, left, right):
+        self.first = left
+        self.second = parse(right, 10)
+        return self
+
+    def __repr__(self):
+        return f"(- {self.first} {self.second})"
+
+
+class OperatorMultiplyNode(Node):
     lbp = 20
 
     def __init__(self, position):
-        NodeBase.__init__(self, position, "*")
+        super().__init__(position, "*")
         self.first = None
         self.second = None
 
@@ -123,3 +146,20 @@ class OperatorMultiplyNode(NodeBase):
 
     def __repr__(self):
         return f"(* {self.first} {self.second})"
+
+
+class OperatorDivideNode(Node):
+    lbp = 20
+
+    def __init__(self, position):
+        super().__init__(position, "/")
+        self.first = None
+        self.second = None
+
+    def led(self, left, right):
+        self.first = left
+        self.second = parse(right, 20)
+        return self
+
+    def __repr__(self):
+        return f"(/ {self.first} {self.second})"
