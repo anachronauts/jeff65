@@ -1,4 +1,4 @@
-from .token import Token
+from . import ast
 
 
 operators = [
@@ -79,6 +79,27 @@ def scan(source, c, cond):
 
 
 def lex(stream):
+    source = Redo(annotate_chars(stream))
+    while True:
+        try:
+            c, position = next(source)
+        except StopIteration:
+            break
+        if c == "+":
+            yield ast.OperatorAddNode(c, position)
+        elif c == "*":
+            yield ast.OperatorMultiplyNode(c, position)
+        elif c.isspace():
+            ws = scan(source, c, lambda v, _: v.isspace())
+            yield ast.WhitespaceNode(ws, position)
+        elif c.isdigit():
+            num = scan(source, c,
+                       lambda v, _: not v.isspace() and v not in specials)
+            yield ast.NumericNode(num, position)
+    yield ast.EofNode("<EOF>", None)
+
+
+def lex_old(stream):
     source = Redo(annotate_chars(stream))
     while True:
         try:
