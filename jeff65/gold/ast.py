@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from enum import IntEnum, auto
+
 # see http://effbot.org/zone/simple-top-down-parsing.htm
 #
 # - "nud" means "null denotation", which defines its behavior at the beginning
@@ -21,6 +23,26 @@
 # - "led" means "left denotation", which defines its behavior inside a language
 #   construct.
 # - "lbp" means "left binding power", which controls precedence.
+
+
+class Power(IntEnum):
+    def _generate_next_value_(name, start, count, last_values):
+        return count * 10
+
+    eof = auto()
+    operator_or = auto()
+    operator_and = auto()
+    operator_not = auto()
+    operator_compare = auto()
+    operator_add_subtract = auto()
+    operator_multiply_divide = auto()
+    operator_bitshift = auto()
+    operator_bitxor = auto()
+    operator_bitor = auto()
+    operator_bitand = auto()
+    operator_bitnot = auto()
+    operator_sign = auto()
+    whitespace = auto()
 
 
 class MemIter:
@@ -79,7 +101,7 @@ class Node:
 
 class WhitespaceNode(Node):
     def __init__(self, position, text):
-        super().__init__(1000, position, text)
+        super().__init__(Power.whitespace, position, text)
 
     def nud(self, right):
         return self.parse(right)
@@ -90,7 +112,7 @@ class WhitespaceNode(Node):
 
 class EofNode(Node):
     def __init__(self):
-        super().__init__(0, None, "EOF")
+        super().__init__(Power.eof, None, "EOF")
 
 
 class NumericNode(Node):
@@ -114,13 +136,13 @@ class StringNode(Node):
 
 class OperatorAddNode(Node):
     def __init__(self, position):
-        super().__init__(10, position, "+")
+        super().__init__(Power.operator_add_subtract, position, "+")
         self.first = None
         self.second = None
 
     def nud(self, right):
         """ unary plus """
-        self.first = self.parse(right, 100)
+        self.first = self.parse(right, Power.operator_sign)
         self.second = None
         return self
 
@@ -135,13 +157,13 @@ class OperatorAddNode(Node):
 
 class OperatorSubtractNode(Node):
     def __init__(self, position):
-        super().__init__(10, position, "-")
+        super().__init__(Power.operator_add_subtract, position, "-")
         self.first = None
         self.second = None
 
     def nud(self, right):
         """ unary minus """
-        self.first = self.parse(right, 100)
+        self.first = self.parse(right, Power.operator_sign)
         self.second = None
 
     def led(self, left, right):
@@ -155,7 +177,7 @@ class OperatorSubtractNode(Node):
 
 class OperatorMultiplyNode(Node):
     def __init__(self, position):
-        super().__init__(20, position, "*")
+        super().__init__(Power.operator_multiply_divide, position, "*")
         self.first = None
         self.second = None
 
@@ -170,7 +192,7 @@ class OperatorMultiplyNode(Node):
 
 class OperatorDivideNode(Node):
     def __init__(self, position):
-        super().__init__(20, position, "/")
+        super().__init__(Power.operator_multiply_divide, position, "/")
         self.first = None
         self.second = None
 
