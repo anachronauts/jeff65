@@ -83,8 +83,12 @@ def lex(stream):
             break
         if c == "+":
             yield ast.OperatorAddNode(position)
+        elif c == "-":
+            yield ast.OperatorSubtractNode(position)
         elif c == "*":
             yield ast.OperatorMultiplyNode(position)
+        elif c == "/":
+            yield ast.OperatorDivideNode(position)
         elif c.isspace():
             ws = scan(source, c, lambda v, _: v.isspace())
             yield ast.WhitespaceNode(position, ws)
