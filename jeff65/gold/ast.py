@@ -125,6 +125,9 @@ class Node:
     def transmute(self, other):
         return other(self.position, self.text)
 
+    def traverse(self, visit):
+        raise NotImplementedError
+
 
 class InfixNode(Node):
     def __init__(self, *args, **kwargs):
@@ -140,6 +143,11 @@ class InfixNode(Node):
     def describe(self):
         return self.lhs and f"({self.lhs} {self.text} {self.rhs})"
 
+    def traverse(self, visit):
+        self.lhs = self.lhs.traverse(visit)
+        self.rhs = self.rhs.traverse(visit)
+        return visit(self)
+
 
 class TermNode(Node):
     def __init__(self, position, text):
@@ -150,6 +158,9 @@ class TermNode(Node):
 
     def describe(self):
         return self.text
+
+    def traverse(self, visit):
+        return visit(self)
 
 
 class PrefixNode(Node):
@@ -163,6 +174,10 @@ class PrefixNode(Node):
 
     def describe(self):
         return self.rhs and f"({self.text} {self.rhs})"
+
+    def traverse(self, visit):
+        self.rhs = self.rhs.traverse(visit)
+        return visit(self)
 
 
 class UnitNode(Node):
@@ -182,6 +197,11 @@ class UnitNode(Node):
             return "<UNIT>"
         lines = "\n".join(repr(s) for s in self.statements)
         return lines
+
+    def traverse(self, visit):
+        for k in range(len(self.statements)):
+            self.statements[k] = self.statements[k].traverse(visit)
+        return visit(self)
 
 
 class WhitespaceNode(Node):
@@ -278,7 +298,6 @@ class MysteryNode(Node):
 class PunctuationValueTypeNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.punctuation_value_type, position, text)
-
 
 
 class CommentNode(WhitespaceNode):

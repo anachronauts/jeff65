@@ -17,7 +17,7 @@
 import argparse
 import sys
 
-from .gold import lexer, ast
+from .gold import lexer, ast, ast2
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("input_file", help="the file to compile")
@@ -35,3 +35,5 @@ with open_input(args.input_file) as input_file:
     print(lex)
     tree = ast.parse_all(lex)
     print(tree)
+    tree2 = ast2.transform2(tree)
+    print(tree2)
