@@ -93,7 +93,7 @@ delimiters = {
     '}': NotImplemented,
     "\"": NotImplemented,
     '--[[': NotImplemented,
-    '--]]': NotImplemented,
+    ']]': NotImplemented,
 }
 
 # non-whitespace characters which can end words.

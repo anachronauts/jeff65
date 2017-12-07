@@ -287,7 +287,7 @@ class PunctuationValueTypeNode(InfixNode):
 
 class CommentNode(WhitespaceNode):
     def describe(self):
-        return f"--[[{self.text}--]]"
+        return self.text
 
 
 class StatementUseNode(PrefixNode):
