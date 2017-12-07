@@ -11,7 +11,7 @@ def parse(source):
 
 
 def test_comments_newline():
-    a = parse("-- a comment\n")
+    a = parse("-- [[ a comment ]]\n")
     assert_equal(1, len(a.statements))
     c = a.statements[0]
     assert_is_instance(c, ast.CommentNode)
@@ -19,7 +19,7 @@ def test_comments_newline():
 
 
 def test_comments_no_newline():
-    a = parse("-- a comment")
+    a = parse("-- [[ a comment ]]")
     assert_equal(1, len(a.statements))
     c = a.statements[0]
     assert_is_instance(c, ast.CommentNode)

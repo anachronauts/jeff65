@@ -28,13 +28,13 @@ known_words = {
     'not': NotImplemented,
     'and': NotImplemented,
     'or': NotImplemented,
-    'bitand': NotImplemented,
-    'bitor': NotImplemented,
-    'bitxor': NotImplemented,
 
     # bitwise operators
     '>>': NotImplemented,
     '<<': NotImplemented,
+    'bitand': NotImplemented,
+    'bitor': NotImplemented,
+    'bitxor': NotImplemented,
 
     # comparison operators
     '!=': NotImplemented,
@@ -48,15 +48,6 @@ known_words = {
     '=': ast.OperatorAssignNode,
     '+=': NotImplemented,
     '-=': NotImplemented,
-
-    # reserved for possible line comment
-    '--': NotImplemented,
-
-    # assorted punctuation
-    ':': ast.PunctuationValueTypeNode,
-    ',': ast.PunctuationCommaNode,
-    '.': NotImplemented,
-    '->': NotImplemented,
 
     # statement leaders
     'constant': ast.StatementConstantNode,
@@ -82,6 +73,10 @@ known_words = {
     'in': NotImplemented,
     'then': NotImplemented,
     'to': NotImplemented,
+    ':': ast.PunctuationValueTypeNode,
+    ',': ast.PunctuationCommaNode,
+    '.': NotImplemented,
+    '->': NotImplemented,
 }
 
 delimiters = {
@@ -91,7 +86,7 @@ delimiters = {
     ']': NotImplemented,
     '{': NotImplemented,
     '}': NotImplemented,
-    "\"": NotImplemented,
+    '"': NotImplemented,
     '--[[': NotImplemented,
     ']]': NotImplemented,
 }
@@ -157,22 +152,32 @@ def _scan(source, c, cond):
     return "".join(run)
 
 
-def scanWhitespace(source, c):
+def scan_whitespace(source, c):
     return _scan(source, c, lambda v, _: v.isspace())
 
 
-def scanNumeric(source, c):
-    # TODO: actually make sure its a valid number
-    return _scan(source, c, lambda v, _: not v.isspace() and v not in specials)
+def scan_numeric(source, c):
+    return _scan(source, c,
+                 lambda v, _: not v.isspace() and v not in specials)
 
 
-def scanWord(source, c):
-    return _scan(source, c, lambda v, _: not v.isspace() and v not in specials)
+def scan_word(source, c):
+    return _scan(source, c,
+                 lambda v, _: not v.isspace() and v not in specials)
 
 
-def valid_identifier(word):
-    # TODO
-    return True
+def scan_sprinkle(source, c):
+    return _scan(source, c, lambda v, _: not v.isspace() and not v.isalnum())
+
+
+def make_token(position, term, default):
+    if term in known_words:
+        cls = known_words[term]
+        if cls is NotImplemented:
+            cls = ast.MysteryNode
+    else:
+        cls = default
+    return cls(position, term)
 
 
 def lex(stream):
@@ -183,25 +188,14 @@ def lex(stream):
             c, position = next(source)
         except StopIteration:
             break
-        if c in specials:
-            # TODO
-            yield ast.MysteryNode(position, c)
-        elif c.isspace():
-            ws = scanWhitespace(source, c)
-            yield ast.WhitespaceNode(position, ws)
+        if c.isspace():
+            yield ast.WhitespaceNode(position, scan_whitespace(source, c))
         elif c.isdigit():
-            num = scanNumeric(source, c)
-            yield ast.NumericNode(position, num)
+            yield ast.NumericNode(position, scan_numeric(source, c))
+        elif c.isalpha():
+            yield make_token(
+                position, scan_word(source, c), ast.IdentifierNode)
         else:
-            word = scanWord(source, c)
-            if word in known_words:
-                cls = known_words[word]
-                if cls is NotImplemented:
-                    yield ast.MysteryNode(position, word)
-                else:
-                    yield cls(position, word)
-            elif valid_identifier(word):
-                yield ast.IdentifierNode(position, word)
-            else:
-                yield ast.MysteryNode(position, word)
+            yield make_token(
+                position, scan_sprinkle(source, c), ast.MysteryNode)
     yield ast.EofNode()
