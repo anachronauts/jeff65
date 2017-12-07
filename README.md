@@ -1,5 +1,7 @@
 # jeff65
 
+[![Build Status](https://travis-ci.org/jdpage/jeff65.svg?branch=master)](https://travis-ci.org/jdpage/jeff65)
+
 *jeff65* is a compiler for the Commodore 64 and (perhaps in the future) other
 6502-based computers. It is implemented in Python 3 and uses ca65 (part of cc65**
 as its assembler, producing .prg files. If VICE is available, it can also
