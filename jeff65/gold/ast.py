@@ -285,9 +285,32 @@ class PunctuationValueTypeNode(InfixNode):
 
 
 
-class CommentNode(WhitespaceNode):
+class CommentStartNode(WhitespaceNode):
+    def __init__(self, position, text):
+        super().__init__(position, text)
+        self.comment = None
+
+    def eat_comment(self, right):
+        spans = []
+        while type(right.current) is not CommentEndNode:
+            spans.append(right.current.text)
+            right.next()
+        return "".join(spans)
+
+    def nud(self, right):
+        self.comment = self.eat_comment(right)
+        return self.parse(right)
+
+    def led(self, left, right):
+        self.comment = self.eat_comment(right)
+        return left
+
     def describe(self):
-        return self.text
+        return self.comment and f"--[[{self.comment}]]"
+
+
+class CommentEndNode(WhitespaceNode):
+    pass
 
 
 class StatementUseNode(PrefixNode):
