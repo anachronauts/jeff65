@@ -31,8 +31,8 @@ Invocation:
 
 The *jeff65* compiler itself is provided under the GPLv3 license; if you
 distribute a modified version of the compiler, you must also make the source
-code for your modified version available, as described in the license terms.
-A copy of the GPLv3 license is included in `gpl-3.0.txt` in the source
+code for your modified version available, as described in the license terms. A
+copy of the GPLv3 license is included in `LICENSE.txt` in the source
 distribution.
 
 The standard library units and runtime library, whenever they get written, will
