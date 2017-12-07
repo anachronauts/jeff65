@@ -219,45 +219,37 @@ class StringNode(TermNode):
 
 
 class OperatorAddNode(InfixNode):
-    def __init__(self, position):
-        super().__init__(Power.operator_add_subtract, position, "+")
+    def __init__(self, position, text):
+        super().__init__(Power.operator_add_subtract, position, text)
 
     def nud(self, right):
         """ unary plus """
         self.lhs = self.parse(right, Power.operator_sign)
         return self
 
-    def describe(self):
-        if self.lhs and not self.rhs:
-            return f"(+ {self.lhs})"
-
 
 class OperatorSubtractNode(InfixNode):
-    def __init__(self, position):
-        super().__init__(Power.operator_add_subtract, position, "-")
+    def __init__(self, position, text):
+        super().__init__(Power.operator_add_subtract, position, text)
 
     def nud(self, right):
         """ unary minus """
         self.lhs = self.parse(right, Power.operator_sign)
         return self
 
-    def describe(self):
-        if self.lhs and not self.rhs:
-            return f"(- {self.lhs})"
-
 
 class OperatorMultiplyNode(InfixNode):
-    def __init__(self, position):
-        super().__init__(Power.operator_multiply_divide, position, "*")
+    def __init__(self, position, text):
+        super().__init__(Power.operator_multiply_divide, position, text)
 
 
 class OperatorDivideNode(InfixNode):
-    def __init__(self, position):
-        super().__init__(Power.operator_multiply_divide, position, "/")
+    def __init__(self, position, text):
+        super().__init__(Power.operator_multiply_divide, position, text)
 
 
 class PunctuationCommaNode(InfixNode):
-    def __init__(self, position, text=','):
+    def __init__(self, position, text):
         super().__init__(Power.punctuation_comma, position, text)
 
 
@@ -275,8 +267,8 @@ class StorageClassNode(PrefixNode):
 
 
 class OperatorAssignNode(InfixNode):
-    def __init__(self, position):
-        super().__init__(Power.operator_assign, position, "=")
+    def __init__(self, position, text):
+        super().__init__(Power.operator_assign, position, text)
 
 
 class MysteryNode(Node):
@@ -288,31 +280,19 @@ class MysteryNode(Node):
 
 
 class PunctuationValueTypeNode(InfixNode):
-    def __init__(self, position):
-        super().__init__(Power.punctuation_value_type, position, ":")
+    def __init__(self, position, text):
+        super().__init__(Power.punctuation_value_type, position, text)
 
 
-class CommentNode(Node):
-    def __init__(self, position):
-        super().__init__(Power.statement, position, "--")
-        self.comment = None
 
-    def nud(self, right):
-        # TODO maybe implement this in the lexer instead
-        spans = []
-        while '\n' not in right.current.text:
-            spans.append(right.current.text)
-            right.next()
-        self.comment = "".join(spans).strip()
-        return self
-
+class CommentNode(WhitespaceNode):
     def describe(self):
-        return self.comment and f"-- {self.comment}"
+        return f"--[[{self.text}--]]"
 
 
 class StatementUseNode(PrefixNode):
-    def __init__(self, position):
-        super().__init__(Power.statement, position, "use")
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
 
     @property
     def unit(self):
@@ -320,8 +300,8 @@ class StatementUseNode(PrefixNode):
 
 
 class StatementConstantNode(PrefixNode):
-    def __init__(self, position):
-        super().__init__(Power.statement, position, "constant")
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
 
     @property
     def binding(self):
@@ -329,8 +309,8 @@ class StatementConstantNode(PrefixNode):
 
 
 class StatementLetNode(PrefixNode):
-    def __init__(self, position):
-        super().__init__(Power.statement, position, "let")
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
 
     @property
     def binding(self):

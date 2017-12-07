@@ -17,12 +17,20 @@
 from . import ast
 
 
-sprinkles = {
+known_words = {
     # arithmetic operators
     '+': ast.OperatorAddNode,
     '-': ast.OperatorSubtractNode,
     '*': ast.OperatorMultiplyNode,
     '/': ast.OperatorDivideNode,
+
+    # logical operators
+    'not': NotImplemented,
+    'and': NotImplemented,
+    'or': NotImplemented,
+    'bitand': NotImplemented,
+    'bitor': NotImplemented,
+    'bitxor': NotImplemented,
 
     # bitwise operators
     '>>': NotImplemented,
@@ -41,31 +49,15 @@ sprinkles = {
     '+=': NotImplemented,
     '-=': NotImplemented,
 
-    # comment statement
-    '--': ast.CommentNode,
+    # reserved for possible line comment
+    '--': NotImplemented,
 
     # assorted punctuation
     ':': ast.PunctuationValueTypeNode,
     ',': ast.PunctuationCommaNode,
     '.': NotImplemented,
     '->': NotImplemented,
-}
 
-delimiters = {
-    '(': NotImplemented,
-    ')': NotImplemented,
-    '[': NotImplemented,
-    ']': NotImplemented,
-    '{': NotImplemented,
-    '}': NotImplemented,
-}
-
-sprinkle_chars = set("".join(sprinkles.keys()))
-
-# non-whitespace characters which can end words.
-specials = "()[]{}:.,\"\\"
-
-keywords = {
     # statement leaders
     'constant': ast.StatementConstantNode,
     'for': NotImplemented,
@@ -91,6 +83,21 @@ keywords = {
     'then': NotImplemented,
     'to': NotImplemented,
 }
+
+delimiters = {
+    '(': NotImplemented,
+    ')': NotImplemented,
+    '[': NotImplemented,
+    ']': NotImplemented,
+    '{': NotImplemented,
+    '}': NotImplemented,
+    "\"": NotImplemented,
+    '--[[': NotImplemented,
+    '--]]': NotImplemented,
+}
+
+# non-whitespace characters which can end words.
+specials = "()[]{}:.,\"\\"
 
 
 class Redo:
@@ -135,7 +142,7 @@ def annotate_chars(stream):
             column += 1
 
 
-def scan(source, c, cond):
+def _scan(source, c, cond):
     run = [c]
     while True:
         try:
@@ -150,6 +157,24 @@ def scan(source, c, cond):
     return "".join(run)
 
 
+def scanWhitespace(source, c):
+    return _scan(source, c, lambda v, _: v.isspace())
+
+
+def scanNumeric(source, c):
+    # TODO: actually make sure its a valid number
+    return _scan(source, c, lambda v, _: not v.isspace() and v not in specials)
+
+
+def scanWord(source, c):
+    return _scan(source, c, lambda v, _: not v.isspace() and v not in specials)
+
+
+def valid_identifier(word):
+    # TODO
+    return True
+
+
 def lex(stream):
     source = Redo(annotate_chars(stream))
     yield ast.UnitNode()
@@ -158,41 +183,25 @@ def lex(stream):
             c, position = next(source)
         except StopIteration:
             break
-        if c.isspace():
-            ws = scan(source, c, lambda v, _: v.isspace())
+        if c in specials:
+            # TODO
+            yield ast.MysteryNode(position, c)
+        elif c.isspace():
+            ws = scanWhitespace(source, c)
             yield ast.WhitespaceNode(position, ws)
         elif c.isdigit():
-            num = scan(source, c,
-                       lambda v, _: not v.isspace() and v not in specials)
+            num = scanNumeric(source, c)
             yield ast.NumericNode(position, num)
-        elif c in sprinkle_chars:
-            sprinkle = scan(source, c, lambda v, _: v in sprinkle_chars)
-            if sprinkle in sprinkles:
-                cls = sprinkles[sprinkle]
-                if cls is NotImplemented:
-                    yield ast.MysteryNode(position, sprinkle)
-                else:
-                    # TODO maybe pass text here after all, so that the same
-                    #      token type can be used for multiple things
-                    yield cls(position)
-            else:
-                yield ast.SprinkleNode(position, sprinkle)
-        elif c.isalpha():
-            word = scan(source, c,
-                        lambda v, _: not v.isspace() and v not in specials)
-            if word in keywords:
-                cls = keywords[word]
+        else:
+            word = scanWord(source, c)
+            if word in known_words:
+                cls = known_words[word]
                 if cls is NotImplemented:
                     yield ast.MysteryNode(position, word)
-                elif cls is ast.StorageClassNode:
-                    # TODO hacky special case; see following TODO
-                    yield cls(position, word)
                 else:
-                    # TODO maybe pass text here after all, so that the same
-                    #      token type can be used for multiple things
-                    yield cls(position)
-            else:
+                    yield cls(position, word)
+            elif valid_identifier(word):
                 yield ast.IdentifierNode(position, word)
-        else:
-            yield ast.MysteryNode(position, c)
+            else:
+                yield ast.MysteryNode(position, word)
     yield ast.EofNode()
