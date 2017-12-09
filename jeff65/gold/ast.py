@@ -69,7 +69,10 @@ def parse_all(stream):
 
 def _parse(stream, rbp):
     t = stream.current
-    stream.next()
+    try:
+        stream.next()
+    except StopIteration:
+        return t
     left = t.nud(stream)
     while True:
         if stream.current.lbp is None:
@@ -197,10 +200,7 @@ class WhitespaceNode(Node):
 
 class EofNode(Node):
     def __init__(self):
-        # putting a newline in the text field allows this token to terminate
-        # line-comments naturally, instead of special-casing the token in the
-        # comment code.
-        super().__init__(Power.eof, None, "EOF\n")
+        super().__init__(Power.eof, None, "EOF")
 
     def describe(self):
         return "<EOF>"
@@ -282,8 +282,39 @@ class PunctuationValueTypeNode(InfixNode):
 
 
 class CommentNode(WhitespaceNode):
+    def __init__(self, position, text):
+        super().__init__(position, text)
+        self.comment = None
+
+    def eat_comment(self, right):
+        spans = []
+        depth = 1
+        while depth > 0:
+            # the depth counter is so that we can have nested comments
+            if type(right.current) is CommentNode:
+                depth += 1
+            elif type(right.current) is CommentEndNode:
+                depth -= 1
+            spans.append(right.current.text)
+            right.next()
+        # return all of the text except the last "]]"
+        return "".join(spans[:-1])
+
+    def nud(self, right):
+        self.comment = self.eat_comment(right)
+        return self.parse(right)
+
+    def led(self, left, right):
+        self.comment = self.eat_comment(right)
+        return left
+
     def describe(self):
-        return self.text
+        return self.comment and f"--[[{self.comment}]]"
+
+
+class CommentEndNode(WhitespaceNode):
+    # this is a lexer-only node. it gets eaten during the first parse pass.
+    pass
 
 
 class StatementUseNode(PrefixNode):
