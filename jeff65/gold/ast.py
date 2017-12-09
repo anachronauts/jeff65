@@ -285,12 +285,13 @@ class PunctuationValueTypeNode(InfixNode):
 
 
 
-class CommentStartNode(WhitespaceNode):
+class CommentNode(WhitespaceNode):
     def __init__(self, position, text):
         super().__init__(position, text)
         self.comment = None
 
     def eat_comment(self, right):
+        # TODO: support nested comments
         spans = []
         while type(right.current) is not CommentEndNode:
             spans.append(right.current.text)
@@ -299,7 +300,7 @@ class CommentStartNode(WhitespaceNode):
 
     def nud(self, right):
         self.comment = self.eat_comment(right)
-        return self.parse(right)
+        return self
 
     def led(self, left, right):
         self.comment = self.eat_comment(right)
@@ -310,6 +311,7 @@ class CommentStartNode(WhitespaceNode):
 
 
 class CommentEndNode(WhitespaceNode):
+    # this is a lexer-only node. it gets eaten during the first parse pass.
     pass
 
 

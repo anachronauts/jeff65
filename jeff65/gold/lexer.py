@@ -86,7 +86,7 @@ known_words = {
     '{': NotImplemented,
     '}': NotImplemented,
     '"': NotImplemented,
-    '--[[': ast.CommentStartNode,
+    '--[[': ast.CommentNode,
     ']]': ast.CommentEndNode,
 }
 
