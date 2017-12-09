@@ -32,7 +32,6 @@ class Power(IntEnum):
     eof = auto()
     unit = auto()
     statement = auto()
-    comment = auto()
     storage_class = auto()
     term = auto()
     operator_assign = auto()
@@ -282,9 +281,9 @@ class PunctuationValueTypeNode(InfixNode):
 
 
 
-class CommentNode(Node):
+class CommentNode(WhitespaceNode):
     def __init__(self, position, text):
-        super().__init__(Power.comment, position, text)
+        super().__init__(position, text)
         self.comment = None
 
     def eat_comment(self, right):
