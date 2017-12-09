@@ -288,14 +288,18 @@ class CommentNode(Node):
         self.comment = None
 
     def eat_comment(self, right):
-        # TODO: support nested comments
         spans = []
-        while type(right.current) is not CommentEndNode:
+        depth = 1
+        while depth > 0:
+            # the depth counter is so that we can have nested comments
+            if type(right.current) is CommentNode:
+                depth += 1
+            elif type(right.current) is CommentEndNode:
+                depth -= 1
             spans.append(right.current.text)
             right.next()
-        # eat the close comment token
-        right.next()
-        return "".join(spans)
+        # return all of the text except the last "]]"
+        return "".join(spans[:-1])
 
     def nud(self, right):
         self.comment = self.eat_comment(right)

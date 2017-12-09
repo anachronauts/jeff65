@@ -14,16 +14,43 @@ def test_comments_newline():
     a = parse("--[[ a comment ]]\n")
     assert_equal(1, len(a.statements))
     c = a.statements[0]
-    assert_is_instance(c, ast.CommentNode)
-    assert_equal(" a comment ", c.comment)
+    assert_is_instance(c, ast.EofNode)
 
 
 def test_comments_no_newline():
     a = parse("--[[ a comment ]]")
     assert_equal(1, len(a.statements))
     c = a.statements[0]
-    assert_is_instance(c, ast.CommentNode)
-    assert_equal(" a comment ", c.comment)
+    assert_is_instance(c, ast.EofNode)
+
+
+def test_comment_before_expression():
+    a = parse("--[[ a comment ]] 1 + 2")
+    c = a.statements[0]
+    assert_is_instance(c, ast.OperatorAddNode)
+    assert_is_instance(c.lhs, ast.NumericNode)
+    assert_is_instance(c.rhs, ast.NumericNode)
+
+
+def test_comment_after_expression():
+    a = parse("1 + 2 --[[ a comment ]]")
+    c = a.statements[0]
+    assert_is_instance(c, ast.OperatorAddNode)
+    assert_is_instance(c.lhs, ast.NumericNode)
+    assert_is_instance(c.rhs, ast.NumericNode)
+
+
+def test_comment_within_expression():
+    a = parse("1 + --[[ a comment ]] 2")
+    c = a.statements[0]
+    assert_is_instance(c, ast.OperatorAddNode)
+    assert_is_instance(c.lhs, ast.NumericNode)
+    assert_is_instance(c.rhs, ast.NumericNode)
+
+def test_nested_comment():
+    a = parse("--[[ a --[[ nested ]] comment ]]")
+    c = a.statements[0]
+    assert_is_instance(c, ast.EofNode)
 
 
 def test_associativity():
