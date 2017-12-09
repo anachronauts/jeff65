@@ -71,8 +71,6 @@ def _parse(stream, rbp):
     t = stream.current
     stream.next()
     left = t.nud(stream)
-    if left is NotImplemented:
-        raise ParseError(f"nud not implemented on {type(t)} {t}", t)
     while True:
         if stream.current.lbp is None:
             raise ParseError(
@@ -83,8 +81,6 @@ def _parse(stream, rbp):
         t = stream.current
         stream.next()
         left = t.led(left, stream)
-        if left is NotImplemented:
-            raise ParseError(f"led not implemented on {type(t)} {t}", t)
     return left
 
 
@@ -106,10 +102,10 @@ class Node:
         self.right = right
 
     def nud(self, right):
-        return NotImplemented
+        raise NotImplementedError
 
     def led(self, left, right):
-        return NotImplemented
+        raise NotImplementedError
 
     @property
     def rbp(self):
