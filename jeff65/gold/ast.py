@@ -32,6 +32,7 @@ class Power(IntEnum):
     eof = auto()
     unit = auto()
     statement = auto()
+    comment = auto()
     storage_class = auto()
     term = auto()
     operator_assign = auto()
@@ -69,7 +70,10 @@ def parse_all(stream):
 
 def _parse(stream, rbp):
     t = stream.current
-    stream.next()
+    try:
+        stream.next()
+    except StopIteration:
+        return t
     left = t.nud(stream)
     while True:
         if stream.current.lbp is None:
@@ -197,10 +201,7 @@ class WhitespaceNode(Node):
 
 class EofNode(Node):
     def __init__(self):
-        # putting a newline in the text field allows this token to terminate
-        # line-comments naturally, instead of special-casing the token in the
-        # comment code.
-        super().__init__(Power.eof, None, "EOF\n")
+        super().__init__(Power.eof, None, "EOF")
 
     def describe(self):
         return "<EOF>"
@@ -281,9 +282,9 @@ class PunctuationValueTypeNode(InfixNode):
 
 
 
-class CommentNode(WhitespaceNode):
+class CommentNode(Node):
     def __init__(self, position, text):
-        super().__init__(position, text)
+        super().__init__(Power.comment, position, text)
         self.comment = None
 
     def eat_comment(self, right):
@@ -292,11 +293,13 @@ class CommentNode(WhitespaceNode):
         while type(right.current) is not CommentEndNode:
             spans.append(right.current.text)
             right.next()
+        # eat the close comment token
+        right.next()
         return "".join(spans)
 
     def nud(self, right):
         self.comment = self.eat_comment(right)
-        return self
+        return self.parse(right)
 
     def led(self, left, right):
         self.comment = self.eat_comment(right)
