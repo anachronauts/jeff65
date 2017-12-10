@@ -18,30 +18,22 @@ def test_empty_file():
 
 def test_whitespace_only_file():
     a = parse("\n")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_comments_newline():
     a = parse("--[[ a comment ]]\n")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_comments_no_newline():
     a = parse("--[[ a comment ]]")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_nested_comment():
     a = parse("--[[ a --[[ nested ]] comment ]]")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_comment_before_expression():
