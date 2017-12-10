@@ -18,30 +18,22 @@ def test_empty_file():
 
 def test_whitespace_only_file():
     a = parse("\n")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_comments_newline():
     a = parse("--[[ a comment ]]\n")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_comments_no_newline():
     a = parse("--[[ a comment ]]")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_nested_comment():
     a = parse("--[[ a --[[ nested ]] comment ]]")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.EofNode)
+    assert_equal(0, len(a.statements))
 
 
 def test_comment_before_expression():
@@ -112,3 +104,19 @@ def test_let_without_storage_class():
     assert_equal("a", b.lhs.lhs.text)
     assert_is_instance(b.lhs.rhs, ast.IdentifierNode)
     assert_equal("u8", b.lhs.rhs.text)
+
+
+def test_string_literal():
+    a = parse('"this is a string"')
+    assert_equal(1, len(a.statements))
+    t = a.statements[0]
+    assert_is_instance(t, ast.StringNode)
+    assert_equal(t.string, "this is a string")
+
+
+def test_string_escaped():
+    a = parse('"this is a \\"string"')
+    assert_equal(1, len(a.statements))
+    t = a.statements[0]
+    assert_is_instance(t, ast.StringNode)
+    assert_equal(t.string, 'this is a \\"string')

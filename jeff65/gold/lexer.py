@@ -85,13 +85,13 @@ known_words = {
     ']': NotImplemented,
     '{': NotImplemented,
     '}': NotImplemented,
-    '"': NotImplemented,
+    '"': ast.StringNode,
     '--[[': ast.CommentNode,
     ']]': ast.CommentEndNode,
 }
 
 # non-whitespace characters which can end words.
-specials = "()[]{}:.,\"\\"
+specials = '()[]{}:.,"\\'
 
 
 class Redo:
