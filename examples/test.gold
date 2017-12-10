@@ -16,7 +16,7 @@ isr flash
     let stash color: u8 = 1
     let stash frame: u8 = 0
 
-    -- this is a comment
+    --[[ this is a comment ]]
 
     let mut k: u8 = 0
     while msg[k] != 0 do
