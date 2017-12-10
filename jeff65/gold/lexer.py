@@ -77,9 +77,8 @@ known_words = {
     ',': ast.PunctuationCommaNode,
     '.': NotImplemented,
     '->': NotImplemented,
-}
 
-delimiters = {
+    # delimiters
     '(': NotImplemented,
     ')': NotImplemented,
     '[': NotImplemented,
@@ -87,8 +86,8 @@ delimiters = {
     '{': NotImplemented,
     '}': NotImplemented,
     '"': NotImplemented,
-    '--[[': NotImplemented,
-    ']]': NotImplemented,
+    '--[[': ast.CommentNode,
+    ']]': ast.CommentEndNode,
 }
 
 # non-whitespace characters which can end words.
@@ -170,7 +169,7 @@ def scan_sprinkle(source, c):
     return _scan(source, c, lambda v, _: not v.isspace() and not v.isalnum())
 
 
-def make_token(position, term, default):
+def make_token(position, term, default=ast.MysteryNode):
     if term in known_words:
         cls = known_words[term]
         if cls is NotImplemented:
@@ -188,14 +187,24 @@ def lex(stream):
             c, position = next(source)
         except StopIteration:
             break
+
+        # whitespace
         if c.isspace():
             yield ast.WhitespaceNode(position, scan_whitespace(source, c))
+
+        # numeric
         elif c.isdigit():
             yield ast.NumericNode(position, scan_numeric(source, c))
+
+        # word or identifier
         elif c.isalpha():
             yield make_token(
                 position, scan_word(source, c), ast.IdentifierNode)
+
+        # non-alphanumeric word (mostly operators)
+        # we call these "sprinkles"
         else:
-            yield make_token(
-                position, scan_sprinkle(source, c), ast.MysteryNode)
+            yield make_token(position, scan_sprinkle(source, c))
+
+    # end-of-file
     yield ast.EofNode()
