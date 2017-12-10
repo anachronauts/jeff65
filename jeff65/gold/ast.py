@@ -177,7 +177,7 @@ class UnitNode(Node):
         self.statements = []
         while right.current.lbp > self.rbp:
             self.statements.append(self.parse(right, Power.statement))
-            print(self.statements[-1])
+        self.statements = [s for s in self.statements if s is not EofNode]
         return self
 
     def describe(self):
