@@ -31,6 +31,7 @@ class Power(IntEnum):
 
     eof = auto()
     unit = auto()
+    delimiter_paren = auto()
     statement = auto()
     storage_class = auto()
     term = auto()
@@ -217,7 +218,6 @@ class StringNode(TermNode):
 
     def eat_string(self, right):
         spans = []
-        depth = 1
         escaped = False
         while True:
             if type(right.current) is StringNode and not escaped:
@@ -235,6 +235,30 @@ class StringNode(TermNode):
 
     def describe(self):
         return f'"{self.string}"'
+
+
+class DelimiterOpenParenNode(Node):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_paren, position, text)
+
+    def nud(self, right):
+        expression = self.parse(right)
+        if type(right.current) is not DelimiterCloseParenNode:
+            raise ParseError("unmatched open parentheses", right.current)
+        right.next()
+        return expression
+
+
+class DelimiterCloseParenNode(Node):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_paren, position, text)
+
+    def nud(self, right):
+        raise ParseError("unmatched close parentheses", right.current)
+
+    def led(self, left, right):
+        raise ParseError("unmatched close parentheses", right.current)
+
 
 
 class OperatorAddNode(InfixNode):

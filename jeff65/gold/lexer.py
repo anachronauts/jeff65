@@ -79,8 +79,8 @@ known_words = {
     '->': NotImplemented,
 
     # delimiters
-    '(': NotImplemented,
-    ')': NotImplemented,
+    '(': ast.DelimiterOpenParenNode,
+    ')': ast.DelimiterCloseParenNode,
     '[': NotImplemented,
     ']': NotImplemented,
     '{': NotImplemented,
