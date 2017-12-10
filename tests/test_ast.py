@@ -18,8 +18,6 @@ def test_empty_file():
 
 def test_whitespace_only_file():
     a = parse("\n")
-    print(a.statements[0])
-    print(type(a.statements[0]))
     assert_equal(0, len(a.statements))
 
 
