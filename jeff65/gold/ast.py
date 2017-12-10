@@ -103,6 +103,7 @@ class Node:
         self.position = position
         self.text = text
         self.right = right
+        self.children = None
 
     def nud(self, right):
         raise NotImplementedError
@@ -129,27 +130,30 @@ class Node:
         return other(self.position, self.text)
 
     def traverse(self, visit):
-        raise NotImplementedError
+        for k in range(len(self.children)):
+            self.children[k] = self.children[k].traverse(visit)
+        return visit(self)
 
 
 class InfixNode(Node):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.lhs = None
-        self.rhs = None
-
     def led(self, left, right):
-        self.lhs = left
-        self.rhs = self.parse(right)
+        self.children = [left, self.parse(right)]
         return self
 
-    def describe(self):
-        return self.lhs and f"({self.lhs} {self.text} {self.rhs})"
+    @property
+    def lhs(self):
+        return self.children[0]
 
-    def traverse(self, visit):
-        self.lhs = self.lhs.traverse(visit)
-        self.rhs = self.rhs.traverse(visit)
-        return visit(self)
+    @property
+    def rhs(self):
+        return self.children[1]
+
+    def describe(self):
+        if self.children is None:
+            return None
+        if len(self.children) == 1:
+            return f"({self.text} {self.children[0]})"
+        return f"({self.children[0]} {self.text} {self.children[1]})"
 
 
 class TermNode(Node):
@@ -157,54 +161,46 @@ class TermNode(Node):
         super().__init__(Power.term, position, text)
 
     def nud(self, right):
+        self.children = []
         return self
 
     def describe(self):
         return self.text
 
-    def traverse(self, visit):
-        return visit(self)
-
 
 class PrefixNode(Node):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.rhs = None
-
     def nud(self, right):
-        self.rhs = self.parse(right)
+        self.children = [self.parse(right)]
         return self
 
-    def describe(self):
-        return self.rhs and f"({self.text} {self.rhs})"
+    @property
+    def rhs(self):
+        return self.children[0]
 
-    def traverse(self, visit):
-        self.rhs = self.rhs.traverse(visit)
-        return visit(self)
+    def describe(self):
+        return self.children and f"({self.text} {self.children[0]})"
 
 
 class UnitNode(Node):
     def __init__(self):
         super().__init__(Power.unit, None, "UNIT")
-        self.statements = None
 
     def nud(self, right):
-        self.statements = []
+        self.children = []
         while right.current.lbp > self.rbp:
-            self.statements.append(self.parse(right, Power.statement))
-            print(self.statements[-1])
+            self.children.append(self.parse(right, Power.statement))
+            print(self.children[-1])
         return self
 
-    def describe(self):
-        if self.statements is None:
-            return "<UNIT>"
-        lines = "\n".join(repr(s) for s in self.statements)
-        return lines
+    @property
+    def statements(self):
+        return self.children
 
-    def traverse(self, visit):
-        for k in range(len(self.statements)):
-            self.statements[k] = self.statements[k].traverse(visit)
-        return visit(self)
+    def describe(self):
+        if self.children is None:
+            return "<UNIT>"
+        lines = "\n".join(repr(s) for s in self.children)
+        return lines
 
 
 class WhitespaceNode(Node):
