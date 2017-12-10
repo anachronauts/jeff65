@@ -104,3 +104,19 @@ def test_let_without_storage_class():
     assert_equal("a", b.lhs.lhs.text)
     assert_is_instance(b.lhs.rhs, ast.IdentifierNode)
     assert_equal("u8", b.lhs.rhs.text)
+
+
+def test_string_literal():
+    a = parse('"this is a string"')
+    assert_equal(1, len(a.statements))
+    t = a.statements[0]
+    assert_is_instance(t, ast.StringNode)
+    assert_equal(t.string, "this is a string")
+
+
+def test_string_escaped():
+    a = parse('"this is a \\"string"')
+    assert_equal(1, len(a.statements))
+    t = a.statements[0]
+    assert_is_instance(t, ast.StringNode)
+    assert_equal(t.string, 'this is a \\"string')

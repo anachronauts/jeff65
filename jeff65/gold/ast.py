@@ -211,7 +211,30 @@ class NumericNode(TermNode):
 
 
 class StringNode(TermNode):
-    pass
+    def __init__(self, position, text):
+        super().__init__(position, text)
+        self.string = None
+
+    def eat_string(self, right):
+        spans = []
+        depth = 1
+        escaped = False
+        while True:
+            if type(right.current) is StringNode and not escaped:
+                right.next()
+                break
+            if right.current.text == "\\":
+                escaped = True
+            spans.append(right.current.text)
+            right.next()
+        return "".join(spans)
+
+    def nud(self, right):
+        self.string = self.eat_string(right)
+        return self
+
+    def describe(self):
+        return f'"{self.string}"'
 
 
 class OperatorAddNode(InfixNode):
