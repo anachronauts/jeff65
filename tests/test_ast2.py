@@ -12,7 +12,8 @@ def test_flatten_let_sc():
     assert_equal("mut", n.storage)
     assert_equal("foo", n.name.text)
     assert_equal("u8", n.t.text)
-    assert_equal("7", n.value.text)
+    assert_equal(1, len(n.children))
+    assert_equal("7", n.children[0].text)
 
 
 def test_flatten_let():
@@ -24,5 +25,5 @@ def test_flatten_let():
     assert_equal(None, n.storage)
     assert_equal("foo", n.name.text)
     assert_equal("u8", n.t.text)
-    assert_equal("7", n.value.text)
-
+    assert_equal(1, len(n.children))
+    assert_equal("7", n.children[0].text)

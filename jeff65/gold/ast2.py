@@ -17,14 +17,13 @@
 from . import ast
 
 
-class FlatLetNode:
+class FlatLetNode(ast.AstNode):
     def __init__(self, position, text):
         self.position = position
         self.text = text
         self.storage = None
         self.name = None
         self.t = None
-        self.value = None
 
     def __repr__(self):
         return f"(let' {self.storage} {self.name}: {self.t} = {self.value})"
@@ -41,17 +40,13 @@ class FlatLetNode:
             n = n.rhs
         if type(n) is not ast.OperatorAssignNode:
             raise ast.ParseError("expected =", n.position)
-        let.value = n.rhs
+        let.children = [n.rhs]
         n = n.lhs
         if type(n) is not ast.PunctuationValueTypeNode:
             raise ast.ParseError("expected variable type", n.position)
         let.name = n.lhs
         let.t = n.rhs
         return let
-
-    def traverse(self, visit):
-        self.value = self.value.traverse(visit)
-        return visit(self)
 
 
 transformations = [

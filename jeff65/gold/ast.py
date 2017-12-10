@@ -97,13 +97,23 @@ class ParseError(Exception):
         return f"{msg} (at {self.token.position})"
 
 
-class Node:
-    def __init__(self, lbp, position, text, right=False):
-        self.lbp = lbp
+class AstNode:
+    def __init__(self, position, text):
         self.position = position
         self.text = text
-        self.right = right
         self.children = None
+
+    def traverse(self, visit):
+        for k in range(len(self.children)):
+            self.children[k] = self.children[k].traverse(visit)
+        return visit(self)
+
+
+class TokenNode(AstNode):
+    def __init__(self, lbp, position, text, right=False):
+        super().__init__(position, text)
+        self.lbp = lbp
+        self.right = right
 
     def nud(self, right):
         raise NotImplementedError
@@ -126,16 +136,8 @@ class Node:
     def describe(self):
         return None
 
-    def transmute(self, other):
-        return other(self.position, self.text)
 
-    def traverse(self, visit):
-        for k in range(len(self.children)):
-            self.children[k] = self.children[k].traverse(visit)
-        return visit(self)
-
-
-class InfixNode(Node):
+class InfixNode(TokenNode):
     def led(self, left, right):
         self.children = [left, self.parse(right)]
         return self
@@ -156,7 +158,7 @@ class InfixNode(Node):
         return f"({self.children[0]} {self.text} {self.children[1]})"
 
 
-class TermNode(Node):
+class TermNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.term, position, text)
 
@@ -168,7 +170,7 @@ class TermNode(Node):
         return self.text
 
 
-class PrefixNode(Node):
+class PrefixNode(TokenNode):
     def nud(self, right):
         self.children = [self.parse(right)]
         return self
@@ -181,7 +183,7 @@ class PrefixNode(Node):
         return self.children and f"({self.text} {self.children[0]})"
 
 
-class UnitNode(Node):
+class UnitNode(TokenNode):
     def __init__(self):
         super().__init__(Power.unit, None, "UNIT")
 
@@ -203,7 +205,7 @@ class UnitNode(Node):
         return lines
 
 
-class WhitespaceNode(Node):
+class WhitespaceNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.whitespace, position, text)
 
@@ -214,7 +216,7 @@ class WhitespaceNode(Node):
         return left
 
 
-class EofNode(Node):
+class EofNode(TokenNode):
     def __init__(self):
         super().__init__(Power.eof, None, "EOF")
 
@@ -283,7 +285,7 @@ class OperatorAssignNode(InfixNode):
         super().__init__(Power.operator_assign, position, text)
 
 
-class MysteryNode(Node):
+class MysteryNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.mystery, position, text)
 
