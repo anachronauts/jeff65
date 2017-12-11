@@ -278,7 +278,6 @@ class DelimiterCloseParenNode(TokenNode):
         raise ParseError("unmatched close parentheses", self)
 
 
-
 class OperatorAddNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.operator_add_subtract, position, text)
