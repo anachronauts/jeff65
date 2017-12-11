@@ -71,6 +71,48 @@ def test_associativity():
     assert_is_instance(e1.rhs, ast.OperatorMultiplyNode)
 
 
+def test_sign():
+    a = parse("-1 + 2")
+    assert_equal(1, len(a.statements))
+    e1 = a.statements[0]
+    assert_is_instance(e1, ast.OperatorAddNode)
+    assert_is_instance(e1.lhs, ast.OperatorSubtractNode)
+    assert_is_instance(e1.rhs, ast.NumericNode)
+
+
+def test_parentheses():
+    a = parse("(1 + 2) * 3")
+    assert_equal(1, len(a.statements))
+    e1 = a.statements[0]
+    assert_is_instance(e1, ast.OperatorMultiplyNode)
+    assert_is_instance(e1.lhs, ast.OperatorAddNode)
+
+
+def test_nested_parentheses():
+    a = parse("((1 + 2) / 3) + 4")
+    assert_equal(1, len(a.statements))
+    e1 = a.statements[0]
+    assert_is_instance(e1, ast.OperatorAddNode)
+    assert_is_instance(e1.lhs, ast.OperatorDivideNode)
+    assert_is_instance(e1.lhs.lhs, ast.OperatorAddNode)
+
+
+def test_parentheses_with_sign():
+    a = parse("(-1 + 2)")
+    e1 = a.statements[0]
+    assert_is_instance(e1, ast.OperatorAddNode)
+    assert_is_instance(e1.lhs, ast.OperatorSubtractNode)
+    assert_is_instance(e1.rhs, ast.NumericNode)
+
+
+def test_unmatched_open_parentheses():
+    assert_raises(ast.ParseError, parse, "(1 + 2")
+
+
+def test_unmatched_close_parentheses():
+    assert_raises(ast.ParseError, parse, "1 + 2)")
+
+
 def test_let_with_storage_class():
     a = parse("let mut a: u8 = 7")
     assert_equal(1, len(a.statements))

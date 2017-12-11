@@ -31,6 +31,7 @@ class Power(IntEnum):
 
     eof = auto()
     unit = auto()
+    delimiter_paren = auto()
     statement = auto()
     storage_class = auto()
     term = auto()
@@ -235,7 +236,6 @@ class StringNode(TermNode):
 
     def eat_string(self, right):
         spans = []
-        depth = 1
         escaped = False
         while True:
             if type(right.current) is StringNode and not escaped:
@@ -255,13 +255,36 @@ class StringNode(TermNode):
         return f'"{self.string}"'
 
 
+class DelimiterOpenParenNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_paren, position, text)
+
+    def nud(self, right):
+        expression = self.parse(right)
+        if type(right.current) is not DelimiterCloseParenNode:
+            raise ParseError("unmatched open parentheses", self)
+        right.next()
+        return expression
+
+
+class DelimiterCloseParenNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_paren, position, text)
+
+    def nud(self, right):
+        raise ParseError("unmatched close parentheses", self)
+
+    def led(self, left, right):
+        raise ParseError("unmatched close parentheses", self)
+
+
 class OperatorAddNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.operator_add_subtract, position, text)
 
     def nud(self, right):
         """ unary plus """
-        self.lhs = self.parse(right, Power.operator_sign)
+        self.children = [self.parse(right, Power.operator_sign)]
         return self
 
 
@@ -271,7 +294,7 @@ class OperatorSubtractNode(InfixNode):
 
     def nud(self, right):
         """ unary minus """
-        self.lhs = self.parse(right, Power.operator_sign)
+        self.children = [self.parse(right, Power.operator_sign)]
         return self
 
 

@@ -79,15 +79,18 @@ known_words = {
     '->': NotImplemented,
 
     # delimiters
-    '(': NotImplemented,
-    ')': NotImplemented,
+    '"': ast.StringNode,
+    '--[[': ast.CommentNode,
+    ']]': ast.CommentEndNode,
     '[': NotImplemented,
     ']': NotImplemented,
     '{': NotImplemented,
     '}': NotImplemented,
-    '"': ast.StringNode,
-    '--[[': ast.CommentNode,
-    ']]': ast.CommentEndNode,
+}
+
+nestable_delimiters = {
+    '(': ast.DelimiterOpenParenNode,
+    ')': ast.DelimiterCloseParenNode,
 }
 
 # non-whitespace characters which can end words.
@@ -174,6 +177,10 @@ def make_token(position, term, default=ast.MysteryNode):
         cls = known_words[term]
         if cls is NotImplemented:
             cls = ast.MysteryNode
+    elif term in nestable_delimiters:
+        cls = nestable_delimiters[term]
+        if cls is NotImplemented:
+            cls = ast.MysteryNode
     else:
         cls = default
     return cls(position, term)
@@ -200,6 +207,10 @@ def lex(stream):
         elif c.isalpha():
             yield make_token(
                 position, scan_word(source, c), ast.IdentifierNode)
+
+        # nestable delimiters (parentheses)
+        elif c in nestable_delimiters:
+            yield make_token(position, c)
 
         # non-alphanumeric word (mostly operators)
         # we call these "sprinkles"
