@@ -96,7 +96,6 @@ def test_unmatched_close_parentheses():
     assert_raises(ast.ParseError, parse, "1 + 2)")
 
 
-
 def test_let_with_storage_class():
     a = parse("let mut a: u8 = 7")
     assert_equal(1, len(a.statements))
