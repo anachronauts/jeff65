@@ -71,6 +71,15 @@ def test_associativity():
     assert_is_instance(e1.rhs, ast.OperatorMultiplyNode)
 
 
+def test_sign():
+    a = parse("-1 + 2")
+    assert_equal(1, len(a.statements))
+    e1 = a.statements[0]
+    assert_is_instance(e1, ast.OperatorAddNode)
+    assert_is_instance(e1.lhs, ast.OperatorSubtractNode)
+    assert_is_instance(e1.rhs, ast.NumericNode)
+
+
 def test_parentheses():
     a = parse("(1 + 2) * 3")
     assert_equal(1, len(a.statements))
@@ -86,6 +95,14 @@ def test_nested_parentheses():
     assert_is_instance(e1, ast.OperatorAddNode)
     assert_is_instance(e1.lhs, ast.OperatorDivideNode)
     assert_is_instance(e1.lhs.lhs, ast.OperatorAddNode)
+
+
+def test_parentheses_with_sign():
+    a = parse("(-1 + 2)")
+    e1 = a.statements[0]
+    assert_is_instance(e1, ast.OperatorAddNode)
+    assert_is_instance(e1.lhs, ast.OperatorSubtractNode)
+    assert_is_instance(e1.rhs, ast.NumericNode)
 
 
 def test_unmatched_open_parentheses():

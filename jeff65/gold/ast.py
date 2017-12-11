@@ -284,7 +284,7 @@ class OperatorAddNode(InfixNode):
 
     def nud(self, right):
         """ unary plus """
-        self.lhs = self.parse(right, Power.operator_sign)
+        self.children = [self.parse(right, Power.operator_sign)]
         return self
 
 
@@ -294,7 +294,7 @@ class OperatorSubtractNode(InfixNode):
 
     def nud(self, right):
         """ unary minus """
-        self.lhs = self.parse(right, Power.operator_sign)
+        self.children = [self.parse(right, Power.operator_sign)]
         return self
 
 
