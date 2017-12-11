@@ -262,7 +262,7 @@ class DelimiterOpenParenNode(TokenNode):
     def nud(self, right):
         expression = self.parse(right)
         if type(right.current) is not DelimiterCloseParenNode:
-            raise ParseError("unmatched open parentheses", right.current)
+            raise ParseError("unmatched open parentheses", self)
         right.next()
         return expression
 
@@ -272,10 +272,10 @@ class DelimiterCloseParenNode(TokenNode):
         super().__init__(Power.delimiter_paren, position, text)
 
     def nud(self, right):
-        raise ParseError("unmatched close parentheses", right.current)
+        raise ParseError("unmatched close parentheses", self)
 
     def led(self, left, right):
-        raise ParseError("unmatched close parentheses", right.current)
+        raise ParseError("unmatched close parentheses", self)
 
 
 
