@@ -1,12 +1,12 @@
 import io
-from nose.tools import *
+from nose.tools import assert_equal, assert_is_instance, assert_raises
 from jeff65.gold import ast, lexer
 
 
 def parse(source):
     with io.StringIO(source) as s:
-        l = list(lexer.lex(s))
-        a = ast.parse_all(l)
+        x = list(lexer.lex(s))
+        a = ast.parse_all(x)
         assert_is_instance(a, ast.UnitNode)
         return a
 
