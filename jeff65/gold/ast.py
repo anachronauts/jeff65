@@ -255,7 +255,7 @@ class StringNode(TermNode):
         return f'"{self.string}"'
 
 
-class DelimiterOpenParenNode(Node):
+class DelimiterOpenParenNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.delimiter_paren, position, text)
 
@@ -267,7 +267,7 @@ class DelimiterOpenParenNode(Node):
         return expression
 
 
-class DelimiterCloseParenNode(Node):
+class DelimiterCloseParenNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.delimiter_paren, position, text)
 
