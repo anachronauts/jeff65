@@ -188,8 +188,83 @@ def test_fun_call_many():
     assert_equal(1, len(a.statements))
     c = a.statements[0]
     assert_is_instance(c, ast.FunctionCallNode)
-    print(c)
     assert_equal("foo", c.fun.text)
     assert_equal("1", c.args.lhs.text)
     assert_equal("2", c.args.rhs.lhs.text)
     assert_equal("3", c.args.rhs.rhs.text)
+
+
+def test_return():
+    a = parse("return 1 + 2")
+    assert_equal(1, len(a.statements))
+    r = a.statements[0]
+    assert_is_instance(r, ast.StatementReturnNode)
+    assert_is_instance(r.rhs, ast.OperatorAddNode)
+    assert_equal("1", r.rhs.lhs.text)
+    assert_equal("2", r.rhs.rhs.text)
+
+
+def test_fun_def_void_empty():
+    a = parse("fun foo() endfun")
+    assert_equal(1, len(a.statements))
+    f = a.statements[0]
+    assert_is_instance(f, ast.StatementFunNode)
+    s = f.signature
+    assert_is_instance(s, ast.FunctionCallNode)
+    assert_equal("foo", s.fun.text)
+    assert_is_none(s.args)
+    assert_equal(0, len(f.children))
+
+
+def test_fun_def_void():
+    a = parse("""
+    fun foo(a: u8, b: u16)
+       return a + b
+    endfun
+    """)
+    assert_equal(1, len(a.statements))
+    f = a.statements[0]
+    assert_is_instance(f, ast.StatementFunNode)
+    s = f.signature
+    assert_is_instance(s, ast.FunctionCallNode)
+    assert_equal("foo", s.fun.text)
+    assert_is_instance(s.args, ast.PunctuationCommaNode)
+    aa = s.args.lhs
+    assert_is_instance(aa, ast.PunctuationValueTypeNode)
+    assert_equal("a", aa.lhs.text)
+    assert_equal("u8", aa.rhs.text)
+    ab = s.args.rhs
+    assert_is_instance(ab, ast.PunctuationValueTypeNode)
+    assert_equal("b", ab.lhs.text)
+    assert_equal("u16", ab.rhs.text)
+    assert_equal(1, len(f.children))
+    r = f.children[0]
+    assert_is_instance(r, ast.StatementReturnNode)
+    assert_is_instance(r.rhs, ast.OperatorAddNode)
+    assert_equal("a", r.rhs.lhs.text)
+    assert_equal("b", r.rhs.rhs.text)
+
+
+def test_fun_def_nonvoid():
+    a = parse("""
+    fun id(x: u8) -> u8
+        return x
+    endfun
+    """)
+    assert_equal(1, len(a.statements))
+    f = a.statements[0]
+    assert_is_instance(f, ast.StatementFunNode)
+    rt = f.signature
+    assert_is_instance(rt, ast.PunctuationReturnTypeNode)
+    assert_equal("u8", rt.rhs.text)
+    s = rt.lhs
+    assert_is_instance(s, ast.FunctionCallNode)
+    assert_equal("id", s.fun.text)
+    ax = s.args
+    assert_is_instance(ax, ast.PunctuationValueTypeNode)
+    assert_equal("x", ax.lhs.text)
+    assert_equal("u8", ax.rhs.text)
+    assert_equal(1, len(f.children))
+    r = f.children[0]
+    assert_is_instance(r, ast.StatementReturnNode)
+    assert_equal("x", r.rhs.text)

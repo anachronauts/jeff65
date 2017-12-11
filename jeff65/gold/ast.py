@@ -31,6 +31,7 @@ class Power(IntEnum):
 
     eof = auto()
     unit = auto()
+    delimiter_endfun = auto()
     delimiter_close_paren = auto()
     statement = auto()
     storage_class = auto()
@@ -51,6 +52,7 @@ class Power(IntEnum):
     operator_sign = auto()
     punctuation_value_type = auto()
     delimiter_open_paren = auto()
+    punctuation_return_type = auto()
     whitespace = auto()
     mystery = auto()
 
@@ -376,6 +378,11 @@ class PunctuationValueTypeNode(InfixNode):
         super().__init__(Power.punctuation_value_type, position, text)
 
 
+class PunctuationReturnTypeNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.punctuation_return_type, position, text)
+
+
 class CommentNode(WhitespaceNode):
     def __init__(self, position, text):
         super().__init__(position, text)
@@ -437,3 +444,43 @@ class StatementLetNode(PrefixNode):
     @property
     def binding(self):
         return self.rhs
+
+
+class StatementReturnNode(PrefixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
+
+
+class StatementFunNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
+        self.signature = None
+
+    def nud(self, right):
+        self.signature = self.parse(right)
+        self.children = []
+        while type(right.current) is not PunctuationEndFunNode:
+            self.children.append(self.parse(right, Power.delimiter_endfun))
+        right.next()
+        return self
+
+    def traverse(self, visit):
+        self.signature = self.signature.traverse(visit)
+        return super().traverse(visit)
+
+    def describe(self):
+        if self.signature is None:
+            return None
+        stmts = "\n    ".join(repr(c) for c in self.children)
+        return self.signature and f"(fun {self.signature}\n    {stmts})"
+
+
+class PunctuationEndFunNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_endfun, position, text)
+
+    def nud(self, right):
+        raise ParseError("unexpected 'endfun'", self)
+
+    def led(self, left, right):
+        raise ParseError("unexpected 'endfun'", self)
