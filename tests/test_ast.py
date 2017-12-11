@@ -1,5 +1,6 @@
 import io
-from nose.tools import assert_equal, assert_is_instance, assert_raises
+from nose.tools import (assert_equal, assert_is_instance, assert_raises,
+                        assert_is_none)
 from jeff65.gold import ast, lexer
 
 
@@ -162,3 +163,33 @@ def test_string_escaped():
     t = a.statements[0]
     assert_is_instance(t, ast.StringNode)
     assert_equal(t.string, 'this is a \\"string')
+
+
+def test_fun_call_empty():
+    a = parse("foo()")
+    assert_equal(1, len(a.statements))
+    c = a.statements[0]
+    assert_is_instance(c, ast.FunctionCallNode)
+    assert_equal("foo", c.fun.text)
+    assert_is_none(c.args)
+
+
+def test_fun_call_one():
+    a = parse("foo(1)")
+    assert_equal(1, len(a.statements))
+    c = a.statements[0]
+    assert_is_instance(c, ast.FunctionCallNode)
+    assert_equal("foo", c.fun.text)
+    assert_equal("1", c.args.text)
+
+
+def test_fun_call_many():
+    a = parse("foo(1, 2, 3)")
+    assert_equal(1, len(a.statements))
+    c = a.statements[0]
+    assert_is_instance(c, ast.FunctionCallNode)
+    print(c)
+    assert_equal("foo", c.fun.text)
+    assert_equal("1", c.args.lhs.text)
+    assert_equal("2", c.args.rhs.lhs.text)
+    assert_equal("3", c.args.rhs.rhs.text)

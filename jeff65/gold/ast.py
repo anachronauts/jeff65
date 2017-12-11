@@ -31,7 +31,7 @@ class Power(IntEnum):
 
     eof = auto()
     unit = auto()
-    delimiter_paren = auto()
+    delimiter_close_paren = auto()
     statement = auto()
     storage_class = auto()
     term = auto()
@@ -50,6 +50,7 @@ class Power(IntEnum):
     operator_bitnot = auto()
     operator_sign = auto()
     punctuation_value_type = auto()
+    delimiter_open_paren = auto()
     whitespace = auto()
     mystery = auto()
 
@@ -257,19 +258,50 @@ class StringNode(TermNode):
 
 class DelimiterOpenParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_paren, position, text)
+        super().__init__(Power.delimiter_open_paren, position, text)
 
     def nud(self, right):
-        expression = self.parse(right)
+        expression = self.parse(right, Power.delimiter_close_paren)
         if type(right.current) is not DelimiterCloseParenNode:
             raise ParseError("unmatched open parentheses", self)
         right.next()
         return expression
 
+    def led(self, left, right):
+        if type(right.current) is DelimiterCloseParenNode:
+            args = None
+        else:
+            args = self.parse(right, Power.delimiter_close_paren)
+
+        if type(right.current) is not DelimiterCloseParenNode:
+            raise ParseError("expected ')'", self)
+        right.next()
+
+        return FunctionCallNode(self.position, self.text, left, args)
+
+
+class FunctionCallNode(AstNode):
+    def __init__(self, position, text, fun, args):
+        super().__init__(position, text)
+        self.children = [fun, args]
+
+    @property
+    def fun(self):
+        return self.children[0]
+
+    @property
+    def args(self):
+        return self.children[1]
+
+    def __repr__(self):
+        if self.args is None:
+            return f"{self.fun}()"
+        return f"{self.fun}{self.args}"
+
 
 class DelimiterCloseParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_paren, position, text)
+        super().__init__(Power.delimiter_close_paren, position, text)
 
     def nud(self, right):
         raise ParseError("unmatched close parentheses", self)
@@ -310,7 +342,7 @@ class OperatorDivideNode(InfixNode):
 
 class PunctuationCommaNode(InfixNode):
     def __init__(self, position, text):
-        super().__init__(Power.punctuation_comma, position, text)
+        super().__init__(Power.punctuation_comma, position, text, right=True)
 
 
 class IdentifierNode(TermNode):
