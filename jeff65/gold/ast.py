@@ -31,7 +31,8 @@ class Power(IntEnum):
 
     eof = auto()
     unit = auto()
-    delimiter_paren = auto()
+    delimiter_endfun = auto()
+    delimiter_close_paren = auto()
     statement = auto()
     storage_class = auto()
     term = auto()
@@ -50,6 +51,8 @@ class Power(IntEnum):
     operator_bitnot = auto()
     operator_sign = auto()
     punctuation_value_type = auto()
+    delimiter_open_paren = auto()
+    punctuation_return_type = auto()
     whitespace = auto()
     mystery = auto()
 
@@ -111,10 +114,11 @@ class AstNode:
 
 
 class TokenNode(AstNode):
-    def __init__(self, lbp, position, text, right=False):
+    def __init__(self, lbp, position, text, right=False, end=False):
         super().__init__(position, text)
         self.lbp = lbp
         self.right = right
+        self.end = end
 
     def nud(self, right):
         raise NotImplementedError
@@ -219,7 +223,7 @@ class WhitespaceNode(TokenNode):
 
 class EofNode(TokenNode):
     def __init__(self):
-        super().__init__(Power.eof, None, "EOF")
+        super().__init__(Power.eof, None, "EOF", end=True)
 
     def describe(self):
         return "<EOF>"
@@ -257,19 +261,50 @@ class StringNode(TermNode):
 
 class DelimiterOpenParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_paren, position, text)
+        super().__init__(Power.delimiter_open_paren, position, text)
 
     def nud(self, right):
-        expression = self.parse(right)
+        expression = self.parse(right, Power.delimiter_close_paren)
         if type(right.current) is not DelimiterCloseParenNode:
             raise ParseError("unmatched open parentheses", self)
         right.next()
         return expression
 
+    def led(self, left, right):
+        if type(right.current) is DelimiterCloseParenNode:
+            args = None
+        else:
+            args = self.parse(right, Power.delimiter_close_paren)
+
+        if type(right.current) is not DelimiterCloseParenNode:
+            raise ParseError("expected ')'", self)
+        right.next()
+
+        return FunctionCallNode(self.position, self.text, left, args)
+
+
+class FunctionCallNode(AstNode):
+    def __init__(self, position, text, fun, args):
+        super().__init__(position, text)
+        self.children = [fun, args]
+
+    @property
+    def fun(self):
+        return self.children[0]
+
+    @property
+    def args(self):
+        return self.children[1]
+
+    def __repr__(self):
+        if self.args is None:
+            return f"{self.fun}()"
+        return f"{self.fun}{self.args}"
+
 
 class DelimiterCloseParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_paren, position, text)
+        super().__init__(Power.delimiter_close_paren, position, text)
 
     def nud(self, right):
         raise ParseError("unmatched close parentheses", self)
@@ -310,7 +345,7 @@ class OperatorDivideNode(InfixNode):
 
 class PunctuationCommaNode(InfixNode):
     def __init__(self, position, text):
-        super().__init__(Power.punctuation_comma, position, text)
+        super().__init__(Power.punctuation_comma, position, text, right=True)
 
 
 class IdentifierNode(TermNode):
@@ -342,6 +377,11 @@ class MysteryNode(TokenNode):
 class PunctuationValueTypeNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.punctuation_value_type, position, text)
+
+
+class PunctuationReturnTypeNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.punctuation_return_type, position, text)
 
 
 class CommentNode(WhitespaceNode):
@@ -405,3 +445,61 @@ class StatementLetNode(PrefixNode):
     @property
     def binding(self):
         return self.rhs
+
+
+class StatementReturnNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
+
+    def nud(self, right):
+        if type(right.current) is WhitespaceNode:
+            right.next()  # manually eat whitespace
+        if right.current.end:
+            self.children = []
+        else:
+            self.children = [self.parse(right)]
+        return self
+
+    @property
+    def rhs(self):
+        if len(self.children) == 0:
+            return None
+        return self.children[0]
+
+    def describe(self):
+        return self.children and f"({self.text} {self.children[0]})"
+
+
+class StatementFunNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
+        self.signature = None
+
+    def nud(self, right):
+        self.signature = self.parse(right)
+        self.children = []
+        while type(right.current) is not PunctuationEndFunNode:
+            self.children.append(self.parse(right, Power.delimiter_endfun))
+        right.next()
+        return self
+
+    def traverse(self, visit):
+        self.signature = self.signature.traverse(visit)
+        return super().traverse(visit)
+
+    def describe(self):
+        if self.signature is None:
+            return None
+        stmts = "\n    ".join(repr(c) for c in self.children)
+        return self.signature and f"(fun {self.signature}\n    {stmts})"
+
+
+class PunctuationEndFunNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_endfun, position, text, end=True)
+
+    def nud(self, right):
+        raise ParseError("unexpected 'endfun'", self)
+
+    def led(self, left, right):
+        raise ParseError("unexpected 'endfun'", self)

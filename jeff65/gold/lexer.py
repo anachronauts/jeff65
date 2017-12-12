@@ -52,10 +52,11 @@ known_words = {
     # statement leaders
     'constant': ast.StatementConstantNode,
     'for': NotImplemented,
+    'fun': ast.StatementFunNode,
     'if': NotImplemented,
     'isr': NotImplemented,
     'let': ast.StatementLetNode,
-    'return': NotImplemented,
+    'return': ast.StatementReturnNode,
     'use': ast.StatementUseNode,
     'while': NotImplemented,
 
@@ -68,7 +69,7 @@ known_words = {
     'else': NotImplemented,
     'elseif': NotImplemented,
     'end': NotImplemented,
-    'endfun': NotImplemented,
+    'endfun': ast.PunctuationEndFunNode,
     'endisr': NotImplemented,
     'in': NotImplemented,
     'then': NotImplemented,
@@ -76,7 +77,7 @@ known_words = {
     ':': ast.PunctuationValueTypeNode,
     ',': ast.PunctuationCommaNode,
     '.': NotImplemented,
-    '->': NotImplemented,
+    '->': ast.PunctuationReturnTypeNode,
 
     # delimiters
     '"': ast.StringNode,
