@@ -149,6 +149,64 @@ def test_let_without_storage_class():
     assert_equal("u8", b.lhs.rhs.text)
 
 
+def test_array_declaration():
+    a = parse("let x: [u8; 0 to 3] = [0, 1, 2]")
+    assert_equal(1, len(a.statements))
+    t =a.statements[0]
+    assert_is_instance(t, ast.StatementLetNode)
+    b = t.binding
+    assert_is_instance(b, ast.OperatorAssignNode)
+    print(b.lhs)
+    print(b.rhs)
+    assert_equal(1, 2)
+
+
+def test_array_declaration_shorthand():
+    a = parse("let x: [u8; 3] = [0, 1, 2]")
+    assert_equal(1, len(a.statements))
+    t =a.statements[0]
+    assert_is_instance(t, ast.StatementLetNode)
+    b = t.binding
+    assert_is_instance(b, ast.OperatorAssignNode)
+    assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
+    assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
+    r = b.lhs.rhs
+    assert_is_instance(r, ast.PunctuationArrayRangeNode)
+    assert_is_instance(r.lhs, ast.IdentifierNode)
+    assert_equal("u8", r.lhs.text)
+    assert_is_instance(r.rhs, ast.NumericNode)
+    assert_equal("3", r.rhs.text)
+    v = b.rhs
+    assert_is_instance(v, ast.PunctuationCommaNode)
+    assert_is_instance(v.lhs, ast.NumericNode)
+    assert_equal(v.lhs.text, "0")
+    assert_is_instance(v.rhs, ast.PunctuationCommaNode)
+    assert_is_instance(v.rhs.lhs, ast.NumericNode)
+    assert_equal(v.rhs.lhs.text, "1")
+    assert_is_instance(v.rhs.rhs, ast.NumericNode)
+    assert_equal(v.rhs.rhs.text, "2")
+
+
+def test_array_multidiminsional():
+    a = parse("let x: [u8; 2, 1 to 4] = [0, 1], [2, 3, 4]")
+    assert_equal(1, len(a.statements))
+    t =a.statements[0]
+    assert_is_instance(t, ast.StatementLetNode)
+    b = t.binding
+    assert_is_instance(b, ast.OperatorAssignNode)
+    print(b.lhs)
+    print(b.rhs)
+    assert_equal(1, 2)
+
+
+def test_array_unmatched_open_bracket():
+    assert_raises(ast.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
+
+
+def test_array_unmatched_close_bracket():
+    assert_raises(ast.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
+
+
 def test_string_literal():
     a = parse('"this is a string"')
     assert_equal(1, len(a.statements))

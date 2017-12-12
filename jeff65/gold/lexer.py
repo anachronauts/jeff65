@@ -75,6 +75,7 @@ known_words = {
     'then': NotImplemented,
     'to': NotImplemented,
     ':': ast.PunctuationValueTypeNode,
+    ';': ast.PunctuationArrayRangeNode,
     ',': ast.PunctuationCommaNode,
     '.': NotImplemented,
     '->': ast.PunctuationReturnTypeNode,
@@ -83,8 +84,8 @@ known_words = {
     '"': ast.StringNode,
     '--[[': ast.CommentNode,
     ']]': ast.CommentEndNode,
-    '[': NotImplemented,
-    ']': NotImplemented,
+    '[': ast.DelimiterOpenBracketNode,
+    ']': ast.DelimiterCloseBracketNode,
     '{': NotImplemented,
     '}': NotImplemented,
 }
@@ -95,7 +96,7 @@ nestable_delimiters = {
 }
 
 # non-whitespace characters which can end words.
-specials = '()[]{}:.,"\\'
+specials = '()[]{}:;.,"\\@'
 
 
 class Redo:

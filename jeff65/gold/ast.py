@@ -37,6 +37,7 @@ class Power(IntEnum):
     storage_class = auto()
     term = auto()
     operator_assign = auto()
+    punctuation_array_range = auto()
     punctuation_comma = auto()
     operator_or = auto()
     operator_and = auto()
@@ -317,26 +318,23 @@ class DelimiterOpenBracketNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.delimiter_open, position, text)
 
-    def led(self, left, right):
-        raise NotImplementedError("open bracket")
+    def nud(self, right):
+        contents = self.parse(right, Power.delimiter_close)
+        if type(right.current) is not DelimiterCloseBracketNode:
+            raise ParseError("unmatched open bracket", self)
+        right.next()
+        return contents
 
 
 class DelimiterCloseBracketNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.delimiter_close, position, text)
 
-    def led(self, left, right):
-        raise NotImplementedError("close bracket")
-
-
-class ArrayDeclarationNode(AstNode):
-    def __init__(self, position, text):
-        super().__init__(position, text)
-        self.type = None
-        self.ranges = None
-
     def nud(self, right):
-        raise NotImplementedError("Array node")
+        raise ParseError("unmatched close bracket", self)
+
+    def led(self, left, right):
+        raise ParseError("unmatched close bracket", self)
 
 
 class OperatorAddNode(InfixNode):
@@ -403,6 +401,11 @@ class MysteryNode(TokenNode):
 class PunctuationValueTypeNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.punctuation_value_type, position, text)
+
+
+class PunctuationArrayRangeNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.punctuation_array_range, position, text)
 
 
 class PunctuationReturnTypeNode(InfixNode):
