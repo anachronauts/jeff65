@@ -156,9 +156,26 @@ def test_array_declaration():
     assert_is_instance(t, ast.StatementLetNode)
     b = t.binding
     assert_is_instance(b, ast.OperatorAssignNode)
-    print(b.lhs)
-    print(b.rhs)
-    assert_equal(1, 2)
+    assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
+    assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
+    r = b.lhs.rhs
+    assert_is_instance(r, ast.PunctuationArrayRangeNode)
+    assert_is_instance(r.lhs, ast.IdentifierNode)
+    assert_equal(r.lhs.text, "u8")
+    assert_is_instance(r.rhs, ast.OperatorRangeNode)
+    assert_is_instance(r.rhs.lhs, ast.NumericNode)
+    assert_equal(r.rhs.lhs.text, "0")
+    assert_is_instance(r.rhs.rhs, ast.NumericNode)
+    assert_equal(r.rhs.rhs.text, "3")
+    v = b.rhs
+    assert_is_instance(v, ast.PunctuationCommaNode)
+    assert_is_instance(v.lhs, ast.NumericNode)
+    assert_equal(v.lhs.text, "0")
+    assert_is_instance(v.rhs, ast.PunctuationCommaNode)
+    assert_is_instance(v.rhs.lhs, ast.NumericNode)
+    assert_equal(v.rhs.lhs.text, "1")
+    assert_is_instance(v.rhs.rhs, ast.NumericNode)
+    assert_equal(v.rhs.rhs.text, "2")
 
 
 def test_array_declaration_shorthand():
@@ -173,7 +190,7 @@ def test_array_declaration_shorthand():
     r = b.lhs.rhs
     assert_is_instance(r, ast.PunctuationArrayRangeNode)
     assert_is_instance(r.lhs, ast.IdentifierNode)
-    assert_equal("u8", r.lhs.text)
+    assert_equal(r.lhs.text, "u8")
     assert_is_instance(r.rhs, ast.NumericNode)
     assert_equal("3", r.rhs.text)
     v = b.rhs

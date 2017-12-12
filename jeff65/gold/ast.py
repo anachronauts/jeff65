@@ -39,6 +39,7 @@ class Power(IntEnum):
     operator_assign = auto()
     punctuation_array_range = auto()
     punctuation_comma = auto()
+    operator_range = auto()
     operator_or = auto()
     operator_and = auto()
     operator_not = auto()
@@ -388,6 +389,11 @@ class StorageClassNode(PrefixNode):
 class OperatorAssignNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.operator_assign, position, text)
+
+
+class OperatorRangeNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_range, position, text)
 
 
 class MysteryNode(TokenNode):

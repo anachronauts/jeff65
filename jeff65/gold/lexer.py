@@ -73,7 +73,7 @@ known_words = {
     'endisr': NotImplemented,
     'in': NotImplemented,
     'then': NotImplemented,
-    'to': NotImplemented,
+    'to': ast.OperatorRangeNode,
     ':': ast.PunctuationValueTypeNode,
     ';': ast.PunctuationArrayRangeNode,
     ',': ast.PunctuationCommaNode,
