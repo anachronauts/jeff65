@@ -159,6 +159,8 @@ def test_array_declaration():
     assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
     assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
     r = b.lhs.rhs
+    assert_is_instance(r, ast.BracketsNode)
+    r = r.contents
     assert_is_instance(r, ast.PunctuationArrayRangeNode)
     assert_is_instance(r.lhs, ast.IdentifierNode)
     assert_equal(r.lhs.text, "u8")
@@ -168,6 +170,8 @@ def test_array_declaration():
     assert_is_instance(r.rhs.rhs, ast.NumericNode)
     assert_equal(r.rhs.rhs.text, "3")
     v = b.rhs
+    assert_is_instance(v, ast.BracketsNode)
+    v = v.contents
     assert_is_instance(v, ast.PunctuationCommaNode)
     assert_is_instance(v.lhs, ast.NumericNode)
     assert_equal(v.lhs.text, "0")
@@ -188,12 +192,16 @@ def test_array_declaration_shorthand():
     assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
     assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
     r = b.lhs.rhs
+    assert_is_instance(r, ast.BracketsNode)
+    r = r.contents
     assert_is_instance(r, ast.PunctuationArrayRangeNode)
     assert_is_instance(r.lhs, ast.IdentifierNode)
     assert_equal(r.lhs.text, "u8")
     assert_is_instance(r.rhs, ast.NumericNode)
     assert_equal("3", r.rhs.text)
     v = b.rhs
+    assert_is_instance(v, ast.BracketsNode)
+    v = v.contents
     assert_is_instance(v, ast.PunctuationCommaNode)
     assert_is_instance(v.lhs, ast.NumericNode)
     assert_equal(v.lhs.text, "0")
@@ -205,7 +213,7 @@ def test_array_declaration_shorthand():
 
 
 def test_array_multidiminsional():
-    a = parse("let x: [u8; 2, 1 to 4] = [0, 1], [2, 3, 4]")
+    a = parse("let x: [u8; 2, 1 to 3] = [[0, 1], [2, 3]]")
     assert_equal(1, len(a.statements))
     t = a.statements[0]
     assert_is_instance(t, ast.StatementLetNode)
@@ -214,6 +222,8 @@ def test_array_multidiminsional():
     assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
     assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
     r = b.lhs.rhs
+    assert_is_instance(r, ast.BracketsNode)
+    r = r.contents
     assert_is_instance(r, ast.PunctuationArrayRangeNode)
     assert_is_instance(r.lhs, ast.IdentifierNode)
     assert_equal(r.lhs.text, "u8")
@@ -224,22 +234,25 @@ def test_array_multidiminsional():
     assert_is_instance(r.rhs.rhs.lhs, ast.NumericNode)
     assert_equal(r.rhs.rhs.lhs.text, "1")
     assert_is_instance(r.rhs.rhs.rhs, ast.NumericNode)
-    assert_equal(r.rhs.rhs.rhs.text, "4")
+    assert_equal(r.rhs.rhs.rhs.text, "3")
     v = b.rhs
+    assert_is_instance(v, ast.BracketsNode)
+    v = v.contents
     assert_is_instance(v, ast.PunctuationCommaNode)
-    assert_is_instance(v.lhs, ast.PunctuationCommaNode)
-    assert_is_instance(v.lhs.lhs, ast.NumericNode)
-    assert_equal(v.lhs.lhs.text, "0")
-    assert_is_instance(v.lhs.rhs, ast.NumericNode)
-    assert_equal(v.lhs.rhs.text, "1")
-    assert_is_instance(v.rhs, ast.PunctuationCommaNode)
-    assert_is_instance(v.rhs.lhs, ast.NumericNode)
-    assert_equal(v.rhs.lhs.text, "2")
-    assert_is_instance(v.rhs.rhs, ast.PunctuationCommaNode)
-    assert_is_instance(v.rhs.rhs.lhs, ast.NumericNode)
-    assert_equal(v.rhs.rhs.lhs.text, "3")
-    assert_is_instance(v.rhs.rhs.rhs, ast.NumericNode)
-    assert_equal(v.rhs.rhs.rhs.text, "4")
+    v1 = v.lhs
+    assert_is_instance(v1, ast.BracketsNode)
+    v1 = v1.contents
+    assert_is_instance(v1, ast.PunctuationCommaNode)
+    assert_is_instance(v1.lhs, ast.NumericNode)
+    assert_equal(v1.lhs.text, "0")
+    assert_is_instance(v1.rhs, ast.NumericNode)
+    assert_equal(v1.rhs.text, "1")
+    v2 = v.rhs
+    assert_is_instance(v2, ast.BracketsNode)
+    assert_is_instance(v2.lhs, ast.NumericNode)
+    assert_equal(v2.lhs.text, "2")
+    assert_is_instance(v2.rhs, ast.NumericNode)
+    assert_equal(v2.rhs.text, "3")
 
 
 def test_array_unmatched_open_bracket():

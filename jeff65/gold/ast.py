@@ -324,7 +324,7 @@ class DelimiterOpenBracketNode(TokenNode):
         if type(right.current) is not DelimiterCloseBracketNode:
             raise ParseError("unmatched open bracket", self)
         right.next()
-        return contents
+        return BracketsNode(self.position, contents)
 
 
 class DelimiterCloseBracketNode(TokenNode):
@@ -336,6 +336,19 @@ class DelimiterCloseBracketNode(TokenNode):
 
     def led(self, left, right):
         raise ParseError("unmatched close bracket", self)
+
+
+class BracketsNode(AstNode):
+    def __init__(self, position, contents):
+        super().__init__(position, None)
+        self.children = [contents]
+
+    @property
+    def contents(self):
+        return self.children[0]
+
+    def __repr__(self):
+        return f"[{self.contents}]"
 
 
 class OperatorAddNode(InfixNode):
