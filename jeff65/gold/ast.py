@@ -114,10 +114,11 @@ class AstNode:
 
 
 class TokenNode(AstNode):
-    def __init__(self, lbp, position, text, right=False):
+    def __init__(self, lbp, position, text, right=False, end=False):
         super().__init__(position, text)
         self.lbp = lbp
         self.right = right
+        self.end = end
 
     def nud(self, right):
         raise NotImplementedError
@@ -222,7 +223,7 @@ class WhitespaceNode(TokenNode):
 
 class EofNode(TokenNode):
     def __init__(self):
-        super().__init__(Power.eof, None, "EOF")
+        super().__init__(Power.eof, None, "EOF", end=True)
 
     def describe(self):
         return "<EOF>"
@@ -446,9 +447,27 @@ class StatementLetNode(PrefixNode):
         return self.rhs
 
 
-class StatementReturnNode(PrefixNode):
+class StatementReturnNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.statement, position, text)
+
+    def nud(self, right):
+        if type(right.current) is WhitespaceNode:
+            right.next()  # manually eat whitespace
+        if right.current.end:
+            self.children = []
+        else:
+            self.children = [self.parse(right)]
+        return self
+
+    @property
+    def rhs(self):
+        if len(self.children) == 0:
+            return None
+        return self.children[0]
+
+    def describe(self):
+        return self.children and f"({self.text} {self.children[0]})"
 
 
 class StatementFunNode(TokenNode):
@@ -477,7 +496,7 @@ class StatementFunNode(TokenNode):
 
 class PunctuationEndFunNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_endfun, position, text)
+        super().__init__(Power.delimiter_endfun, position, text, end=True)
 
     def nud(self, right):
         raise ParseError("unexpected 'endfun'", self)

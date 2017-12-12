@@ -204,6 +204,13 @@ def test_return():
     assert_equal("2", r.rhs.rhs.text)
 
 
+def test_return_empty():
+    a = parse("return")
+    assert_equal(1, len(a.statements))
+    r = a.statements[0]
+    assert_is_none(r.rhs)
+
+
 def test_fun_def_void_empty():
     a = parse("fun foo() endfun")
     assert_equal(1, len(a.statements))
@@ -219,7 +226,7 @@ def test_fun_def_void_empty():
 def test_fun_def_void():
     a = parse("""
     fun foo(a: u8, b: u16)
-       return a + b
+       return
     endfun
     """)
     assert_equal(1, len(a.statements))
@@ -240,9 +247,7 @@ def test_fun_def_void():
     assert_equal(1, len(f.children))
     r = f.children[0]
     assert_is_instance(r, ast.StatementReturnNode)
-    assert_is_instance(r.rhs, ast.OperatorAddNode)
-    assert_equal("a", r.rhs.lhs.text)
-    assert_equal("b", r.rhs.rhs.text)
+    assert_is_none(r.rhs)
 
 
 def test_fun_def_nonvoid():
