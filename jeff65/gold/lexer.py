@@ -174,8 +174,9 @@ def scan_word(source, c):
 
 
 def scan_sprinkle(source, c):
-    return _scan(source, c, lambda v, _: not v.isspace() and not v.isalnum()
-        and v not in sprinkle_specials)
+    return _scan(source, c, lambda v, _: not v.isspace() and
+            not v.isalnum() and
+            v not in sprinkle_specials)
 
 
 def make_token(position, term, default=ast.MysteryNode):

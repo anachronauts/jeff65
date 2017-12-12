@@ -152,7 +152,7 @@ def test_let_without_storage_class():
 def test_array_declaration():
     a = parse("let x: [u8; 0 to 3] = [0, 1, 2]")
     assert_equal(1, len(a.statements))
-    t =a.statements[0]
+    t = a.statements[0]
     assert_is_instance(t, ast.StatementLetNode)
     b = t.binding
     assert_is_instance(b, ast.OperatorAssignNode)
@@ -181,7 +181,7 @@ def test_array_declaration():
 def test_array_declaration_shorthand():
     a = parse("let x: [u8; 3] = [0, 1, 2]")
     assert_equal(1, len(a.statements))
-    t =a.statements[0]
+    t = a.statements[0]
     assert_is_instance(t, ast.StatementLetNode)
     b = t.binding
     assert_is_instance(b, ast.OperatorAssignNode)
@@ -207,7 +207,7 @@ def test_array_declaration_shorthand():
 def test_array_multidiminsional():
     a = parse("let x: [u8; 2, 1 to 4] = [0, 1], [2, 3, 4]")
     assert_equal(1, len(a.statements))
-    t =a.statements[0]
+    t = a.statements[0]
     assert_is_instance(t, ast.StatementLetNode)
     b = t.binding
     assert_is_instance(b, ast.OperatorAssignNode)
