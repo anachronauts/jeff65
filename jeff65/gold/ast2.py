@@ -28,6 +28,10 @@ class FlatLetNode(ast.AstNode):
     def __repr__(self):
         return f"(let' {self.storage} {self.name}: {self.t} = {self.value})"
 
+    @property
+    def value(self):
+        return self.children[0]
+
     @classmethod
     def visit(cls, node):
         if type(node) is not ast.StatementLetNode:

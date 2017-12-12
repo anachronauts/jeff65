@@ -32,7 +32,7 @@ class Power(IntEnum):
     eof = auto()
     unit = auto()
     delimiter_endfun = auto()
-    delimiter_close_paren = auto()
+    delimiter_close = auto()
     statement = auto()
     storage_class = auto()
     term = auto()
@@ -51,7 +51,7 @@ class Power(IntEnum):
     operator_bitnot = auto()
     operator_sign = auto()
     punctuation_value_type = auto()
-    delimiter_open_paren = auto()
+    delimiter_open = auto()
     punctuation_return_type = auto()
     whitespace = auto()
     mystery = auto()
@@ -261,10 +261,10 @@ class StringNode(TermNode):
 
 class DelimiterOpenParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_open_paren, position, text)
+        super().__init__(Power.delimiter_open, position, text)
 
     def nud(self, right):
-        expression = self.parse(right, Power.delimiter_close_paren)
+        expression = self.parse(right, Power.delimiter_close)
         if type(right.current) is not DelimiterCloseParenNode:
             raise ParseError("unmatched open parentheses", self)
         right.next()
@@ -274,7 +274,7 @@ class DelimiterOpenParenNode(TokenNode):
         if type(right.current) is DelimiterCloseParenNode:
             args = None
         else:
-            args = self.parse(right, Power.delimiter_close_paren)
+            args = self.parse(right, Power.delimiter_close)
 
         if type(right.current) is not DelimiterCloseParenNode:
             raise ParseError("expected ')'", self)
@@ -304,13 +304,39 @@ class FunctionCallNode(AstNode):
 
 class DelimiterCloseParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_close_paren, position, text)
+        super().__init__(Power.delimiter_close, position, text)
 
     def nud(self, right):
         raise ParseError("unmatched close parentheses", self)
 
     def led(self, left, right):
         raise ParseError("unmatched close parentheses", self)
+
+
+class DelimiterOpenBracketNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_open, position, text)
+
+    def led(self, left, right):
+        raise NotImplementedError("open bracket")
+
+
+class DelimiterCloseBracketNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_close, position, text)
+
+    def led(self, left, right):
+        raise NotImplementedError("close bracket")
+
+
+class ArrayDeclarationNode(AstNode):
+    def __init__(self, position, text):
+        super().__init__(position, text)
+        self.type = None
+        self.ranges = None
+
+    def nud(self, right):
+        raise NotImplementedError("Array node")
 
 
 class OperatorAddNode(InfixNode):
