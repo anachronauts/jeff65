@@ -249,6 +249,7 @@ def test_array_multidiminsional():
     assert_equal(v1.rhs.text, "1")
     v2 = v.rhs
     assert_is_instance(v2, ast.BracketsNode)
+    v2 = v2.contents
     assert_is_instance(v2.lhs, ast.NumericNode)
     assert_equal(v2.lhs.text, "2")
     assert_is_instance(v2.rhs, ast.NumericNode)
