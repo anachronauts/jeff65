@@ -84,10 +84,10 @@ known_words = {
     '"': ast.StringNode,
     '--[[': ast.CommentNode,
     ']]': ast.CommentEndNode,
-    '[': ast.DelimiterOpenBracketNode,
-    ']': ast.DelimiterCloseBracketNode,
     '{': NotImplemented,
     '}': NotImplemented,
+    '[': ast.DelimiterOpenBracketNode,
+    ']': ast.DelimiterCloseBracketNode,
 }
 
 nestable_delimiters = {
@@ -97,6 +97,9 @@ nestable_delimiters = {
 
 # non-whitespace characters which can end words.
 specials = '()[]{}:;.,"\\@'
+
+# non-whitespace characters which can end sprinkles.
+sprinkle_specials = ','
 
 
 class Redo:
@@ -171,7 +174,8 @@ def scan_word(source, c):
 
 
 def scan_sprinkle(source, c):
-    return _scan(source, c, lambda v, _: not v.isspace() and not v.isalnum())
+    return _scan(source, c, lambda v, _: not v.isspace() and not v.isalnum()
+        and v not in sprinkle_specials)
 
 
 def make_token(position, term, default=ast.MysteryNode):

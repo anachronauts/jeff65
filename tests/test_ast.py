@@ -211,9 +211,35 @@ def test_array_multidiminsional():
     assert_is_instance(t, ast.StatementLetNode)
     b = t.binding
     assert_is_instance(b, ast.OperatorAssignNode)
-    print(b.lhs)
-    print(b.rhs)
-    assert_equal(1, 2)
+    assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
+    assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
+    r = b.lhs.rhs
+    assert_is_instance(r, ast.PunctuationArrayRangeNode)
+    assert_is_instance(r.lhs, ast.IdentifierNode)
+    assert_equal(r.lhs.text, "u8")
+    assert_is_instance(r.rhs, ast.PunctuationCommaNode)
+    assert_is_instance(r.rhs.lhs, ast.NumericNode)
+    assert_equal(r.rhs.lhs.text, "2")
+    assert_is_instance(r.rhs.rhs, ast.OperatorRangeNode)
+    assert_is_instance(r.rhs.rhs.lhs, ast.NumericNode)
+    assert_equal(r.rhs.rhs.lhs.text, "1")
+    assert_is_instance(r.rhs.rhs.rhs, ast.NumericNode)
+    assert_equal(r.rhs.rhs.rhs.text, "4")
+    v = b.rhs
+    assert_is_instance(v, ast.PunctuationCommaNode)
+    assert_is_instance(v.lhs, ast.PunctuationCommaNode)
+    assert_is_instance(v.lhs.lhs, ast.NumericNode)
+    assert_equal(v.lhs.lhs.text, "0")
+    assert_is_instance(v.lhs.rhs, ast.NumericNode)
+    assert_equal(v.lhs.rhs.text, "1")
+    assert_is_instance(v.rhs, ast.PunctuationCommaNode)
+    assert_is_instance(v.rhs.lhs, ast.NumericNode)
+    assert_equal(v.rhs.lhs.text, "2")
+    assert_is_instance(v.rhs.rhs, ast.PunctuationCommaNode)
+    assert_is_instance(v.rhs.rhs.lhs, ast.NumericNode)
+    assert_equal(v.rhs.rhs.lhs.text, "3")
+    assert_is_instance(v.rhs.rhs.rhs, ast.NumericNode)
+    assert_equal(v.rhs.rhs.rhs.text, "4")
 
 
 def test_array_unmatched_open_bracket():
