@@ -194,6 +194,18 @@ def test_fun_call_many():
     assert_equal("3", c.args.rhs.rhs.text)
 
 
+def test_member_access_function():
+    a = parse("foo.bar(baz)")
+    assert_equal(1, len(a.statements))
+    c = a.statements[0]
+    assert_is_instance(c, ast.FunctionCallNode)
+    m = c.fun
+    asset_is_instance(m, ast.OperatorMemberAccessNode)
+    assert_equal("foo", m.lhs.text)
+    assert_equal("bar", m.rhs.text)
+    assert_equal("baz", c.args.text)
+
+
 def test_return():
     a = parse("return 1 + 2")
     assert_equal(1, len(a.statements))

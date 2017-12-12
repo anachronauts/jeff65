@@ -75,8 +75,8 @@ known_words = {
     'then': NotImplemented,
     'to': NotImplemented,
     ':': ast.PunctuationValueTypeNode,
+    '.': ast.OperatorMemberAccess,
     ',': ast.PunctuationCommaNode,
-    '.': NotImplemented,
     '->': ast.PunctuationReturnTypeNode,
 
     # delimiters

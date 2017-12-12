@@ -50,6 +50,7 @@ class Power(IntEnum):
     operator_bitand = auto()
     operator_bitnot = auto()
     operator_sign = auto()
+    operator_member_access = auto()
     punctuation_value_type = auto()
     delimiter_open_paren = auto()
     punctuation_return_type = auto()
@@ -311,6 +312,11 @@ class DelimiterCloseParenNode(TokenNode):
 
     def led(self, left, right):
         raise ParseError("unmatched close parentheses", self)
+
+
+class OperatorMemberAccessNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_member_access, position, text)
 
 
 class OperatorAddNode(InfixNode):
