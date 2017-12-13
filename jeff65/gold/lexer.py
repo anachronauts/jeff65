@@ -82,12 +82,14 @@ known_words = {
 
     # delimiters
     '"': ast.StringNode,
-    '--[[': ast.CommentNode,
-    ']]': ast.CommentEndNode,
+    '/*': ast.CommentNode,
+    '*/': ast.CommentEndNode,
     '{': NotImplemented,
     '}': NotImplemented,
 }
 
+# nestable delimiters are single-character punctuation that can appear directly
+# adjacent (with no whitespace).
 nestable_delimiters = {
     '(': ast.DelimiterOpenParenNode,
     ')': ast.DelimiterCloseParenNode,
@@ -212,7 +214,7 @@ def lex(stream):
                 position, scan_word(source, c), ast.IdentifierNode)
 
         # nestable delimiters (parentheses)
-        elif comment_depth is 0 and c in nestable_delimiters:
+        elif c in nestable_delimiters:
             yield make_token(position, c)
 
         # non-alphanumeric word (mostly operators)
