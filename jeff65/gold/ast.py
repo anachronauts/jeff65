@@ -32,12 +32,14 @@ class Power(IntEnum):
     eof = auto()
     unit = auto()
     delimiter_endfun = auto()
-    delimiter_close_paren = auto()
+    delimiter_close = auto()
     statement = auto()
     storage_class = auto()
     term = auto()
     operator_assign = auto()
+    punctuation_array_range = auto()
     punctuation_comma = auto()
+    operator_range = auto()
     operator_or = auto()
     operator_and = auto()
     operator_not = auto()
@@ -51,7 +53,7 @@ class Power(IntEnum):
     operator_bitnot = auto()
     operator_sign = auto()
     punctuation_value_type = auto()
-    delimiter_open_paren = auto()
+    delimiter_open = auto()
     punctuation_return_type = auto()
     whitespace = auto()
     mystery = auto()
@@ -261,10 +263,10 @@ class StringNode(TermNode):
 
 class DelimiterOpenParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_open_paren, position, text)
+        super().__init__(Power.delimiter_open, position, text)
 
     def nud(self, right):
-        expression = self.parse(right, Power.delimiter_close_paren)
+        expression = self.parse(right, Power.delimiter_close)
         if type(right.current) is not DelimiterCloseParenNode:
             raise ParseError("unmatched open parentheses", self)
         right.next()
@@ -274,7 +276,7 @@ class DelimiterOpenParenNode(TokenNode):
         if type(right.current) is DelimiterCloseParenNode:
             args = None
         else:
-            args = self.parse(right, Power.delimiter_close_paren)
+            args = self.parse(right, Power.delimiter_close)
 
         if type(right.current) is not DelimiterCloseParenNode:
             raise ParseError("expected ')'", self)
@@ -304,13 +306,49 @@ class FunctionCallNode(AstNode):
 
 class DelimiterCloseParenNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_close_paren, position, text)
+        super().__init__(Power.delimiter_close, position, text)
 
     def nud(self, right):
         raise ParseError("unmatched close parentheses", self)
 
     def led(self, left, right):
         raise ParseError("unmatched close parentheses", self)
+
+
+class DelimiterOpenBracketNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_open, position, text)
+
+    def nud(self, right):
+        contents = self.parse(right, Power.delimiter_close)
+        if type(right.current) is not DelimiterCloseBracketNode:
+            raise ParseError("unmatched open bracket", self)
+        right.next()
+        return BracketsNode(self.position, contents)
+
+
+class DelimiterCloseBracketNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_close, position, text)
+
+    def nud(self, right):
+        raise ParseError("unmatched close bracket", self)
+
+    def led(self, left, right):
+        raise ParseError("unmatched close bracket", self)
+
+
+class BracketsNode(AstNode):
+    def __init__(self, position, contents):
+        super().__init__(position, None)
+        self.children = [contents]
+
+    @property
+    def contents(self):
+        return self.children[0]
+
+    def __repr__(self):
+        return f"[{self.contents}]"
 
 
 class OperatorAddNode(InfixNode):
@@ -366,6 +404,11 @@ class OperatorAssignNode(InfixNode):
         super().__init__(Power.operator_assign, position, text)
 
 
+class OperatorRangeNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_range, position, text)
+
+
 class MysteryNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.mystery, position, text)
@@ -377,6 +420,11 @@ class MysteryNode(TokenNode):
 class PunctuationValueTypeNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.punctuation_value_type, position, text)
+
+
+class PunctuationArrayRangeNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.punctuation_array_range, position, text)
 
 
 class PunctuationReturnTypeNode(InfixNode):

@@ -73,29 +73,32 @@ known_words = {
     'endisr': NotImplemented,
     'in': NotImplemented,
     'then': NotImplemented,
-    'to': NotImplemented,
+    'to': ast.OperatorRangeNode,
     ':': ast.PunctuationValueTypeNode,
+    ';': ast.PunctuationArrayRangeNode,
     ',': ast.PunctuationCommaNode,
     '.': NotImplemented,
     '->': ast.PunctuationReturnTypeNode,
 
     # delimiters
     '"': ast.StringNode,
-    '--[[': ast.CommentNode,
-    ']]': ast.CommentEndNode,
-    '[': NotImplemented,
-    ']': NotImplemented,
+    '/*': ast.CommentNode,
+    '*/': ast.CommentEndNode,
     '{': NotImplemented,
     '}': NotImplemented,
 }
 
+# nestable delimiters are single-character punctuation that can appear directly
+# adjacent (with no whitespace).
 nestable_delimiters = {
     '(': ast.DelimiterOpenParenNode,
     ')': ast.DelimiterCloseParenNode,
+    '[': ast.DelimiterOpenBracketNode,
+    ']': ast.DelimiterCloseBracketNode,
 }
 
 # non-whitespace characters which can end words.
-specials = '()[]{}:.,"\\'
+specials = '()[]{}:;.,"\\@'
 
 
 class Redo:
@@ -188,6 +191,7 @@ def make_token(position, term, default=ast.MysteryNode):
 
 
 def lex(stream):
+    comment_depth = 0
     source = Redo(annotate_chars(stream))
     yield ast.UnitNode()
     while True:
@@ -216,7 +220,12 @@ def lex(stream):
         # non-alphanumeric word (mostly operators)
         # we call these "sprinkles"
         else:
-            yield make_token(position, scan_sprinkle(source, c))
+            t = make_token(position, scan_sprinkle(source, c))
+            if type(t) is ast.CommentNode:
+                comment_depth += 1
+            elif type(t) is ast.CommentEndNode:
+                comment_depth -= 1
+            yield t
 
     # end-of-file
     yield ast.EofNode()

@@ -23,22 +23,22 @@ def test_whitespace_only_file():
 
 
 def test_comments_newline():
-    a = parse("--[[ a comment ]]\n")
+    a = parse("/* a comment */\n")
     assert_equal(0, len(a.statements))
 
 
 def test_comments_no_newline():
-    a = parse("--[[ a comment ]]")
+    a = parse("/* a comment */")
     assert_equal(0, len(a.statements))
 
 
 def test_nested_comment():
-    a = parse("--[[ a --[[ nested ]] comment ]]")
+    a = parse("/* a /* nested */ comment */")
     assert_equal(0, len(a.statements))
 
 
 def test_comment_before_expression():
-    a = parse("--[[ a comment ]] 1 + 2")
+    a = parse("/* a comment */ 1 + 2")
     assert_equal(1, len(a.statements))
     c = a.statements[0]
     assert_is_instance(c, ast.OperatorAddNode)
@@ -47,7 +47,7 @@ def test_comment_before_expression():
 
 
 def test_comment_after_expression():
-    a = parse("1 + 2 --[[ a comment ]]")
+    a = parse("1 + 2 /* a comment */")
     assert_equal(1, len(a.statements))
     c = a.statements[0]
     assert_is_instance(c, ast.OperatorAddNode)
@@ -56,7 +56,7 @@ def test_comment_after_expression():
 
 
 def test_comment_within_expression():
-    a = parse("1 + --[[ a comment ]] 2")
+    a = parse("1 + /* a comment */ 2")
     assert_equal(1, len(a.statements))
     c = a.statements[0]
     assert_is_instance(c, ast.OperatorAddNode)
@@ -147,6 +147,95 @@ def test_let_without_storage_class():
     assert_equal("a", b.lhs.lhs.text)
     assert_is_instance(b.lhs.rhs, ast.IdentifierNode)
     assert_equal("u8", b.lhs.rhs.text)
+
+
+def test_array_declaration():
+    a = parse("let x: [u8; 0 to 3] = [0, 1, 2]")
+    assert_equal(1, len(a.statements))
+    t = a.statements[0]
+    assert_is_instance(t, ast.StatementLetNode)
+    assert_is_instance(t.binding, ast.OperatorAssignNode)
+    assert_is_instance(t.binding.lhs, ast.PunctuationValueTypeNode)
+    assert_is_instance(t.binding.lhs.rhs, ast.BracketsNode)
+    assert_is_instance(t.binding.rhs, ast.BracketsNode)
+
+    signature = t.binding.lhs.rhs.contents
+    assert_is_instance(signature, ast.PunctuationArrayRangeNode)
+    assert_equal(signature.lhs.text, "u8")
+    assert_is_instance(signature.rhs, ast.OperatorRangeNode)
+    assert_equal(signature.rhs.lhs.text, "0")
+    assert_equal(signature.rhs.rhs.text, "3")
+
+    values = t.binding.rhs.contents
+    assert_is_instance(values, ast.PunctuationCommaNode)
+    assert_equal(values.lhs.text, "0")
+    assert_is_instance(values.rhs, ast.PunctuationCommaNode)
+    assert_equal(values.rhs.lhs.text, "1")
+    assert_equal(values.rhs.rhs.text, "2")
+
+
+def test_array_declaration_shorthand():
+    a = parse("let x: [u8; 3] = [0, 1, 2]")
+    assert_equal(1, len(a.statements))
+    t = a.statements[0]
+    assert_is_instance(t, ast.StatementLetNode)
+    assert_is_instance(t.binding, ast.OperatorAssignNode)
+    assert_is_instance(t.binding.lhs, ast.PunctuationValueTypeNode)
+    assert_is_instance(t.binding.lhs.rhs, ast.BracketsNode)
+    assert_is_instance(t.binding.rhs, ast.BracketsNode)
+
+    signature = t.binding.lhs.rhs.contents
+    assert_is_instance(signature, ast.PunctuationArrayRangeNode)
+    assert_equal(signature.lhs.text, "u8")
+    assert_equal(signature.rhs.text, "3")
+
+    values = t.binding.rhs.contents
+    assert_is_instance(values, ast.PunctuationCommaNode)
+    assert_equal(values.lhs.text, "0")
+    assert_is_instance(values.rhs, ast.PunctuationCommaNode)
+    assert_equal(values.rhs.lhs.text, "1")
+    assert_equal(values.rhs.rhs.text, "2")
+
+
+def test_array_multidiminsional():
+    a = parse("let x: [u8; 2, 1 to 3] = [[0, 1], [2, 3]]")
+    assert_equal(1, len(a.statements))
+    t = a.statements[0]
+    assert_is_instance(t, ast.StatementLetNode)
+    assert_is_instance(t.binding, ast.OperatorAssignNode)
+    assert_is_instance(t.binding.lhs, ast.PunctuationValueTypeNode)
+    assert_is_instance(t.binding.lhs.rhs, ast.BracketsNode)
+    assert_is_instance(t.binding.rhs, ast.BracketsNode)
+
+    signature = t.binding.lhs.rhs.contents
+    assert_is_instance(signature, ast.PunctuationArrayRangeNode)
+    assert_equal(signature.lhs.text, "u8")
+    assert_is_instance(signature.rhs, ast.PunctuationCommaNode)
+    assert_equal(signature.rhs.lhs.text, "2")
+    assert_is_instance(signature.rhs.rhs, ast.OperatorRangeNode)
+    assert_equal(signature.rhs.rhs.lhs.text, "1")
+    assert_equal(signature.rhs.rhs.rhs.text, "3")
+
+    values = t.binding.rhs.contents
+    assert_is_instance(values, ast.PunctuationCommaNode)
+    assert_is_instance(values.lhs, ast.BracketsNode)
+    assert_is_instance(values.rhs, ast.BracketsNode)
+
+    values = [values.lhs.contents, values.rhs.contents]
+    assert_is_instance(values[0], ast.PunctuationCommaNode)
+    assert_equal(values[0].lhs.text, "0")
+    assert_equal(values[0].rhs.text, "1")
+    assert_is_instance(values[1], ast.PunctuationCommaNode)
+    assert_equal(values[1].lhs.text, "2")
+    assert_equal(values[1].rhs.text, "3")
+
+
+def test_array_unmatched_open_bracket():
+    assert_raises(ast.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
+
+
+def test_array_unmatched_close_bracket():
+    assert_raises(ast.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
 
 
 def test_string_literal():
