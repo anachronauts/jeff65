@@ -551,3 +551,34 @@ class PunctuationEndFunNode(TokenNode):
 
     def led(self, left, right):
         raise ParseError("unexpected 'endfun'", self)
+
+
+class StatementIsrNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.statement, position, text)
+        self.name = None
+
+    def nud(self, right):
+        self.name = self.parse(right)
+        self.children = []
+        while type(right.current) is not PunctuationEndIsrNode:
+            self.children.append(self.parse(right, Power.delimiter_endfun))
+        right.next()
+        return self
+
+    def describe(self):
+        if self.name is None:
+            return None
+        stmts = "\n    ".join(repr(c) for c in self.children)
+        return f"(isr {repr(self.name)}\n    {stmts})"
+
+
+class PunctuationEndIsrNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_endfun, position, text, end=True)
+
+    def nud(self, right):
+        raise ParseError("unexpected 'endisr'", self)
+
+    def led(self, left, right):
+        raise ParseError("unexpected 'endisr'", self)

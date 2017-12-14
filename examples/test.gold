@@ -7,7 +7,7 @@ constant screen: u16 = 0x0400
 constant colors: u16 = 0xd800
 constant black: u8 = 0
 
--- this is a top-level comment
+/* this is a top-level comment */
 
 let conv-tbl: u8[] = [0x80, 0x00, 0xc0, 0xe0, 0x40, 0xc0, 0x80, 0x80]
 let msg: u8[] = "hello world! hello friends!"
@@ -16,7 +16,7 @@ isr flash
     let stash color: u8 = 1
     let stash frame: u8 = 0
 
-    --[[ this is a comment ]]
+    /* this is a comment */
 
     let mut k: u8 = 0
     while msg[k] != 0 do
@@ -38,7 +38,7 @@ isr flash
 
 endisr
 
-fun conv(c) -> u8
+fun conv(c: u8) -> u8
     return conv-tbl[c >> 5]
 endfun
 
