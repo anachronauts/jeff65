@@ -362,3 +362,30 @@ def test_fun_def_nonvoid():
     r = f.children[0]
     assert_is_instance(r, ast.StatementReturnNode)
     assert_equal("x", r.rhs.text)
+
+
+def test_isr_def_empty():
+    a = parse("isr bar endisr")
+    assert_equal(1, len(a.statements))
+    f = a.statements[0]
+    assert_is_instance(f, ast.StatementIsrNode)
+    n = f.name
+    assert_is_instance(n, ast.IdentifierNode)
+    assert_equal(n.text, "bar")
+
+
+def test_isr_def():
+    a = parse("""
+    isr bar
+        return
+    endisr
+    """)
+    assert_equal(1, len(a.statements))
+    f = a.statements[0]
+    assert_is_instance(f, ast.StatementIsrNode)
+    n = f.name
+    assert_is_instance(n, ast.IdentifierNode)
+    assert_equal(n.text, "bar")
+    assert_equal(1, len(f.children))
+    assert_is_instance(f.children[0], ast.StatementReturnNode)
+    assert_is_none(f.children[0].rhs)
