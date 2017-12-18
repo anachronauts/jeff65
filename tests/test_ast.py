@@ -387,7 +387,7 @@ def test_isr_def_empty():
 def test_isr_def():
     a = parse("""
     isr bar
-        let a: ub = 0
+        let a: u8 = 0
         let b: u8 = 0
     endisr
     """)
