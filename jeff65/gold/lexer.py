@@ -58,17 +58,17 @@ known_words = {
     'let': ast.StatementLetNode,
     'return': ast.StatementReturnNode,
     'use': ast.StatementUseNode,
-    'while': NotImplemented,
+    'while': ast.StatementWhileNode,
 
     # storage classes
     'mut': ast.StorageClassNode,
     'stash': ast.StorageClassNode,
 
     # assorted punctuation
-    'do': NotImplemented,
+    'do': ast.PunctuationDoNode,
     'else': NotImplemented,
     'elseif': NotImplemented,
-    'end': NotImplemented,
+    'end': ast.PunctuationEndNode,
     'endfun': ast.PunctuationEndFunNode,
     'endisr': ast.PunctuationEndIsrNode,
     'in': NotImplemented,

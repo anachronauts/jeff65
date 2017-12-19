@@ -389,3 +389,35 @@ def test_isr_def():
     assert_equal(1, len(f.children))
     assert_is_instance(f.children[0], ast.StatementReturnNode)
     assert_is_none(f.children[0].rhs)
+
+
+def test_while_single_statement():
+    a = parse("""
+    while x < 5
+        x = x + 1
+    """)
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.StatementWhileNode)
+    c = s.condition
+    b = s.children
+    print(type(c), c)
+    print(type(b), b)
+    assert_equal(1, 2)
+
+
+def test_while_multistatement():
+    a = parse("""
+    while x < 5 do
+        x = x + 1
+        y = 2 * x
+    end
+    """)
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.StatementWhileNode)
+    c = s.condition
+    b = s.children
+    print(type(c), c)
+    print(type(b), b)
+    assert_equal(1, 2)

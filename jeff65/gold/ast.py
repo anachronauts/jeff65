@@ -518,6 +518,28 @@ class StatementReturnNode(TokenNode):
         return self.children and f"({self.text} {self.children[0]})"
 
 
+class PunctuationDoNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.whitespace, position, text, end=True)
+
+    def nud(self, right):
+        raise ParseError(f"unexpected '{self.text}'", self)
+
+    def led(self, left, right):
+        raise ParseError(f"unexpected '{self.text}'", self)
+
+
+class PunctuationEndNode(TokenNode):
+    def __init__(self, position, text):
+        super().__init__(Power.delimiter_endfun, position, text, end=True)
+
+    def nud(self, right):
+        raise ParseError(f"unexpected '{self.text}'", self)
+
+    def led(self, left, right):
+        raise ParseError(f"unexpected '{self.text}'", self)
+
+
 class StatementFunNode(TokenNode):
     def __init__(self, position, text):
         super().__init__(Power.statement, position, text)
@@ -542,15 +564,8 @@ class StatementFunNode(TokenNode):
         return self.signature and f"(fun {self.signature}\n    {stmts})"
 
 
-class PunctuationEndFunNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.delimiter_endfun, position, text, end=True)
-
-    def nud(self, right):
-        raise ParseError("unexpected 'endfun'", self)
-
-    def led(self, left, right):
-        raise ParseError("unexpected 'endfun'", self)
+class PunctuationEndFunNode(PunctuationEndNode):
+    pass
 
 
 class StatementIsrNode(TokenNode):
@@ -573,12 +588,33 @@ class StatementIsrNode(TokenNode):
         return f"(isr {repr(self.name)}\n    {stmts})"
 
 
-class PunctuationEndIsrNode(TokenNode):
+class PunctuationEndIsrNode(PunctuationEndNode):
+    pass
+
+
+class StatementWhileNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.delimiter_endfun, position, text, end=True)
+        super().__init__(Power.statement, position, text)
+        self.condition = None
 
     def nud(self, right):
-        raise ParseError("unexpected 'endisr'", self)
+        self.condition = self.parse(right)
+        self.children = []
+        if type(right.current) is PunctuationDoNode:
+            right.next()
+            while type(right.current) is not PunctuationEndNode:
+                self.children.append(self.parse(right))
+            right.next()
+        else:
+            self.children.append(self.parse(right))
+        return self
 
-    def led(self, left, right):
-        raise ParseError("unexpected 'endisr'", self)
+    def traverse(self, visit):
+        self.condition = self.condition.traverse(visit)
+        return super().traverse(visit)
+
+    def describe(self):
+        if self.condition is None:
+            return None
+        stmts = "\n    ".join(repr(c) for c in self.children)
+        return self.condition and f"(while {self.condition}\n    {stmts})"
