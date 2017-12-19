@@ -123,10 +123,10 @@ class TokenNode(AstNode):
         self.end = end
 
     def nud(self, right):
-        raise NotImplementedError
+        raise NotImplementedError("nud not implemented for " + repr(self))
 
     def led(self, left, right):
-        raise NotImplementedError
+        raise NotImplementedError("led not implemented for " + repr(self))
 
     @property
     def rbp(self):
@@ -399,6 +399,36 @@ class StorageClassNode(PrefixNode):
         return self.rhs
 
 
+class OperatorEqualsNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_compare, position, text)
+
+
+class OperatorNotEqualsNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_compare, position, text)
+
+
+class OperatorLessThanNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_compare, position, text)
+
+
+class OperatorGreaterThanNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_compare, position, text)
+
+
+class OperatorLessThanOrEqualNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_compare, position, text)
+
+
+class OperatorGreaterThanOrEqualNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_compare, position, text)
+
+
 class OperatorAssignNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.operator_assign, position, text)
@@ -520,7 +550,7 @@ class StatementReturnNode(TokenNode):
 
 class PunctuationDoNode(TokenNode):
     def __init__(self, position, text):
-        super().__init__(Power.whitespace, position, text, end=True)
+        super().__init__(Power.statement, position, text, end=True)
 
     def nud(self, right):
         raise ParseError(f"unexpected '{self.text}'", self)

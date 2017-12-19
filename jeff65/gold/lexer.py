@@ -37,12 +37,12 @@ known_words = {
     'bitxor': NotImplemented,
 
     # comparison operators
-    '!=': NotImplemented,
-    '==': NotImplemented,
-    '<=': NotImplemented,
-    '>=': NotImplemented,
-    '<': NotImplemented,
-    '>': NotImplemented,
+    '!=': ast.OperatorNotEqualsNode,
+    '==': ast.OperatorEqualsNode,
+    '<=': ast.OperatorLessThanOrEqualNode,
+    '>=': ast.OperatorGreaterThanOrEqualNode,
+    '<': ast.OperatorLessThanNode,
+    '>': ast.OperatorGreaterThanNode,
 
     # assignment operators
     '=': ast.OperatorAssignNode,

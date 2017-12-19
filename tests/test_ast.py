@@ -114,6 +114,72 @@ def test_unmatched_close_parentheses():
     assert_raises(ast.ParseError, parse, "1 + 2)")
 
 
+def test_comparison_not_equals():
+    a = parse("1 != 2")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorNotEqualsNode)
+    assert_is_instance(s.lhs, ast.NumericNode)
+    assert_equal(s.lhs.text, "1")
+    assert_is_instance(s.rhs, ast.NumericNode)
+    assert_equal(s.rhs.text, "2")
+
+
+def test_comparison_equals():
+    a = parse("2 == 1 + 1")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorEqualsNode)
+    assert_is_instance(s.lhs, ast.NumericNode)
+    assert_is_instance(s.rhs, ast.OperatorAddNode)
+    assert_is_instance(s.rhs.lhs, ast.NumericNode)
+    assert_is_instance(s.rhs.rhs, ast.NumericNode)
+
+
+def test_comparison_lt():
+    a = parse("3 < (1 + 1) * 2")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorLessThanNode)
+    assert_is_instance(s.lhs, ast.NumericNode)
+    assert_is_instance(s.rhs, ast.OperatorMultiplyNode)
+    assert_is_instance(s.rhs.rhs, ast.NumericNode)
+    assert_is_instance(s.rhs.lhs, ast.OperatorAddNode)
+    assert_is_instance(s.rhs.lhs.lhs, ast.NumericNode)
+    assert_is_instance(s.rhs.lhs.rhs, ast.NumericNode)
+
+
+def test_comparison_gt():
+    a = parse("5 > (1 + 1) * 2")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorGreaterThanNode)
+    assert_is_instance(s.lhs, ast.NumericNode)
+    assert_is_instance(s.rhs, ast.OperatorMultiplyNode)
+    assert_is_instance(s.rhs.rhs, ast.NumericNode)
+    assert_is_instance(s.rhs.lhs, ast.OperatorAddNode)
+    assert_is_instance(s.rhs.lhs.lhs, ast.NumericNode)
+    assert_is_instance(s.rhs.lhs.rhs, ast.NumericNode)
+
+
+def test_comparison_lte():
+    a = parse("x <= 5")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorLessThanOrEqualNode)
+    assert_is_instance(s.lhs, ast.IdentifierNode)
+    assert_is_instance(s.rhs, ast.NumericNode)
+
+
+def test_comparison_gte():
+    a = parse("5 >= x")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorGreaterThanOrEqualNode)
+    assert_is_instance(s.lhs, ast.NumericNode)
+    assert_is_instance(s.rhs, ast.IdentifierNode)
+
+
 def test_let_with_storage_class():
     a = parse("let mut a: u8 = 7")
     assert_equal(1, len(a.statements))
@@ -236,6 +302,35 @@ def test_array_unmatched_open_bracket():
 
 def test_array_unmatched_close_bracket():
     assert_raises(ast.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
+
+
+def test_basic_assign():
+    a = parse("x = 5")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorAssignNode)
+    assert_is_instance(s.lhs, ast.IdentifierNode)
+    assert_is_instance(s.rhs, ast.NumericNode)
+
+
+def test_array_member_assign():
+    a = parse("x[0] = 5")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorAssignNode)
+    print(type(s.lhs), s.lhs)
+    assert_is_instance(s.rhs, ast.NumericNode)
+    assert_equal(1, 2)
+
+
+def test_assign_with_array_member():
+    a = parse("x = y[0]")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorAssignNode)
+    assert_is_instance(s.lhs, ast.NumericNode)
+    print(type(s.rhs), s.rhs)
+    assert_equal(1, 2)
 
 
 def test_string_literal():
@@ -393,6 +488,26 @@ def test_isr_def():
 
 def test_while_single_statement():
     a = parse("""
+    while x < 5 do
+        x = x + 1
+    end
+    """)
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.StatementWhileNode)
+    c = s.condition
+    assert_is_instance(c, ast.OperatorLessThanNode)
+    assert_is_instance(c.lhs, ast.IdentifierNode)
+    assert_is_instance(c.rhs, ast.NumericNode)
+    b = s.children
+    assert_equal(1, len(b))
+    assert_is_instance(b[0], ast.OperatorAssignNode)
+    assert_is_instance(b[0].lhs, ast.IdentifierNode)
+    assert_is_instance(b[0].rhs, ast.OperatorAddNode)
+
+
+def test_while_single_statement_shorthand():
+    a = parse("""
     while x < 5
         x = x + 1
     """)
@@ -400,10 +515,14 @@ def test_while_single_statement():
     s = a.statements[0]
     assert_is_instance(s, ast.StatementWhileNode)
     c = s.condition
+    assert_is_instance(c, ast.OperatorLessThanNode)
+    assert_is_instance(c.lhs, ast.IdentifierNode)
+    assert_is_instance(c.rhs, ast.NumericNode)
     b = s.children
-    print(type(c), c)
-    print(type(b), b)
-    assert_equal(1, 2)
+    assert_equal(1, len(b))
+    assert_is_instance(b[0], ast.OperatorAssignNode)
+    assert_is_instance(b[0].lhs, ast.IdentifierNode)
+    assert_is_instance(b[0].rhs, ast.OperatorAddNode)
 
 
 def test_while_multistatement():
@@ -417,7 +536,14 @@ def test_while_multistatement():
     s = a.statements[0]
     assert_is_instance(s, ast.StatementWhileNode)
     c = s.condition
+    assert_is_instance(c, ast.OperatorLessThanNode)
+    assert_is_instance(c.lhs, ast.IdentifierNode)
+    assert_is_instance(c.rhs, ast.NumericNode)
     b = s.children
-    print(type(c), c)
-    print(type(b), b)
-    assert_equal(1, 2)
+    assert_equal(2, len(b))
+    assert_is_instance(b[0], ast.OperatorAssignNode)
+    assert_is_instance(b[0].lhs, ast.IdentifierNode)
+    assert_is_instance(b[0].rhs, ast.OperatorAddNode)
+    assert_is_instance(b[1], ast.OperatorAssignNode)
+    assert_is_instance(b[1].lhs, ast.IdentifierNode)
+    assert_is_instance(b[1].rhs, ast.OperatorAddNode)
