@@ -123,10 +123,14 @@ class TokenNode(AstNode):
         self.end = end
 
     def nud(self, right):
-        raise NotImplementedError("nud not implemented for " + repr(self))
+        msg = (f"nud not implemented for {str(type(self))}"
+               f" ('{repr(self)}' at {self.position})")
+        raise NotImplementedError(msg)
 
     def led(self, left, right):
-        raise NotImplementedError("led not implemented for " + repr(self))
+        msg = (f"led not implemented for {str(type(self))}"
+               f" ('{repr(self)}' at {self.position})")
+        raise NotImplementedError(msg)
 
     @property
     def rbp(self):
