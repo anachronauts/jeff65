@@ -633,14 +633,15 @@ class StatementWhileNode(TokenNode):
 
     def nud(self, right):
         self.condition = self.parse(right)
+        if type(right.current) is not PunctuationDoNode:
+            raise ParseError(f"expected 'do' but found '{right.current.text}'", right.current)
+        right.next()
         self.children = []
-        if type(right.current) is PunctuationDoNode:
-            right.next()
-            while type(right.current) is not PunctuationEndNode:
-                self.children.append(self.parse(right))
-            right.next()
-        else:
+        while type(right.current) is not PunctuationEndNode:
+            if type(right.current) is EofNode:
+                raise ParseError(f"unterminated while loop", self)
             self.children.append(self.parse(right))
+        right.next()
         return self
 
     def traverse(self, visit):

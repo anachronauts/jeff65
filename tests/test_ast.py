@@ -517,25 +517,6 @@ def test_while_single_statement():
     assert_is_instance(b[0].rhs, ast.OperatorAddNode)
 
 
-def test_while_single_statement_shorthand():
-    a = parse("""
-    while x < 5
-        x = x + 1
-    """)
-    assert_equal(1, len(a.statements))
-    s = a.statements[0]
-    assert_is_instance(s, ast.StatementWhileNode)
-    c = s.condition
-    assert_is_instance(c, ast.OperatorLessThanNode)
-    assert_is_instance(c.lhs, ast.IdentifierNode)
-    assert_is_instance(c.rhs, ast.NumericNode)
-    b = s.children
-    assert_equal(1, len(b))
-    assert_is_instance(b[0], ast.OperatorAssignNode)
-    assert_is_instance(b[0].lhs, ast.IdentifierNode)
-    assert_is_instance(b[0].rhs, ast.OperatorAddNode)
-
-
 def test_while_multistatement():
     a = parse("""
     while x < 5 do
@@ -558,3 +539,11 @@ def test_while_multistatement():
     assert_is_instance(b[1], ast.OperatorAssignNode)
     assert_is_instance(b[1].lhs, ast.IdentifierNode)
     assert_is_instance(b[1].rhs, ast.OperatorAddNode)
+
+
+def test_while_missing_do():
+    assert_raises(ast.ParseError, parse, "while x < 5 x = x + 1 end")
+
+
+def test_while_missing_end():
+    assert_raises(ast.ParseError, parse, "while x < 5 do x = x + 1")
