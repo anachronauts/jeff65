@@ -215,6 +215,16 @@ def test_let_without_storage_class():
     assert_equal("u8", b.lhs.rhs.text)
 
 
+def test_let_multistatement():
+    a = parse("""
+    let a: u8 = 0
+    let b: u8 = 0
+    """)
+    assert_equal(2, len(a.statements))
+    assert_is_instance(a.statements[0], ast.StatementLetNode)
+    assert_is_instance(a.statements[1], ast.StatementLetNode)
+
+
 def test_array_declaration():
     a = parse("let x: [u8; 0 to 3] = [0, 1, 2]")
     assert_equal(1, len(a.statements))
@@ -472,7 +482,8 @@ def test_isr_def_empty():
 def test_isr_def():
     a = parse("""
     isr bar
-        return
+        let a: u8 = 0
+        let b: u8 = 0
     endisr
     """)
     assert_equal(1, len(a.statements))
@@ -481,9 +492,9 @@ def test_isr_def():
     n = f.name
     assert_is_instance(n, ast.IdentifierNode)
     assert_equal(n.text, "bar")
-    assert_equal(1, len(f.children))
-    assert_is_instance(f.children[0], ast.StatementReturnNode)
-    assert_is_none(f.children[0].rhs)
+    assert_equal(2, len(f.children))
+    assert_is_instance(f.children[0], ast.StatementLetNode)
+    assert_is_instance(f.children[1], ast.StatementLetNode)
 
 
 def test_while_single_statement():

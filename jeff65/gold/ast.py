@@ -583,7 +583,7 @@ class StatementFunNode(TokenNode):
         self.signature = self.parse(right)
         self.children = []
         while type(right.current) is not PunctuationEndFunNode:
-            self.children.append(self.parse(right, Power.delimiter_endfun))
+            self.children.append(self.parse(right))
         right.next()
         return self
 
@@ -611,7 +611,7 @@ class StatementIsrNode(TokenNode):
         self.name = self.parse(right)
         self.children = []
         while type(right.current) is not PunctuationEndIsrNode:
-            self.children.append(self.parse(right, Power.delimiter_endfun))
+            self.children.append(self.parse(right))
         right.next()
         return self
 
