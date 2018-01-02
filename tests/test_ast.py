@@ -343,6 +343,34 @@ def test_assign_with_array_member():
     assert_equal(1, 2)
 
 
+def test_basic_increment():
+    a = parse("x += 1")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorAssignNode)
+    assert_is_instance(s.lhs, ast.IdentifierNode)
+    assert_equal(s.lhs.text, "x")
+    assert_is_instance(s.rhs, ast.OperatorAddNode)
+    assert_is_instance(s.rhs.lhs, ast.IdentifierNode)
+    assert_equal(s.rhs.lhs.text, "x")
+    assert_is_instance(s.rhs.rhs, ast.NumericNode)
+    assert_equal(s.rhs.rhs.text, "1")
+
+
+def test_basic_decrement():
+    a = parse("x -= 1")
+    assert_equal(1, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorAssignNode)
+    assert_is_instance(s.lhs, ast.IdentifierNode)
+    assert_equal(s.lhs.text, "x")
+    assert_is_instance(s.rhs, ast.OperatorSubtractNode)
+    assert_is_instance(s.rhs.lhs, ast.IdentifierNode)
+    assert_equal(s.rhs.lhs.text, "x")
+    assert_is_instance(s.rhs.rhs, ast.NumericNode)
+    assert_equal(s.rhs.rhs.text, "1")
+
+
 def test_string_literal():
     a = parse('"this is a string"')
     assert_equal(1, len(a.statements))

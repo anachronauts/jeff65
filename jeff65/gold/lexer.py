@@ -46,8 +46,8 @@ known_words = {
 
     # assignment operators
     '=': ast.OperatorAssignNode,
-    '+=': NotImplemented,
-    '-=': NotImplemented,
+    '+=': ast.OperatorIncrementNode,
+    '-=': ast.OperatorDecrementNode,
 
     # statement leaders
     'constant': ast.StatementConstantNode,

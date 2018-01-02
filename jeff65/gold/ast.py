@@ -438,6 +438,30 @@ class OperatorAssignNode(InfixNode):
         super().__init__(Power.operator_assign, position, text)
 
 
+class OperatorIncrementNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_assign, position, text)
+
+    def led(self, left, right):
+        r = OperatorAddNode(self.position, "+")
+        r.children = [left, self.parse(right)]
+        node = OperatorAssignNode(self.position, "=")
+        node.children = [left, r]
+        return node
+
+
+class OperatorDecrementNode(InfixNode):
+    def __init__(self, position, text):
+        super().__init__(Power.operator_assign, position, text)
+
+    def led(self, left, right):
+        r = OperatorSubtractNode(self.position, "-")
+        r.children = [left, self.parse(right)]
+        node = OperatorAssignNode(self.position, "=")
+        node.children = [left, r]
+        return node
+
+
 class OperatorRangeNode(InfixNode):
     def __init__(self, position, text):
         super().__init__(Power.operator_range, position, text)
