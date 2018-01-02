@@ -658,7 +658,8 @@ class StatementWhileNode(TokenNode):
     def nud(self, right):
         self.condition = self.parse(right)
         if type(right.current) is not PunctuationDoNode:
-            raise ParseError(f"expected 'do' but found '{right.current.text}'", right.current)
+            raise ParseError(f"expected 'do' but found '{right.current.text}'",
+                             right.current)
         right.next()
         self.children = []
         while type(right.current) is not PunctuationEndNode:

@@ -3,4 +3,4 @@ python:
   - "3.6"
 script:
   - flake8 jeff65 tests
-  - nosetests
+  - nosetests --with-coverage
