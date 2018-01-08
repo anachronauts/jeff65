@@ -323,14 +323,31 @@ def test_basic_assign():
     assert_is_instance(s.rhs, ast.NumericNode)
 
 
+def test_multiple_assign():
+    a = parse("""
+    x = 5
+    y = 6
+    """)
+    assert_equal(2, len(a.statements))
+    s = a.statements[0]
+    assert_is_instance(s, ast.OperatorAssignNode)
+    s = a.statements[1]
+    assert_is_instance(s, ast.OperatorAssignNode)
+
+
 def test_array_member_assign():
     a = parse("x[0] = 5")
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorAssignNode)
-    print(type(s.lhs), s.lhs)
+    assert_is_instance(s.lhs, ast.IdentifierNode)
+    assert_equal(s.lhs.text, "x")
+    assert_equal(len(s.lhs.member_index.children), 1)
+    member_index = s.lhs.member_index.children[0]
+    assert_is_instance(member_index, ast.NumericNode)
+    assert_equal(member_index.text, "0")
     assert_is_instance(s.rhs, ast.NumericNode)
-    assert_equal(1, 2)
+    assert_equal(s.rhs.text, "5")
 
 
 def test_assign_with_array_member():
@@ -338,9 +355,14 @@ def test_assign_with_array_member():
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorAssignNode)
-    assert_is_instance(s.lhs, ast.NumericNode)
-    print(type(s.rhs), s.rhs)
-    assert_equal(1, 2)
+    assert_is_instance(s.lhs, ast.IdentifierNode)
+    assert_equal(s.lhs.text, "x")
+    assert_is_instance(s.rhs, ast.IdentifierNode)
+    assert_equal(s.rhs.text, "y")
+    assert_equal(len(s.rhs.member_index.children), 1)
+    member_index = s.rhs.member_index.children[0]
+    assert_is_instance(member_index, ast.NumericNode)
+    assert_equal(member_index.text, "0")
 
 
 def test_basic_increment():

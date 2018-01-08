@@ -391,7 +391,28 @@ class PunctuationCommaNode(InfixNode):
 
 
 class IdentifierNode(TermNode):
-    pass
+    def __init__(self, position, text):
+        super().__init__(position, text)
+        self.member_index = None
+
+    def nud(self, right):
+        super().nud(right)
+        if type(right.current) == DelimiterOpenBracketNode:
+            self.member_index = self.parse(right, Power.delimiter_open)
+        return self
+
+    def led(self, left, right):
+        super().led(left, right)
+        if type(right.current) == DelimiterOpenBracketNode:
+            self.member_index = self.parse(right, Power.delimiter_open)
+        return self
+
+    def describe(self):
+        if self.member_index is None:
+            return super().describe()
+        else:
+            return super().describe() + repr(self.member_index)
+
 
 
 class StorageClassNode(PrefixNode):
@@ -518,7 +539,7 @@ class CommentNode(WhitespaceNode):
         return left
 
     def describe(self):
-        return self.comment and f"--[[{self.comment}]]"
+        return self.comment and f"/*{self.comment}*/"
 
 
 class CommentEndNode(WhitespaceNode):
