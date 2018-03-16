@@ -1,28 +1,62 @@
-use std
-use vic-ii
+/*
+ * 'use' statements allow access to functions from other units. Units come in
+ * three types: binary units, which contain compiled code with relocation
+ * information; source units, like this one; and virtual units, which are Python
+ * modules containing functions which return AST nodes, allowing the compiler to
+ * be extended. 'use' statements on source units trigger their compilation if
+ * they are older than the corresponding binary unit. Relocations are performed
+ * at link-time.
+ */
+use std      /* built-in source unit containing utility functions. */
+use mem      /* built-in virtual unit for raw memory access. */
+use vic-ii   /* built-in virtual unit for video hardware access. */
 
-constant bdcolor: u16 = 0xd020
-constant bgcolor: u16 = 0xd021
-constant screen: u16 = 0x0400
-constant colors: u16 = 0xd800
+/*
+ * Constants can be mutable pointer types, array types, or integers, as long as
+ * they don't allocate initialized memory (i.e. they don't take up space in the
+ * program image). The value (in case of pointers or arrays, the address) must
+ * be known at unit translation time, and references cannot be taken except for
+ * slices of arrays. The value is inlined at the usage site.
+ */
+constant bdcolor: &mut u8 = mem.as-pointer(0xd020)
+constant bgcolor: &mut u8 = mem.as-pointer(0xd021)
 constant black: u8 = 0
+constant screen: [mut u8; 0x400] = mem.as-constant-array(0x0400)
+constant colors: [mut u8; 0x400] = mem.as-constant-array(0xd800)
 
-/* this is a top-level comment */
-
+/* For buffers which contain initialized data, a let binding must be used. */
 let conv-tbl: [u8; 8] = [0x80, 0x00, 0xc0, 0xe0, 0x40, 0xc0, 0x80, 0x80]
 let msg: [u8; 27] = "hello world! hello friends!"
 
+/*
+ * ISRs are like functions, but do not take parameters and have a special
+ * calling convention.
+ */
 isr flash
+    /*
+     * Bindings with storage class 'stash' are mutable and initialized as part
+     * of the program image, rather than during runtime. The values persist
+     * across calls to the function, even if changed.
+     */
     let stash color: u8 = 1
     let stash frame: u8 = 0
 
-    /* this is a comment */
-
+    /*
+     * Bindings with storage class 'mut' are mutable and initialized at
+     * run-time; space is allocated for them at compile time, but not as part of
+     * the program image.
+     */
     let mut k: u8 = 0
-    while msg[k] != 0 do
-        (screen + 0x01be)[k] = conv(msg[k])
-        (colors + 0x01be)[k] = color
-        k += 1
+
+    /*
+     * Constant bindings can be introduced in function scope. They behave the
+     * same as toplevel constants, but with limited scope.
+     */
+    constant offset: u16 = 0x01be
+    for k: u8 in msg.range do
+        /* Wide arrays must be indexed in constant-plus format. */
+        screen[offset + k] = conv(msg[k])
+        colors[offset + k] = color
     end
 
     if frame == 7 then
@@ -38,21 +72,36 @@ isr flash
 
 endisr
 
+/*
+ * Functions can return values, and are not re-entrant by default. The return
+ * address is stored by the caller directly in the instruction stream, so no
+ * additional space is used in the program image. Parameters are pushed onto
+ * the hardware stack, and the function is expected to clean them up and leave
+ * the result on the hardware stack.
+ */
 fun conv(c: u8) -> u8
-    return conv-tbl[c >> 5]
+    return conv-tbl[c >> 5] + c
 endfun
 
+/*
+ * Functions do not need to have to return values, in which case they are
+ * expected to simply clean up their arguments, if any.
+ */
 fun clear-screen()
     @bdcolor = black
     @bgcolor = black
     for x: u8 in 0 to 256 do
-        (screen + 0x0000)[x] = 0
-        (screen + 0x0100)[x] = 0
-        (screen + 0x0200)[x] = 0
-        (screen + 0x0300)[x] = 0
+        screen[0x0000 + x] = 0
+        screen[0x0100 + x] = 0
+        screen[0x0200 + x] = 0
+        screen[0x0300 + x] = 0
     end
 endfun
 
+/*
+ * The main function is called automatically by the loader stub. It takes no
+ * arguments and returns no values.
+ */
 fun main()
     clear-screen()
     vic-ii.set-isr(flash, 0)

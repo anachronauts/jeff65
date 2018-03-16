@@ -1,5 +1,5 @@
-# jeff65 main entry point
-# Copyright (C) 2017  jeff65 maintainers
+# jeff65 gold-syntax parser module
+# Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,11 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import argparse
-from .gold import compiler
+from .Gold import Gold as Parser
+from .GoldListener import GoldListener as ParseListener
 
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("input_file", help="the file to compile")
-args = arg_parser.parse_args()
-
-compiler.translate(args.input_file)
+__all__ = [
+    Parser,
+    ParseListener,
+]

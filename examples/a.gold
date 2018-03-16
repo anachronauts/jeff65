@@ -1,0 +1,35 @@
+/*
+ * This is the simplest possible program that does anything visible on the C64.
+ * It prints the letter 'A' in the top-left corner of the screen, then
+ * immediately exits.
+ */
+
+/*
+ * Use the 'mem' unit. This provides functions for converting between
+ * structured memory access (arrays, slices, pointers) and raw memory access.
+ * These are basically all implemented as compiler intrinsics, and are
+ * impossible to implement directly in gold-syntax.
+ */
+use mem
+
+/*
+ * A pointer aimed at the top-left corner of screen memory. 'mem.as-pointer' is
+ * a compiler intrinsic which pokes a hole in the type system for you, and is
+ * essentially compiled out entirely. If its argument is 'known', then its
+ * return value is also considered 'known', so it can be used in a top-level
+ * binding. In addition, 'constant' makes this a compile-time constant, which
+ * is inlined at use sites.
+ */
+constant screen-corner: &u8 = mem.as-pointer(0x0400)
+
+/*
+ * The compiler automatically links in a header which allows the program to be
+ * LOADed, and will invoke main() at startup.
+ */
+fun main()
+  /* 
+   * 0x41 is the screencode for 'A'. Note that this compiles down to a single
+   * absolute memory access, since screen-corner is inlined.
+   */
+  @screen-corner = 0x41
+endfun

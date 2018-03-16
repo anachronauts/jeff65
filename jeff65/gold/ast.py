@@ -1,5 +1,5 @@
-# jeff65 gold-syntax parser
-# Copyright (C) 2017  jeff65 maintainers
+# jeff65 gold-syntax AST manipulation
+# Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,571 +14,217 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from enum import IntEnum, auto
-
-# see http://effbot.org/zone/simple-top-down-parsing.htm
-#
-# - "nud" means "null denotation", which defines its behavior at the beginning
-#   of a language construct.
-# - "led" means "left denotation", which defines its behavior inside a language
-#   construct.
-# - "lbp" means "left binding power", which controls precedence.
-
-
-class Power(IntEnum):
-    def _generate_next_value_(name, start, count, last_values):
-        return count * 10
-
-    eof = auto()
-    unit = auto()
-    delimiter_endfun = auto()
-    delimiter_close = auto()
-    statement = auto()
-    storage_class = auto()
-    term = auto()
-    operator_assign = auto()
-    punctuation_array_range = auto()
-    punctuation_comma = auto()
-    operator_range = auto()
-    operator_or = auto()
-    operator_and = auto()
-    operator_not = auto()
-    operator_compare = auto()
-    operator_add_subtract = auto()
-    operator_multiply_divide = auto()
-    operator_bitshift = auto()
-    operator_bitxor = auto()
-    operator_bitor = auto()
-    operator_bitand = auto()
-    operator_bitnot = auto()
-    operator_sign = auto()
-    punctuation_value_type = auto()
-    delimiter_open = auto()
-    punctuation_return_type = auto()
-    whitespace = auto()
-    mystery = auto()
-
-
-class MemIter:
-    def __init__(self, source):
-        self.source = iter(source)
-        self.current = next(self.source)
-
-    def next(self):
-        self.current = next(self.source)
-
-
-def parse_all(stream):
-    s = MemIter(stream)
-    return _parse(s, Power.statement)
-
-
-def _parse(stream, rbp):
-    t = stream.current
-    try:
-        stream.next()
-    except StopIteration:
-        return t
-    left = t.nud(stream)
-    while True:
-        if stream.current.lbp is None:
-            raise ParseError(
-                f"token type {type(stream.current)} is non-binding",
-                stream.current)
-        if rbp >= stream.current.lbp:
-            break
-        t = stream.current
-        stream.next()
-        left = t.led(left, stream)
-    return left
-
-
-class ParseError(Exception):
-    def __init__(self, message, token):
-        super().__init__(message)
-        self.token = token
-
-    def __str__(self):
-        msg = super().__str__()
-        return f"{msg} (at {self.token.position})"
+from .grammar import ParseListener
 
 
 class AstNode:
-    def __init__(self, position, text):
+    def __init__(self, t, position, attrs=None, children=None):
+        self.t = t
         self.position = position
-        self.text = text
-        self.children = None
+        self.attrs = attrs or {}
+        self.children = children or []
 
-    def traverse(self, visit):
-        for k in range(len(self.children)):
-            self.children[k] = self.children[k].traverse(visit)
-        return visit(self)
+    def clone(self, with_attrs=None):
+        node = AstNode(self.t, self.position, dict(self.attrs),
+                       list(self.children))
+        if with_attrs:
+            node.attrs.update(with_attrs)
+        return node
 
+    def get_attr_default(self, attr, default_value):
+        if attr not in self.attrs:
+            self.attrs[attr] = default_value
+        return self.attrs[attr]
 
-class TokenNode(AstNode):
-    def __init__(self, lbp, position, text, right=False, end=False):
-        super().__init__(position, text)
-        self.lbp = lbp
-        self.right = right
-        self.end = end
+    def transform(self, transformer):
+        node = getattr(transformer, "enter_{}".format(self.t))(self)
 
-    def nud(self, right):
-        raise NotImplementedError
+        if transformer.transform_attrs and type(node) is AstNode:
+            attrs = {}
+            for n, v in node.attrs.items():
+                if type(v) is AstNode:
+                    tv = v.transform(transformer)
+                    if tv:
+                        assert len(tv) == 1
+                        attrs[n] = tv[0]
+                else:
+                    attrs[n] = v
+            if attrs != node.attrs:
+                if node is self:
+                    node = node.clone()
+                node.attrs = attrs
 
-    def led(self, left, right):
-        raise NotImplementedError
+        if type(node) is AstNode:
+            children = []
+            for child in node.children:
+                if type(child) is AstNode:
+                    children.extend(child.transform(transformer))
+                else:
+                    children.append(child)
+            if children != node.children:
+                if node is self:
+                    node = node.clone()
+                node.children = children
 
-    @property
-    def rbp(self):
-        if self.right:
-            return self.lbp - 1
-        return self.lbp
+        nodes = getattr(transformer, "exit_{}".format(self.t))(node)
 
-    def parse(self, right, rbp=None):
-        return _parse(right, rbp or self.rbp)
+        if type(nodes) is None:
+            nodes = []
+        elif type(nodes) is not list:
+            nodes = [nodes]
+
+        if self.t == 'unit':
+            assert len(nodes) == 1
+            return nodes[0]
+        return nodes
 
     def __repr__(self):
-        return self.describe() or f"<{repr(self.text)}>"
+        return "<ast {} at {}:{}>".format(self.t, *self.position)
 
-    def describe(self):
-        return None
+    def pretty(self, indent=0):
+        def i(n=0):
+            return " " * (indent + n)
 
-
-class InfixNode(TokenNode):
-    def led(self, left, right):
-        self.children = [left, self.parse(right)]
-        return self
-
-    @property
-    def lhs(self):
-        return self.children[0]
-
-    @property
-    def rhs(self):
-        return self.children[1]
-
-    def describe(self):
-        if self.children is None:
-            return None
-        if len(self.children) == 1:
-            return f"({self.text} {self.children[0]})"
-        return f"({self.children[0]} {self.text} {self.children[1]})"
+        pp = []
+        pp.append("{}{:<{}} {}:{}\n".format(i(), self.t, 70 - indent,
+                                            *self.position))
+        for attr, value in self.attrs.items():
+            if type(value) is AstNode:
+                pp.append("{}:{} ".format(i(2), attr))
+                pp.append(value.pretty(indent + 4 + len(attr)).lstrip())
+            else:
+                pp.append("{}:{} {}\n".format(i(2), attr, repr(value)))
+        for child in self.children:
+            if type(child) is AstNode:
+                pp.append(child.pretty(indent + 2))
+            else:
+                pp.append("{}{}\n".format(i(2), repr(child)))
+        return "".join(pp)
 
 
-class TermNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.term, position, text)
+class TranslationPass:
+    """Base class for translation passes."""
 
-    def nud(self, right):
-        self.children = []
-        return self
+    transform_attrs = False
 
-    def describe(self):
-        return self.text
+    def __generic_enter(self, node):
+        return node
 
+    def __generic_exit(self, node):
+        return [node]
 
-class PrefixNode(TokenNode):
-    def nud(self, right):
-        self.children = [self.parse(right)]
-        return self
-
-    @property
-    def rhs(self):
-        return self.children[0]
-
-    def describe(self):
-        return self.children and f"({self.text} {self.children[0]})"
+    def __getattr__(self, attr):
+        if attr.startswith("enter_"):
+            return self.__generic_enter
+        elif attr.startswith("exit_"):
+            return self.__generic_exit
+        return getattr(object, attr)
 
 
-class UnitNode(TokenNode):
+class AstBuilder(ParseListener):
     def __init__(self):
-        super().__init__(Power.unit, None, "UNIT")
-
-    def nud(self, right):
-        self.children = []
-        while right.current.lbp > self.rbp:
-            self.children.append(self.parse(right, Power.statement))
-        self.children = [s for s in self.children if type(s) is not EofNode]
-        return self
+        self.stack = []
 
     @property
-    def statements(self):
-        return self.children
+    def ast(self):
+        return self.stack[0]
 
-    def describe(self):
-        if self.children is None:
-            return "<UNIT>"
-        lines = "\n".join(repr(s) for s in self.children)
-        return lines
+    def _push(self, node):
+        self.stack.append(node)
 
+    def _pop(self):
+        c = self.stack.pop()
+        self.stack[-1].children.append(c)
 
-class WhitespaceNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.whitespace, position, text)
+    def _pop_attr(self, attr):
+        a = self.stack.pop()
+        self.stack[-1].attrs[attr] = a
 
-    def nud(self, right):
-        return self.parse(right)
+    def _pos(self, ctx):
+        return (ctx.start.line, ctx.start.column)
 
-    def led(self, left, right):
-        return left
+    def enterUnit(self, ctx):
+        self._push(AstNode("unit", self._pos(ctx)))
 
+    def enterStmtUse(self, ctx):
+        self._push(AstNode("use", self._pos(ctx), {
+            "name": ctx.unitId.text
+        }))
 
-class EofNode(TokenNode):
-    def __init__(self):
-        super().__init__(Power.eof, None, "EOF", end=True)
+    def exitStmtUse(self, ctx):
+        self._pop()
 
-    def describe(self):
-        return "<EOF>"
+    def enterStmtConstant(self, ctx):
+        self._push(AstNode("constant", self._pos(ctx), {
+            "name": ctx.declaration().name.text
+        }))
 
+    def exitStmtConstant(self, ctx):
+        self._pop()
 
-class NumericNode(TermNode):
-    pass
+    def enterStmtFun(self, ctx):
+        self._push(AstNode("fun", self._pos(ctx), {
+            "name": ctx.name.text,
+            'return': None,
+            'args': [],
+        }))
 
+    def exitStmtFun(self, ctx):
+        self._pop()
 
-class StringNode(TermNode):
-    def __init__(self, position, text):
-        super().__init__(position, text)
-        self.string = None
+    def enterStmtAssignVal(self, ctx):
+        self._push(AstNode("set", self._pos(ctx)))
 
-    def eat_string(self, right):
-        spans = []
-        escaped = False
-        while True:
-            if type(right.current) is StringNode and not escaped:
-                right.next()
-                break
-            if right.current.text == "\\":
-                escaped = True
-            spans.append(right.current.text)
-            right.next()
-        return "".join(spans)
+    def exitStmtAssignVal(self, ctx):
+        self._pop()
 
-    def nud(self, right):
-        self.string = self.eat_string(right)
-        return self
+    def enterTypePrimitive(self, ctx):
+        self.stack[-1].attrs["type"] = ctx.name.text
 
-    def describe(self):
-        return f'"{self.string}"'
+    def enterTypePointer(self, ctx):
+        self._push(AstNode("type_ref", self._pos(ctx)))
 
+    def exitTypePointer(self, ctx):
+        self._pop_attr("type")
 
-class DelimiterOpenParenNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.delimiter_open, position, text)
+    def enterExprMember(self, ctx):
+        self._push(AstNode("member_access", self._pos(ctx), {
+            "member": ctx.member.text
+        }))
 
-    def nud(self, right):
-        expression = self.parse(right, Power.delimiter_close)
-        if type(right.current) is not DelimiterCloseParenNode:
-            raise ParseError("unmatched open parentheses", self)
-        right.next()
-        return expression
+    def exitExprMember(self, ctx):
+        self._pop()
 
-    def led(self, left, right):
-        if type(right.current) is DelimiterCloseParenNode:
-            args = None
+    def enterExprId(self, ctx):
+        self.stack[-1].children.append(AstNode("identifier", self._pos(ctx), {
+            'name': ctx.name.text,
+        }))
+
+    def enterExprNumber(self, ctx):
+        text = ctx.value.text.lower()
+        if text.startswith('0x'):
+            value = int(text[2:], 16)
+        elif text.startswith('0o'):
+            value = int(text[2:], 8)
+        elif text.startswith('0b'):
+            value = int(text[2:], 2)
         else:
-            args = self.parse(right, Power.delimiter_close)
-
-        if type(right.current) is not DelimiterCloseParenNode:
-            raise ParseError("expected ')'", self)
-        right.next()
-
-        return FunctionCallNode(self.position, self.text, left, args)
-
-
-class FunctionCallNode(AstNode):
-    def __init__(self, position, text, fun, args):
-        super().__init__(position, text)
-        self.children = [fun, args]
-
-    @property
-    def fun(self):
-        return self.children[0]
-
-    @property
-    def args(self):
-        return self.children[1]
-
-    def __repr__(self):
-        if self.args is None:
-            return f"{self.fun}()"
-        return f"{self.fun}{self.args}"
-
-
-class DelimiterCloseParenNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.delimiter_close, position, text)
-
-    def nud(self, right):
-        raise ParseError("unmatched close parentheses", self)
-
-    def led(self, left, right):
-        raise ParseError("unmatched close parentheses", self)
-
-
-class DelimiterOpenBracketNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.delimiter_open, position, text)
-
-    def nud(self, right):
-        contents = self.parse(right, Power.delimiter_close)
-        if type(right.current) is not DelimiterCloseBracketNode:
-            raise ParseError("unmatched open bracket", self)
-        right.next()
-        return BracketsNode(self.position, contents)
-
-
-class DelimiterCloseBracketNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.delimiter_close, position, text)
-
-    def nud(self, right):
-        raise ParseError("unmatched close bracket", self)
-
-    def led(self, left, right):
-        raise ParseError("unmatched close bracket", self)
-
-
-class BracketsNode(AstNode):
-    def __init__(self, position, contents):
-        super().__init__(position, None)
-        self.children = [contents]
-
-    @property
-    def contents(self):
-        return self.children[0]
-
-    def __repr__(self):
-        return f"[{self.contents}]"
-
-
-class OperatorAddNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.operator_add_subtract, position, text)
-
-    def nud(self, right):
-        """ unary plus """
-        self.children = [self.parse(right, Power.operator_sign)]
-        return self
-
-
-class OperatorSubtractNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.operator_add_subtract, position, text)
-
-    def nud(self, right):
-        """ unary minus """
-        self.children = [self.parse(right, Power.operator_sign)]
-        return self
-
-
-class OperatorMultiplyNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.operator_multiply_divide, position, text)
-
-
-class OperatorDivideNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.operator_multiply_divide, position, text)
-
-
-class PunctuationCommaNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.punctuation_comma, position, text, right=True)
-
-
-class IdentifierNode(TermNode):
-    pass
-
-
-class StorageClassNode(PrefixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.storage_class, position, text)
-
-    @property
-    def binding(self):
-        return self.rhs
-
-
-class OperatorAssignNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.operator_assign, position, text)
-
-
-class OperatorRangeNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.operator_range, position, text)
-
-
-class MysteryNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.mystery, position, text)
-
-    def describe(self):
-        return f"<{repr(self.text)}?>"
-
-
-class PunctuationValueTypeNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.punctuation_value_type, position, text)
-
-
-class PunctuationArrayRangeNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.punctuation_array_range, position, text)
-
-
-class PunctuationReturnTypeNode(InfixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.punctuation_return_type, position, text)
-
-
-class CommentNode(WhitespaceNode):
-    def __init__(self, position, text):
-        super().__init__(position, text)
-        self.comment = None
-
-    def eat_comment(self, right):
-        spans = []
-        depth = 1
-        while depth > 0:
-            # the depth counter is so that we can have nested comments
-            if type(right.current) is CommentNode:
-                depth += 1
-            elif type(right.current) is CommentEndNode:
-                depth -= 1
-            spans.append(right.current.text)
-            right.next()
-        # return all of the text except the last "]]"
-        return "".join(spans[:-1])
-
-    def nud(self, right):
-        self.comment = self.eat_comment(right)
-        return self.parse(right)
-
-    def led(self, left, right):
-        self.comment = self.eat_comment(right)
-        return left
-
-    def describe(self):
-        return self.comment and f"--[[{self.comment}]]"
-
-
-class CommentEndNode(WhitespaceNode):
-    # this is a lexer-only node. it gets eaten during the first parse pass.
-    pass
-
-
-class StatementUseNode(PrefixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.statement, position, text)
-
-    @property
-    def unit(self):
-        return self.rhs
-
-
-class StatementConstantNode(PrefixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.statement, position, text)
-
-    @property
-    def binding(self):
-        return self.rhs
-
-
-class StatementLetNode(PrefixNode):
-    def __init__(self, position, text):
-        super().__init__(Power.statement, position, text)
-
-    @property
-    def binding(self):
-        return self.rhs
-
-
-class StatementReturnNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.statement, position, text)
-
-    def nud(self, right):
-        if type(right.current) is WhitespaceNode:
-            right.next()  # manually eat whitespace
-        if right.current.end:
-            self.children = []
-        else:
-            self.children = [self.parse(right)]
-        return self
-
-    @property
-    def rhs(self):
-        if len(self.children) == 0:
-            return None
-        return self.children[0]
-
-    def describe(self):
-        return self.children and f"({self.text} {self.children[0]})"
-
-
-class StatementFunNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.statement, position, text)
-        self.signature = None
-
-    def nud(self, right):
-        self.signature = self.parse(right)
-        self.children = []
-        while type(right.current) is not PunctuationEndFunNode:
-            self.children.append(self.parse(right))
-        right.next()
-        return self
-
-    def traverse(self, visit):
-        self.signature = self.signature.traverse(visit)
-        return super().traverse(visit)
-
-    def describe(self):
-        if self.signature is None:
-            return None
-        stmts = "\n    ".join(repr(c) for c in self.children)
-        return self.signature and f"(fun {self.signature}\n    {stmts})"
-
-
-class PunctuationEndFunNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.delimiter_endfun, position, text, end=True)
-
-    def nud(self, right):
-        raise ParseError("unexpected 'endfun'", self)
-
-    def led(self, left, right):
-        raise ParseError("unexpected 'endfun'", self)
-
-
-class StatementIsrNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.statement, position, text)
-        self.name = None
-
-    def nud(self, right):
-        self.name = self.parse(right)
-        self.children = []
-        while type(right.current) is not PunctuationEndIsrNode:
-            self.children.append(self.parse(right))
-        right.next()
-        return self
-
-    def describe(self):
-        if self.name is None:
-            return None
-        stmts = "\n    ".join(repr(c) for c in self.children)
-        return f"(isr {repr(self.name)}\n    {stmts})"
-
-
-class PunctuationEndIsrNode(TokenNode):
-    def __init__(self, position, text):
-        super().__init__(Power.delimiter_endfun, position, text, end=True)
-
-    def nud(self, right):
-        raise ParseError("unexpected 'endisr'", self)
-
-    def led(self, left, right):
-        raise ParseError("unexpected 'endisr'", self)
+            value = int(text)
+        self.stack[-1].children.append(AstNode("numeric", self._pos(ctx), {
+            'value': value,
+        }))
+
+    def enterExprFunCall(self, ctx):
+        self._push(AstNode("call", self._pos(ctx)))
+
+    def exitExprFunCall(self, ctx):
+        call = self.stack[-1]
+        call.attrs['target'] = call.children[0]
+        call.children = call.children[1:]
+        self._pop()
+
+    def enterExprDeref(self, ctx):
+        self._push(AstNode("deref", self._pos(ctx)))
+
+    def exitExprDeref(self, ctx):
+        self._pop()
