@@ -36,7 +36,8 @@ class ScopedPass(ast.TranslationPass):
         return None
 
     def bind_constant(self, name, value):
-        known_constants = self.scopes[-1].get_attr_default('known_constants', {})
+        known_constants = self.scopes[-1].get_attr_default('known_constants',
+                                                           {})
         known_constants[name] = value
 
     def look_up_constant(self, name):
