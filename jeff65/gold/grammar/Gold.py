@@ -327,6 +327,7 @@ class Gold ( Parser ):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a Gold.ExprContext
             super().__init__(parser)
+            self.op = None # Token
             self.copyFrom(ctx)
 
         def expr(self, i:int=None):
@@ -379,6 +380,7 @@ class Gold ( Parser ):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a Gold.ExprContext
             super().__init__(parser)
+            self.op = None # Token
             self.copyFrom(ctx)
 
         def expr(self, i:int=None):
@@ -471,6 +473,7 @@ class Gold ( Parser ):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a Gold.ExprContext
             super().__init__(parser)
+            self.op = None # Token
             self.copyFrom(ctx)
 
         def expr(self, i:int=None):
@@ -497,6 +500,7 @@ class Gold ( Parser ):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a Gold.ExprContext
             super().__init__(parser)
+            self.op = None # Token
             self.copyFrom(ctx)
 
         def expr(self, i:int=None):
@@ -803,9 +807,10 @@ class Gold ( Parser ):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
                         self.state = 62
+                        localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not(_la==Gold.OPERATOR_SHR or _la==Gold.OPERATOR_SHL):
-                            self._errHandler.recoverInline(self)
+                            localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self.consume()
                         self.state = 63
@@ -820,9 +825,10 @@ class Gold ( Parser ):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 5)")
                         self.state = 65
+                        localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not(_la==Gold.OPERATOR_TIMES or _la==Gold.OPERATOR_DIVIDE):
-                            self._errHandler.recoverInline(self)
+                            localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self.consume()
                         self.state = 66
@@ -837,9 +843,10 @@ class Gold ( Parser ):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 4)")
                         self.state = 68
+                        localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not(_la==Gold.OPERATOR_PLUS or _la==Gold.OPERATOR_MINUS):
-                            self._errHandler.recoverInline(self)
+                            localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self.consume()
                         self.state = 69
@@ -854,9 +861,10 @@ class Gold ( Parser ):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 3)")
                         self.state = 71
+                        localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not((((_la) & ~0x3f) == 0 and ((1 << _la) & ((1 << Gold.OPERATOR_NE) | (1 << Gold.OPERATOR_EQ) | (1 << Gold.OPERATOR_LE) | (1 << Gold.OPERATOR_GE) | (1 << Gold.OPERATOR_LT) | (1 << Gold.OPERATOR_GT))) != 0)):
-                            self._errHandler.recoverInline(self)
+                            localctx.op = self._errHandler.recoverInline(self)
                         else:
                             self.consume()
                         self.state = 72

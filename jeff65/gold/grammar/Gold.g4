@@ -57,12 +57,12 @@ expr : PAREN_OPEN expr PAREN_CLOSE  # ExprParen
      | expr OPERATOR_BITAND expr  # ExprBitAnd
      | expr OPERATOR_BITOR expr  # ExprBitOr
      | expr OPERATOR_BITXOR expr  # ExprBitXor
-     | expr ( OPERATOR_SHL | OPERATOR_SHR ) expr  # ExprBitShift
-     | expr ( OPERATOR_TIMES | OPERATOR_DIVIDE ) expr  # ExprProduct
-     | expr ( OPERATOR_PLUS | OPERATOR_MINUS ) expr  # ExprSum
-     | expr ( OPERATOR_EQ | OPERATOR_NE
-            | OPERATOR_LE | OPERATOR_GE
-            | OPERATOR_LT | OPERATOR_GT) expr  # ExprCompare
+     | expr op=( OPERATOR_SHL | OPERATOR_SHR ) expr  # ExprBitShift
+     | expr op=( OPERATOR_TIMES | OPERATOR_DIVIDE ) expr  # ExprProduct
+     | expr op=( OPERATOR_PLUS | OPERATOR_MINUS ) expr  # ExprSum
+     | expr op=( OPERATOR_EQ | OPERATOR_NE
+               | OPERATOR_LE | OPERATOR_GE
+                | OPERATOR_LT | OPERATOR_GT) expr  # ExprCompare
      | value=NUMERIC  # ExprNumber
      | name=IDENTIFIER  # ExprId
      ;

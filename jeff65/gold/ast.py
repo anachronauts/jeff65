@@ -36,6 +36,13 @@ class AstNode:
             self.attrs[attr] = default_value
         return self.attrs[attr]
 
+    def __eq__(self, other):
+        return (
+            type(other) is AstNode
+            and self.t == other.t
+            and self.attrs == other.attrs
+            and self.children == other.children)
+
     def transform(self, transformer):
         node = getattr(transformer, "enter_{}".format(self.t))(self)
 
@@ -81,22 +88,30 @@ class AstNode:
     def __repr__(self):
         return "<ast {} at {}:{}>".format(self.t, *self.position)
 
-    def pretty(self, indent=0):
+    def pretty(self, indent=0, no_position=False):
+        return self._pretty(indent, no_position).strip()
+
+    def _pretty(self, indent, no_position):
         def i(n=0):
             return " " * (indent + n)
 
         pp = []
-        pp.append("{}{:<{}} {}:{}\n".format(i(), self.t, 70 - indent,
-                                            *self.position))
+
+        if no_position:
+            pp.append("{}{}\n".format(i(), self.t))
+        else:
+            pp.append("{}{:<{}} {}:{}\n".format(i(), self.t, 70 - indent,
+                                                *self.position))
         for attr, value in self.attrs.items():
             if type(value) is AstNode:
                 pp.append("{}:{} ".format(i(2), attr))
-                pp.append(value.pretty(indent + 4 + len(attr)).lstrip())
+                pp.append(value._pretty(indent + 4 + len(attr),
+                                        no_position).lstrip())
             else:
                 pp.append("{}:{} {}\n".format(i(2), attr, repr(value)))
         for child in self.children:
             if type(child) is AstNode:
-                pp.append(child.pretty(indent + 2))
+                pp.append(child._pretty(indent + 2, no_position))
             else:
                 pp.append("{}{}\n".format(i(2), repr(child)))
         return "".join(pp)
@@ -227,4 +242,32 @@ class AstBuilder(ParseListener):
         self._push(AstNode("deref", self._pos(ctx)))
 
     def exitExprDeref(self, ctx):
+        self._pop()
+
+    def enterExprSum(self, ctx):
+        if ctx.op.text == '+':
+            self._push(AstNode("add", self._pos(ctx)))
+        elif ctx.op.text == '-':
+            self._push(AstNode("sub", self._pos(ctx)))
+        else:
+            assert False
+
+    def exitExprSum(self, ctx):
+        self._pop()
+
+    def enterExprProduct(self, ctx):
+        if ctx.op.text == '*':
+            self._push(AstNode("mul", self._pos(ctx)))
+        elif ctx.op.text == '/':
+            self._push(AstNode("div", self._pos(ctx)))
+        else:
+            assert False
+
+    def exitExprProduct(self, ctx):
+        self._pop()
+
+    def enterExprNegation(self, ctx):
+        self._push(AstNode("negate", self._pos(ctx)))
+
+    def exitExprNegation(self, ctx):
         self._pop()

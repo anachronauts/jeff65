@@ -39,21 +39,32 @@ passes = [
 ]
 
 
+class ParseError(Exception):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 def open_unit(unit):
     if unit == "-":
         return sys.stdin
     return open(unit, 'r')
 
 
+def parse(fileobj, name):
+    lexer = Lexer(fileobj, name=name)
+    tokens = antlr4.CommonTokenStream(lexer)
+    parser = Parser(tokens)
+    tree = parser.unit()
+    if parser._syntaxErrors > 0:
+        raise ParseError("Unit {} had errors; terminating".format(name))
+    builder = ast.AstBuilder()
+    antlr4.ParseTreeWalker.DEFAULT.walk(builder, tree)
+    return builder.ast
+
+
 def translate(unit):
     with open_unit(unit) as input_file:
-        lexer = Lexer(input_file, name=unit)
-        tokens = antlr4.CommonTokenStream(lexer)
-        parser = Parser(tokens)
-        tree = parser.unit()
-        builder = ast.AstBuilder()
-        antlr4.ParseTreeWalker.DEFAULT.walk(builder, tree)
-        unit = builder.ast
+        unit = parse(input_file, name=unit)
 
         for p in passes:
             unit = unit.transform(p())
