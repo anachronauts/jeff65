@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import ast, storage
+from . import asm, ast
 
 
 class LowerAssignment(ast.TranslationPass):
@@ -25,26 +25,13 @@ class LowerAssignment(ast.TranslationPass):
         assert node.attrs['type'].width == rhs.width
 
         return [
-            ast.AstNode('lda', node.position, attrs={
-                'storage': rhs,
-                'size': 2,
-            }),
-            ast.AstNode('sta', node.position, attrs={
-                'storage': lhs,
-                'size': 3,
-            }),
+            asm.lda(node.position, rhs),
+            asm.sta(node.position, lhs),
         ]
 
 
 class LowerFunctions(ast.TranslationPass):
     def exit_fun(self, node):
-        body_size = sum(c.attrs['size'] for c in node.children)
-        ret = ast.AstNode('jmp', node.position, attrs={
-            'storage': storage.ImmediateStorage(0, 2),
-            'size': 3,
-        })
-        node = node.clone(with_attrs={
-            'return_addr': body_size + 1,
-        })
-        node.children.append(ret)
+        node = node.clone()
+        node.children.append(asm.rts(node.position))
         return node

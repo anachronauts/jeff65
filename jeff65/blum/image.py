@@ -36,24 +36,12 @@ def make_startup_for(name):
         ast.AstNode('fun_symbol', None, attrs={
             'name': '__start',
             'relocations': [
-                # Relocations for the address of 'main'
-                (0x000b, '{}.main'.format(name)),
-
-                # Relocations for the address for 'main' to return to
-                (0x0001, '.+13,lo'),
-                (0x0006, '.+13,hi'),
-
-                # Relocations for the return address slot for 'main'
-                (0x0003, '{}.main/return_addr'.format(name)),
-                (0x0008, '{}.main/return_addr+1'.format(name)),
+                # Relocation for the address of 'main'
+                (0x0001, '{}.main'.format(name)),
             ],
             'text': bytes([
-                0xa9, 0xff,        # 0x0000:  lda #$ff
-                0x8d, 0xff, 0xff,  # 0x0002:  sta $ffff
-                0xa9, 0xff,        # 0x0005:  lda #$ff
-                0x8d, 0xff, 0xff,  # 0x0007:  sta $ffff
-                0x4c, 0xff, 0xff,  # 0x000a:  jmp $ffff
-                0x60,              # 0x000d:  rts
+                0x20, 0xff, 0xff,  # 0x0000:  jsr $ffff
+                0x60,              # 0x0003:  rts
             ])
         })
     ])

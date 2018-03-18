@@ -51,6 +51,9 @@ class AssembleWithRelocations(ast.TranslationPass):
             return AsmRun(bytes([0x4c, lo, hi]))
         assert False
 
+    def enter_rts(self, node):
+        return AsmRun(bytes([0x60]))
+
 
 class FlattenSymbol(ast.TranslationPass):
     def exit_fun(self, node):
@@ -58,14 +61,48 @@ class FlattenSymbol(ast.TranslationPass):
         for c in node.children:
             data.append(c.data)
 
-        return ast.AstNode('fun_symbol', node.position, {
+        sym = ast.AstNode('fun_symbol', node.position, {
             'name': node.attrs['name'],
             'type': node.attrs['type'],
-            'return_addr': node.attrs['return_addr'],
             'text': b"".join(data),
         })
+
+        if 'return_addr' in node.attrs:
+            sym.attrs['return_addr'] = node.attrs['return_addr']
+
+        return sym
 
     def exit_unit(self, node):
         node = node.clone()
         del node.attrs['known_names']
         return node
+
+
+def lda(position, arg):
+    assert type(arg) is storage.ImmediateStorage
+    return ast.AstNode('lda', position, attrs={
+        'storage': arg,
+        'size': 2,
+    })
+
+
+def sta(position, arg):
+    assert type(arg) is storage.AbsoluteStorage
+    return ast.AstNode('sta', position, attrs={
+        'storage': arg,
+        'size': 3,
+    })
+
+
+def jmp(position, arg):
+    assert type(arg) is storage.ImmediateStorage
+    return ast.AstNode('jmp', position, attrs={
+        'storage': arg,
+        'size': 3,
+    })
+
+
+def rts(position):
+    return ast.AstNode('rts', position, attrs={
+        'size': 1,
+    })
