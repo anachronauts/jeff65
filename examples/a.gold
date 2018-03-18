@@ -28,8 +28,8 @@ constant screen-corner: &u8 = mem.as-pointer(0x0400)
  */
 fun main()
   /* 
-   * 0x41 is the screencode for 'A'. Note that this compiles down to a single
+   * 0x01 is the screencode for 'A'. Note that this compiles down to a single
    * absolute memory access, since screen-corner is inlined.
    */
-  @screen-corner = 0x41
+  @screen-corner = 0x01
 endfun

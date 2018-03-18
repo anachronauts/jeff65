@@ -62,7 +62,7 @@ class FlattenSymbol(ast.TranslationPass):
             'name': node.attrs['name'],
             'type': node.attrs['type'],
             'return_addr': node.attrs['return_addr'],
-            'data': b"".join(data),
+            'text': b"".join(data),
         })
 
     def exit_unit(self, node):

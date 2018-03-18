@@ -14,10 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .compiler import ParseError, parse, translate
+from .compiler import ParseError, parse, translate, dump_unit
 
 __all__ = [
     ParseError,
     parse,
     translate,
+    dump_unit,
 ]

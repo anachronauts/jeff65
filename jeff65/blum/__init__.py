@@ -1,5 +1,5 @@
-# jeff65 main entry point
-# Copyright (C) 2017  jeff65 maintainers
+# jeff65.blum module root
+# Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,19 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import argparse
-import pathlib
-import sys
-from . import gold
-from . import blum
+from .linker import dump_symbols, load_unit, link
 
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("input_file", help="the file to compile")
-args = arg_parser.parse_args()
-
-input_file = pathlib.PurePath(args.input_file)
-
-obj = gold.translate(input_file)
-gold.dump_unit(obj, input_file.with_suffix('.blum'))
-blum.link(input_file.stem, obj, input_file.with_suffix('.prg'))
-blum.dump_symbols(obj, sys.stdout)
+__all__ = [
+    dump_symbols,
+    load_unit,
+    link,
+]

@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import pickle
 import sys
 import antlr4
 from .lexer import Lexer
@@ -64,9 +65,13 @@ def parse(fileobj, name):
 
 def translate(unit):
     with open_unit(unit) as input_file:
-        unit = parse(input_file, name=unit)
-
+        obj = parse(input_file, name=unit.name)
         for p in passes:
-            unit = unit.transform(p())
+            obj = obj.transform(p())
 
-        print(unit.pretty())
+    return obj
+
+
+def dump_unit(obj, path):
+    with open(path, 'wb') as output_file:
+        pickle.dump(obj, output_file)
