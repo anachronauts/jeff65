@@ -1,6 +1,10 @@
 import io
 import sys
-from nose.tools import *
+from nose.tools import (
+    assert_equal,
+    assert_is_none,
+    assert_raises,
+    nottest)
 from jeff65 import gold
 
 sys.stderr = sys.stdout
