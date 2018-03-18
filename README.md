@@ -37,9 +37,6 @@ The standard library units and runtime library, whenever they get written, will
 probably be provided either using the GPL with a linking exception, or under a
 non-copyleft license.
 
-Please note that cc65 and its runtime libraries are (at time of writing)
-provided under the zlib license.
-
 
 ## Gold-syntax
 
