@@ -21,6 +21,7 @@ use mem
  * is inlined at use sites.
  */
 constant screen-corner: &u8 = mem.as-pointer(0x0400)
+constant screen-corner-color: &u8 = mem.as-pointer(0xd800)
 
 /*
  * The compiler automatically links in a header which allows the program to be
@@ -28,8 +29,10 @@ constant screen-corner: &u8 = mem.as-pointer(0x0400)
  */
 fun main()
   /* 
-   * 0x01 is the screencode for 'A'. Note that this compiles down to a single
-   * absolute memory access, since screen-corner is inlined.
+   * Note that each of these compiles down to an immediate load and an absolute
+   * memory access, since, since screen-corner and screen-corner-color are
+   * inlined.
    */
-  @screen-corner = 0x01
+  @screen-corner = 0x53       /* screencode for <3 */
+  @screen-corner-color = 10   /* light red */
 endfun
