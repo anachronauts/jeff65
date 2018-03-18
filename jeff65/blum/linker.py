@@ -14,8 +14,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import os
 import pathlib
 import pickle
+import tempfile
 from . import image
 
 
@@ -39,5 +41,16 @@ def link(name, unit, output_path):
     im.add_unit("$startup", image.make_startup_for(name))
     im.add_unit(name, unit)
 
-    with open(output_path, 'wb') as output_file:
-        im.link(output_file)
+    # Create a temporary file to write to so that if we have a link error, we
+    # don't clobber the existing program image. We create this in the same
+    # directory to avoid cross-device renaming problems.
+    im_fd, im_tmp = tempfile.mkstemp(prefix=output_path.name,
+                                     dir=output_path.parent)
+    try:
+        with open(im_fd, 'wb') as im_file:
+            im.link(im_file)
+        os.replace(im_tmp, output_path)
+    except BaseException:
+        # linking failed, remove the temporary file
+        os.remove(im_tmp)
+        raise
