@@ -1,7 +1,7 @@
 /*
  * This is the simplest possible program that does anything visible on the C64.
- * It prints the letter 'A' in the top-left corner of the screen, then
- * immediately exits.
+ * It prints a light red heart in the top-left corner of the screen, then
+ * immediately exits back to the BASIC prompt.
  */
 
 /*
