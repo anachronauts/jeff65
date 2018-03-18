@@ -15,10 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
-from .gold import compiler
+from . import gold
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("input_file", help="the file to compile")
 args = arg_parser.parse_args()
 
-compiler.translate(args.input_file)
+gold.translate(args.input_file)

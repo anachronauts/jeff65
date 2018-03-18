@@ -1,14 +1,14 @@
 import io
 import sys
 from nose.tools import *
-from jeff65.gold import compiler
+from jeff65 import gold
 
 sys.stderr = sys.stdout
 
 
 def parse(source):
     with io.StringIO(source) as s:
-        return compiler.parse(s, '<test>')
+        return gold.parse(s, '<test>')
 
 
 def test_empty_file():
@@ -101,11 +101,11 @@ def test_parentheses_with_sign():
 
 
 def test_unmatched_open_parentheses():
-    assert_raises(compiler.ParseError, parse, "constant x: u8 = (1 + 2")
+    assert_raises(gold.ParseError, parse, "constant x: u8 = (1 + 2")
 
 
 def test_unmatched_close_parentheses():
-    assert_raises(compiler.ParseError, parse, "constant x: u8 = 1 + 2)")
+    assert_raises(gold.ParseError, parse, "constant x: u8 = 1 + 2)")
 
 
 @nottest
