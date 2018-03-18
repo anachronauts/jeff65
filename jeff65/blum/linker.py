@@ -38,7 +38,7 @@ def load_unit(path):
 
 def link(name, unit, output_path):
     im = image.Image()
-    im.add_unit("$startup", image.make_startup_for(name))
+    im.add_unit("$startup", image.make_startup_for(name, 0x0100))
     im.add_unit(name, unit)
 
     # Create a temporary file to write to so that if we have a link error, we

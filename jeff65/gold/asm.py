@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import struct
 from . import ast, storage
 
 
@@ -30,25 +31,21 @@ class AssembleWithRelocations(ast.TranslationPass):
         s = node.attrs['storage']
         assert s.width == 1
         if type(s) is storage.ImmediateStorage:
-            return AsmRun(bytes([0xa9, s.value]))
+            return AsmRun(struct.pack("<BB", 0xa9, s.value))
         assert False
 
     def enter_sta(self, node):
         s = node.attrs['storage']
         assert s.width == 1
         if type(s) is storage.AbsoluteStorage:
-            hi = (s.address >> 8) & 0xff
-            lo = s.address & 0xff
-            return AsmRun(bytes([0x8d, lo, hi]))
+            return AsmRun(struct.pack("<BH", 0x8d, s.address))
         assert False
 
     def enter_jmp(self, node):
         s = node.attrs['storage']
         assert s.width == 2
         if type(s) is storage.ImmediateStorage:
-            hi = (s.value >> 8) & 0xff
-            lo = s.value & 0xff
-            return AsmRun(bytes([0x4c, lo, hi]))
+            return AsmRun(struct.pack("<BH", 0x4c, s.value))
         assert False
 
     def enter_rts(self, node):

@@ -15,34 +15,35 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import re
+import struct
 from ..gold import ast
 
 # Header for PRG files. Identifies the load location in memory, in this case
 # 0x0801, which is the load location for BASIC programs.
-prg_header = bytes([0x01, 0x08])
-
-exe_header = bytes([
-    0x0b, 0x08,              # 0x0801:  pointer 0x080b to next line of BASIC
-    0x00, 0x03,              # 0x0803:  BASIC line number (786) 0x0300
-    0x9e,                    # 0x0805:  BASIC SYS token
-    0x32, 0x30, 0x36, 0x31,  # 0x0806:  PETSCII for 2061 (0x080d)
-    0x00, 0x00, 0x00,        # 0x0809:  padding
-                             # 0x080d:  program text starts here
-])
+prg_header = struct.pack("<H", 0x0801)
 
 
-def make_startup_for(name):
+def make_startup_for(name, version):
     return ast.AstNode('unit', None, children=[
         ast.AstNode('fun_symbol', None, attrs={
             'name': '__start',
             'relocations': [
                 # Relocation for the address of 'main'
-                (0x0001, '{}.main'.format(name)),
+                (0x000d, '{}.main'.format(name)),
             ],
-            'text': bytes([
-                0x20, 0xff, 0xff,  # 0x0000:  jsr $ffff
-                0x60,              # 0x0003:  rts
-            ])
+            'text': struct.pack(
+                # Defines a simple startup header. Note that in theory, we
+                # could simply make the target of the SYS instruction be our
+                # main function, but our relocation system isn't smart enough
+                # for that and we may wish to add more complicated startup code
+                # in the future. It is assumed that main() will RTS.
+                "<HHB4sxHBH",
+                0x080b,         # 0x0000 0x0801 (H)    addr of next BASIC line
+                version,        # 0x0002 0x0803 (H)    BASIC line number
+                0x9e, b'2061',  # 0x0004 0x0805 (B4sx) SYS2061 (0x080d)
+                0x0000,         # 0x000a 0x080b (H)    BASIC end-of-program
+                0x4c, 0xffff,   # 0x000c 0x080d (BH)   jmp $ffff
+            ),
         })
     ])
 
@@ -75,22 +76,17 @@ class Image:
         inc = int(m.group(2) or 0)
         part = m.group(3)
         offset = self.base_address + offsets[sym] + inc
-        assert offset < 0x10000
-        lo = offset & 0xff
-        hi = (offset >> 8) & 0xff
+        addr = struct.pack("<H", offset)
         if part == ',lo':
-            return bytes([lo])
+            return addr[0:1]
         elif part == ',hi':
-            return bytes([hi])
-        return bytes([lo, hi])
+            return addr[1:2]
+        return addr
 
     def link(self, fileobj):
         """Links the image, writing it out to a file."""
         # write out the prg header
-        fileobj.write(bytes([0x01, 0x08]))
-
-        # write out the header
-        fileobj.write(exe_header)
+        fileobj.write(prg_header)
 
         # write out the text sections, starting with our start symbol
         offsets = {}
