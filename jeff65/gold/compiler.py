@@ -14,12 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pickle
 import sys
 import antlr4
 from .lexer import Lexer
 from .grammar import Parser
 from . import asm, ast, binding, lower, storage, typepasses, units
+from .. import blum
 
 
 passes = [
@@ -69,9 +69,19 @@ def translate(unit):
         for p in passes:
             obj = obj.transform(p())
 
-    return obj
+    archive = blum.Archive()
+    for node in obj.children:
+        if node.t is 'fun_symbol':
+            sym_name = '{}.{}'.format(unit.stem, node.attrs['name'])
+            sym = blum.Symbol('text', node.attrs['text'], attrs={
+                'type': node.attrs['type'],
+            })
+            archive.symbols[sym_name] = sym
+            if 'return_addr' in node.attrs:
+                const_name = '{}/return_addr'.format(sym_name)
+                const_reloc = '{}+{}'.format(sym_name,
+                                             node.attrs['return_addr'])
+                const = blum.Constant(const_reloc, 2)
+                archive.constants[const_name] = const
 
-
-def dump_unit(obj, path):
-    with open(path, 'wb') as output_file:
-        pickle.dump(obj, output_file)
+    return archive

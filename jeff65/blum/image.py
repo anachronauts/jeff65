@@ -16,58 +16,56 @@
 
 import re
 import struct
-from ..gold import ast
+from . import symbol
 
 # Header for PRG files. Identifies the load location in memory, in this case
 # 0x0801, which is the load location for BASIC programs.
 prg_header = struct.pack("<H", 0x0801)
 
 
-def make_startup_for(name, version):
-    return ast.AstNode('unit', None, children=[
-        ast.AstNode('fun_symbol', None, attrs={
-            'name': '__start',
-            'relocations': [
-                # Relocation for the address of 'main'
-                (0x000d, '{}.main'.format(name)),
-            ],
-            'text': struct.pack(
-                # Defines a simple startup header. Note that in theory, we
-                # could simply make the target of the SYS instruction be our
-                # main function, but our relocation system isn't smart enough
-                # for that and we may wish to add more complicated startup code
-                # in the future. It is assumed that main() will RTS.
-                "<HHB4sxHBH",
-                0x080b,         # 0x0000 0x0801 (H)    addr of next BASIC line
-                version,        # 0x0002 0x0803 (H)    BASIC line number
-                0x9e, b'2061',  # 0x0004 0x0805 (B4sx) SYS2061 (0x080d)
-                0x0000,         # 0x000a 0x080b (H)    BASIC end-of-program
-                0x4c, 0xffff,   # 0x000c 0x080d (BH)   jmp $ffff
-            ),
-        })
-    ])
+def make_startup_for(main, version):
+    archive = symbol.Archive()
+    archive.symbols['$startup.__start'] = symbol.Symbol(
+        'startup',
+        struct.pack(
+            # Defines a simple startup header. Note that in theory, we could
+            # simply make the target of the SYS instruction be our main
+            # function, but our relocation system isn't smart enough for that
+            # and we may wish to add more complicated startup code in the
+            # future. It is assumed that main() will RTS.
+            "<HHB4sxHBH",
+            0x080b,         # 0x0000 0x0801 (H)    addr of next BASIC line
+            version,        # 0x0002 0x0803 (H)    BASIC line number
+            0x9e, b'2061',  # 0x0004 0x0805 (B4sx) SYS2061 (0x080d)
+            0x0000,         # 0x000a 0x080b (H)    BASIC end-of-program
+            0x4c, 0xffff,   # 0x000c 0x080d (BH)   jmp $ffff
+        ),
+        relocations=[
+            # Relocation for the address of 'main'
+            (0x000d, main),
+        ])
+    return archive
 
 
 class Image:
     m_reloc = re.compile(r'^([^+-]+)([+-]\d+)?(,lo|,hi)?$')
 
-    def __init__(self):
-        self.symbols = {}
+    def __init__(self, fileobj):
+        self.fileobj = fileobj
+        self.offsets = {}
+        self.archive = symbol.Archive()
         self.base_address = 0x0801
         self.start_symbol = '$startup.__start'
 
-    def add_unit(self, name, unit):
-        """Adds the symbols for a unit to the symbols table."""
-        for symbol in unit.children:
-            sym_name = symbol.attrs['name']
-            self.symbols["{}.{}".format(name, sym_name)] = symbol
+    def add_archive(self, archive):
+        self.archive.update(archive)
 
-    def compute_relocation(self, offsets, name, reloc):
+    def compute_relocation(self, name, reloc, binary=False):
         """Computes the address for a relocation based on an offset table.
 
-        Returns the result as a little-endian bytestring. If the relocation
-        ends in ',lo' or ',hi' then the bytestring will be one byte long;
-        otherwise, two.
+        If binary is True, then returns the result as a little-endian
+        bytestring. If the relocation ends in ',lo' or ',hi' then the
+        bytestring will be one byte long; otherwise, two.
         """
         m = self.m_reloc.match(reloc)
         sym = m.group(1)
@@ -75,44 +73,58 @@ class Image:
             sym = name
         inc = int(m.group(2) or 0)
         part = m.group(3)
-        offset = self.base_address + offsets[sym] + inc
+        offset = self.base_address + self.offsets[sym] + inc
         addr = struct.pack("<H", offset)
-        if part == ',lo':
-            return addr[0:1]
-        elif part == ',hi':
-            return addr[1:2]
-        return addr
+        if binary:
+            if part == ',lo':
+                return addr[0:1]
+            elif part == ',hi':
+                return addr[1:2]
+            return addr
+        else:
+            if part == ',lo':
+                return addr[0]
+            elif part == ',hi':
+                return addr[1]
+            return offset
 
-    def link(self, fileobj):
+    def current_offset(self):
+        return self.fileobj.tell() - len(prg_header)
+
+    def seek_to_offset(self, name, inc):
+        self.fileobj.seek(self.offsets[name] + inc + len(prg_header))
+
+    def _emit_sym(self, name, sym):
+        self.offsets[name] = self.current_offset()
+        self.fileobj.write(sym.data)
+
+    def link(self):
         """Links the image, writing it out to a file."""
         # write out the prg header
-        fileobj.write(prg_header)
+        self.fileobj.write(prg_header)
 
-        # write out the text sections, starting with our start symbol
-        offsets = {}
-        sym = self.symbols[self.start_symbol]
-        offsets[self.start_symbol] = fileobj.tell() - 2
-        fileobj.write(sym.attrs['text'])
+        # write out the startup section
+        startup = self.archive.find_section('startup')
+        assert len(startup) == 1
+        for name, sym in startup:
+            self._emit_sym(name, sym)
 
-        # the rest of the symbols
-        for name, sym in self.symbols.items():
-            if name == self.start_symbol:
-                continue
+        # write out the text section
+        for name, sym in self.archive.find_section('text'):
+            self._emit_sym(name, sym)
 
-            if 'text' in sym.attrs:
-                offsets[name] = fileobj.tell() - 2
-                fileobj.write(sym.attrs['text'])
+        # resolve constants
+        for name, const in self.archive.constants.items():
+            if type(const.reloc) is int:
+                self.offsets[name] = const.reloc
 
-                if 'return_addr' in sym.attrs:
-                    addr = offsets[name] + sym.attrs['return_addr']
-                    offsets[name + '/return_addr'] = addr
+            self.offsets[name] = self.compute_relocation(name, const.reloc)
 
         # perform relocations
-        for name, sym in self.symbols.items():
-            if 'relocations' not in sym.attrs:
+        for name, offset, reloc in self.archive.relocations():
+            if name not in self.offsets:
                 continue
 
-            for sym_off, reloc in sym.attrs['relocations']:
-                fileobj.seek(offsets[name] + sym_off + 2)
-                addr = self.compute_relocation(offsets, name, reloc)
-                fileobj.write(addr)
+            self.seek_to_offset(name, offset)
+            addr = self.compute_relocation(name, reloc, binary=True)
+            self.fileobj.write(addr)

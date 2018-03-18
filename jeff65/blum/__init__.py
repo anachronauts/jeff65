@@ -14,10 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .linker import dump_symbols, load_unit, link
+from .linker import link
+from .symbol import Archive, Symbol, Constant
 
 __all__ = [
-    dump_symbols,
-    load_unit,
     link,
+    Archive,
+    Symbol,
+    Constant,
 ]

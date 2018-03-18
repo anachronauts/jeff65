@@ -16,7 +16,6 @@
 
 import argparse
 import pathlib
-import sys
 from . import gold
 from . import blum
 
@@ -26,7 +25,7 @@ args = arg_parser.parse_args()
 
 input_file = pathlib.PurePath(args.input_file)
 
-obj = gold.translate(input_file)
-gold.dump_unit(obj, input_file.with_suffix('.blum'))
-blum.link(input_file.stem, obj, input_file.with_suffix('.prg'))
-blum.dump_symbols(obj, sys.stdout)
+archive = gold.translate(input_file)
+archive.dumpf(input_file.with_suffix('.blum'))
+blum.link('{}.main'.format(input_file.stem), archive,
+          input_file.with_suffix('.prg'))

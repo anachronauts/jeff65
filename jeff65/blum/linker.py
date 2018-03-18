@@ -16,30 +16,13 @@
 
 import os
 import pathlib
-import pickle
 import tempfile
 from . import image
 
 
-def dump_symbols(unit, fileobj):
-    for symbol in unit.children:
-        fileobj.write("{} {}\n".format(
-            symbol.attrs['name'],
-            symbol.attrs['type']))
-
-
-def load_unit(path):
-    if not isinstance(path, pathlib.Path):
-        path = pathlib.PurePath(path)
-
-    with open(path, 'rb') as input_file:
-        return pickle.load(input_file)
-
-
-def link(name, unit, output_path):
-    im = image.Image()
-    im.add_unit("$startup", image.make_startup_for(name, 0x0100))
-    im.add_unit(name, unit)
+def link(name, archive, output_path):
+    if not isinstance(output_path, pathlib.Path):
+        output_path = pathlib.PurePath(output_path)
 
     # Create a temporary file to write to so that if we have a link error, we
     # don't clobber the existing program image. We create this in the same
@@ -48,7 +31,10 @@ def link(name, unit, output_path):
                                      dir=output_path.parent)
     try:
         with open(im_fd, 'wb') as im_file:
-            im.link(im_file)
+            im = image.Image(im_file)
+            im.add_archive(image.make_startup_for(name, 0x0100))
+            im.add_archive(archive)
+            im.link()
         os.replace(im_tmp, output_path)
     except BaseException:
         # linking failed, remove the temporary file
