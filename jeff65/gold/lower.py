@@ -1,5 +1,5 @@
-# jeff65 main entry point
-# Copyright (C) 2017  jeff65 maintainers
+# jeff65 gold-syntax lowering passes
+# Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,18 +14,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import argparse
-import pathlib
-from . import gold
-from . import blum
+from . import asm, ast
 
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("input_file", help="the file to compile")
-args = arg_parser.parse_args()
 
-input_file = pathlib.PurePath(args.input_file)
+class LowerAssignment(ast.TranslationPass):
+    def exit_set(self, node):
+        lhs = node.children[0]
+        rhs = node.children[1]
+        assert node.attrs['type'].width == lhs.width
+        assert node.attrs['type'].width == rhs.width
 
-archive = gold.translate(input_file)
-archive.dumpf(input_file.with_suffix('.blum'))
-blum.link('{}.main'.format(input_file.stem), archive,
-          input_file.with_suffix('.prg'))
+        return [
+            asm.lda(node.position, rhs),
+            asm.sta(node.position, lhs),
+        ]
+
+
+class LowerFunctions(ast.TranslationPass):
+    def exit_fun(self, node):
+        node = node.clone()
+        node.children.append(asm.rts(node.position))
+        return node

@@ -1,3 +1,8 @@
+# jeff65 / VICE outputs
+*.blum
+*.prg
+*.d64
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
