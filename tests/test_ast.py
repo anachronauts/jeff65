@@ -112,43 +112,52 @@ def test_unmatched_close_parentheses():
     assert_raises(gold.ParseError, parse, "constant x: u8 = 1 + 2)")
 
 
-@nottest
-def test_let_with_storage_class():
-    # a = parse("let mut a: u8 = 7")
-    # assert_equal(1, len(a.statements))
-    # t = a.statements[0]
-    # assert_is_instance(t, ast.StatementLetNode)
-    # s = t.binding
-    # assert_is_instance(s, ast.StorageClassNode)
-    # assert_equal(s.text, "mut")
-    # b = s.binding
-    # assert_is_instance(b, ast.OperatorAssignNode)
-    # assert_is_instance(b.rhs, ast.NumericNode)
-    # assert_equal("7", b.rhs.text)
-    # assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
-    # assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
-    # assert_equal("a", b.lhs.lhs.text)
-    # assert_is_instance(b.lhs.rhs, ast.IdentifierNode)
-    # assert_equal("u8", b.lhs.rhs.text)
-    pass
+def test_let_with_mut_storage_class():
+    a = parse("let mut a: u8 = 7")
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    assert_equal(3, len(s.attrs))
+    assert_equal('a', s.attrs['name'])
+    assert_equal('mut', s.attrs['storage'])
+    assert_equal('u8', s.attrs['type'])
+    assert_equal(1, len(s.children))
+    n = s.children[0]
+    assert_equal('numeric', n.t)
+    assert_equal(7, n.attrs['value'])
 
 
-@nottest
+def test_let_with_stash_storage_class():
+    a = parse("let stash a: u8 = 7")
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    assert_equal(3, len(s.attrs))
+    assert_equal('a', s.attrs['name'])
+    assert_equal('stash', s.attrs['storage'])
+    assert_equal('u8', s.attrs['type'])
+    assert_equal(1, len(s.children))
+    n = s.children[0]
+    assert_equal('numeric', n.t)
+    assert_equal(7, n.attrs['value'])
+
+
 def test_let_without_storage_class():
-    # a = parse("let a: u8 = 7")
-    # assert_equal(1, len(a.statements))
-    # t = a.statements[0]
-    # assert_is_instance(t, ast.StatementLetNode)
-    # b = t.binding
-    # assert_is_instance(b, ast.OperatorAssignNode)
-    # assert_is_instance(b.rhs, ast.NumericNode)
-    # assert_equal("7", b.rhs.text)
-    # assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
-    # assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
-    # assert_equal("a", b.lhs.lhs.text)
-    # assert_is_instance(b.lhs.rhs, ast.IdentifierNode)
-    # assert_equal("u8", b.lhs.rhs.text)
-    pass
+    a = parse("let a: u8 = 7")
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    assert_equal(2, len(s.attrs))
+    assert_equal('a', s.attrs['name'])
+    assert_equal('u8', s.attrs['type'])
+    assert_equal(1, len(s.children))
+    n = s.children[0]
+    assert_equal('numeric', n.t)
+    assert_equal(7, n.attrs['value'])
+
+
+def test_let_with_invalid_storage_class():
+    assert_raises(gold.ParseError, parse, "let bogus a: u8 = 7")
 
 
 @nottest

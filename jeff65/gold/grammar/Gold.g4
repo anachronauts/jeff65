@@ -69,7 +69,7 @@ expr : PAREN_OPEN expr PAREN_CLOSE  # ExprParen
 
 array : BRACKET_OPEN (expr (PUNCT_COMMA expr)*)? BRACKET_CLOSE ;
 
-storage : STORAGE_MUT | STORAGE_STASH ;
+storage : storage_class=(STORAGE_MUT | STORAGE_STASH) ;
 
 typeId : name=IDENTIFIER  # TypePrimitive
        | OPERATOR_REF BRACKET_OPEN storage? typeId BRACKET_CLOSE  # TypeSlice

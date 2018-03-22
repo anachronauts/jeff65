@@ -1029,6 +1029,7 @@ class Gold ( Parser ):
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
             self.parser = parser
+            self.storage_class = None # Token
 
         def STORAGE_MUT(self):
             return self.getToken(Gold.STORAGE_MUT, 0)
@@ -1058,9 +1059,10 @@ class Gold ( Parser ):
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 112
+            localctx.storage_class = self._input.LT(1)
             _la = self._input.LA(1)
             if not(_la==Gold.STORAGE_MUT or _la==Gold.STORAGE_STASH):
-                self._errHandler.recoverInline(self)
+                localctx.storage_class = self._errHandler.recoverInline(self)
             else:
                 self.consume()
         except RecognitionException as re:

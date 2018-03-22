@@ -21,11 +21,13 @@ from . import blum
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("input_file", help="the file to compile")
+arg_parser.add_argument("-v", "--verbose", help="show the output of each pass",
+                        dest="verbose", action="store_true", default=False)
 args = arg_parser.parse_args()
 
 input_file = pathlib.PurePath(args.input_file)
 
-archive = gold.translate(input_file)
+archive = gold.translate(input_file, args.verbose)
 archive.dumpf(input_file.with_suffix('.blum'))
 blum.link('{}.main'.format(input_file.stem), archive,
           input_file.with_suffix('.prg'))

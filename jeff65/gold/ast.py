@@ -177,6 +177,16 @@ class AstBuilder(ParseListener):
     def exitStmtConstant(self, ctx):
         self._pop()
 
+    def enterStmtLet(self, ctx):
+        node = AstNode("let", self._pos(ctx))
+        node.attrs['name'] = ctx.declaration().name.text
+        if ctx.storage():
+            node.attrs['storage'] = ctx.storage().storage_class.text
+        self._push(node)
+
+    def exitStmtLet(self, ctx):
+        self._pop()
+
     def enterStmtFun(self, ctx):
         self._push(AstNode("fun", self._pos(ctx), {
             "name": ctx.name.text,

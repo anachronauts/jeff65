@@ -63,11 +63,14 @@ def parse(fileobj, name):
     return builder.ast
 
 
-def translate(unit):
+def translate(unit, verbose=False):
     with open_unit(unit) as input_file:
         obj = parse(input_file, name=unit.name)
         for p in passes:
             obj = obj.transform(p())
+            if (verbose):
+                print(p.__name__)
+                print(obj.pretty())
 
     archive = blum.Archive()
     for node in obj.children:
