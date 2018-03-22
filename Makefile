@@ -9,7 +9,7 @@ jeff65/gold/grammar/Gold.py: jeff65/gold/grammar/Gold.g4
 
 check: all
 	flake8 jeff65 tests
-	nosetests --with-coverage --cover-package=jeff65
+	nosetests --with-coverage --cover-package jeff65 --cover-erase
 
 demo: examples/heart.prg
 	x64 $<
