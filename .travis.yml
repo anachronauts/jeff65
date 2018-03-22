@@ -4,3 +4,5 @@ python:
 script:
   - flake8 jeff65 tests
   - nosetests
+after_success:
+  - coveralls
