@@ -14,20 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import argparse
-import pathlib
-from . import gold
-from . import blum
+from . import main
 
-arg_parser = argparse.ArgumentParser()
-arg_parser.add_argument("input_file", help="the file to compile")
-arg_parser.add_argument("-v", "--verbose", help="show the output of each pass",
-                        dest="verbose", action="store_true", default=False)
-args = arg_parser.parse_args()
 
-input_file = pathlib.PurePath(args.input_file)
-
-archive = gold.translate(input_file, args.verbose)
-archive.dumpf(input_file.with_suffix('.blum'))
-blum.link('{}.main'.format(input_file.stem), archive,
-          input_file.with_suffix('.prg'))
+main()

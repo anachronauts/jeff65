@@ -17,7 +17,7 @@ intermediate files. *gold* syntax provides an imperative systems language for
 
 Invocation:
 
-    usage: ./bin/jeff65 [-h] input_file
+    usage: jeff65 [-h] input_file
 
     positional arguments:
       input_file  the file to compile
