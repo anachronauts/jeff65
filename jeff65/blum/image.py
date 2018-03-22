@@ -18,10 +18,6 @@ import re
 import struct
 from . import symbol
 
-# Header for PRG files. Identifies the load location in memory, in this case
-# 0x0801, which is the load location for BASIC programs.
-prg_header = struct.pack("<H", 0x0801)
-
 
 def make_startup_for(main, version):
     archive = symbol.Archive()
@@ -50,12 +46,16 @@ def make_startup_for(main, version):
 class Image:
     m_reloc = re.compile(r'^([^+-]+)([+-]\d+)?(,lo|,hi)?$')
 
-    def __init__(self, fileobj):
+    def __init__(self, fileobj, base_address=0x0801):
         self.fileobj = fileobj
         self.offsets = {}
         self.archive = symbol.Archive()
-        self.base_address = 0x0801
+        self.base_address = base_address
         self.start_symbol = '$startup.__start'
+
+        # Header for PRG files. Identifies the load location in memory.
+        # 0x0801 is the load location for BASIC programs.
+        self.prg_header = struct.pack("<H", self.base_address)
 
     def add_archive(self, archive):
         self.archive.update(archive)
@@ -89,10 +89,10 @@ class Image:
             return offset
 
     def current_offset(self):
-        return self.fileobj.tell() - len(prg_header)
+        return self.fileobj.tell() - len(self.prg_header)
 
     def seek_to_offset(self, name, inc):
-        self.fileobj.seek(self.offsets[name] + inc + len(prg_header))
+        self.fileobj.seek(self.offsets[name] + inc + len(self.prg_header))
 
     def _emit_sym(self, name, sym):
         self.offsets[name] = self.current_offset()
@@ -101,7 +101,7 @@ class Image:
     def link(self):
         """Links the image, writing it out to a file."""
         # write out the prg header
-        self.fileobj.write(prg_header)
+        self.fileobj.write(self.prg_header)
 
         # write out the startup section
         startup = self.archive.find_section('startup')
