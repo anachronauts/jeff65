@@ -18,6 +18,11 @@ import struct
 from . import ast, storage
 
 
+class AssemblyError(Exception):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 class AsmRun:
     def __init__(self, data):
         self.data = data
@@ -29,24 +34,27 @@ class AsmRun:
 class AssembleWithRelocations(ast.TranslationPass):
     def enter_lda(self, node):
         s = node.attrs['storage']
-        assert s.width == 1
         if type(s) is storage.ImmediateStorage:
+            if s.width != 1:
+                raise AssemblyError(
+                    "LDA loads one byte ({} given)".format(s.width))
             return AsmRun(struct.pack("<BB", 0xa9, s.value))
-        assert False
+        raise NotImplementedError()
 
     def enter_sta(self, node):
         s = node.attrs['storage']
-        assert s.width == 1
         if type(s) is storage.AbsoluteStorage:
+            if s.width != 1:
+                raise AssemblyError(
+                    "STA stores one byte ({} given)".format(s.width))
             return AsmRun(struct.pack("<BH", 0x8d, s.address))
-        assert False
+        raise NotImplementedError()
 
     def enter_jmp(self, node):
         s = node.attrs['storage']
-        assert s.width == 2
-        if type(s) is storage.ImmediateStorage:
-            return AsmRun(struct.pack("<BH", 0x4c, s.value))
-        assert False
+        if type(s) is storage.AbsoluteStorage:
+            return AsmRun(struct.pack("<BH", 0x4c, s.address))
+        raise NotImplementedError()
 
     def enter_rts(self, node):
         return AsmRun(bytes([0x60]))
@@ -92,7 +100,7 @@ def sta(position, arg):
 
 
 def jmp(position, arg):
-    assert type(arg) is storage.ImmediateStorage
+    assert type(arg) is storage.AbsoluteStorage
     return ast.AstNode('jmp', position, attrs={
         'storage': arg,
         'size': 3,
