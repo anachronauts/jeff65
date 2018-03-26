@@ -149,17 +149,23 @@ which may be referenced in other units.
 
 Block-level usage: ::
 
-  let [mut] <identifier> : <type> = <expression>
-  let stash <identifier> : <type> = <known-expression>
+  let [mut | stash] <identifier> : <type>[, ...] = <expression>[, ...] [do
+    [...]
+  end]
 
-Binds a name to a value. In the first form, memory is allocated statically (i.e.
-memory is reserved, but the value is not included in the program image), and the
-value is computed and stored when the statement is executed. In the second form,
-memory is allocated in the program image with the initial value stored.
+Binds a name to a value. With no storage class, or with the ``mut`` storage
+class, memory is allocated statically (i.e. memory is reserved, but the value is
+not included in the program image), and the value is computed and stored when
+the statement is executed. With a ``stash`` storage class, memory is allocated in the
+program image with the initial value stored. Multiple bindings may be introduced
+by repeating both sides separated by commas.
 
 By default, let-bindings are immutable, and may not be re-bound (though they may
 be shadowed). If the ``mut`` or ``stash`` storage classes are applied, then the
 binding becomes mutable, and the value may be changed.
+
+Optionally, a ``do ... end`` block may be provided, in which case the bindings
+introduced are scoped to the block.
 
 
 ``fun``
@@ -247,7 +253,21 @@ block to be executed. If none of the expressions evalute to ``true``, the block
 after the ``else`` is executed, if present. Once an expression which evaluates
 to ``true`` is executed, the rest of the expressions will be skipped.
 
-Each branch introduces a new scope.
+Each branch has a new scope, but the scopes introduced are invisible to
+``break``, ``continue``, and ``redo``.
+
+
+``do``
+~~~~~~
+
+Usage: ::
+
+  do[: <identifier>]
+    [...]
+  end
+
+Introduces a new scope. If an identifier is provided, then the block is named
+with that identifier. Otherwise, the block is anonymous.
 
 
 ``while``
@@ -255,7 +275,7 @@ Each branch introduces a new scope.
 
 Usage: ::
 
-  while <expression> do
+  while <expression> do[: identifier]
     [...]
   end
 
@@ -263,7 +283,8 @@ Introduces a loop which executes the provided block zero or more times. The
 block is executed repeatedly until the expression evaluates to ``false``, or the
 loop is terminated.
 
-The provided block introduces a new scope.
+The provided block introduces a new scope. If an identifier is provided, then
+the block is named with that identifier. Otherwise, the block is anonymous.
 
 
 ``for``
@@ -271,7 +292,7 @@ The provided block introduces a new scope.
 
 Usage: ::
 
-  for <identifier> : <type> in <expression> do
+  for <identifier> : <type> in <expression> do[: <identifier>]
     [...]
   end
 
@@ -280,30 +301,98 @@ introduces a loop which executes the provided block once for each element of the
 value of the expression, with the provided identifier bound to the value of the
 element.
 
-The provided block introduces a new scope.
+The provided block introduces a new scope. If an identifier is provided, then
+the block is named with that identifier. Otherwise, the block is anonymous.
 
 
-``break``
-~~~~~~~~~
-
-Usage: ::
-
-  break
-
-Terminates the innermost loop currently executing. It is an error to have a
-``break`` statement outside of a loop.
-
-
-``continue``
-~~~~~~~~~~~~
+``break`` & ``continue``
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Usage: ::
 
-  continue
+  break [<identifier>]
+  continue [<identifier>]
 
-Terminates the currently-executing block, but does not terminate the loop,
-instead causing it to move to the next iteration if any remain. It is an error
-to have a ``continue`` statement outside of a loop.
+Terminates a currently-executing block. If no identifier is specified, then the
+innermost block is terminated; otherwise, the named block is terminated along
+with all inner blocks.
+
+In the case of ``break``, the associated loop is also terminated, if one is
+present. It is an error to have a ``break`` outside of a block.
+
+In the case of ``continue``, the loop is not terminated. It is an error to have
+a ``continue`` outside of a loop block.
+
+
+``redo``
+~~~~~~~~
+
+Usage: ::
+
+  redo [[<identifier>][([<expr>[, ...])]]]
+
+Terminates the currently-executing block, then re-starts it. Rules for the
+identifier are as ``break`` and ``continue``.
+
+If the block in question is a ``fun``, then an argument list may be provided,
+with arguments of the same number and type of the function. The arguments will
+be rebound to the new values. If no argument list is provided, the function
+arguments will retain their current bindings.
+
+If the block in question is a ``let`` statement, then an argument list may be
+provided, with arguments of the same number and type as let-bindings introduced.
+The let-bound variables will be rebound with the new values.
+
+All looping constructs may be expressed in terms of ``do``, ``let``, ``if``, and
+``redo``. For example ::
+
+  while <cond> do
+    [...]
+  end
+
+  do if <cond> then
+    [...]
+    redo
+  end end
+
+  for <identifier>: <type> in <start> to <end> do
+    [...]
+  end
+
+  let index: <type> = <start> do: loop
+    if index < <end> then
+      let <identifier>: <type> = index
+      [...]
+      redo loop(index + 1)
+    end
+  end
+
+  for <identifier>: <type> in <expr> do
+    [...]
+  end
+
+  let slice: &[<type>] = <expr> do
+    let index: u16 = mem.start(slice) do: loop
+      if index < mem.end(slice) then
+        let <identifier>: <type> = slice[index]
+        [...]
+        redo loop(index + 1)
+      end
+    end
+  end
+  
+Here is a simple example of a factorial function, expressed using what is
+effectively tail-recursion: ::
+
+  fun factorial(n: u16) -> u16
+    let acc: u16, k: u16 = 1, n do
+      if k > 1 then
+        redo (acc * k, k - 1)
+      else
+        return acc
+      end
+    end
+  end
 
 
 Type Expressions
@@ -409,4 +498,4 @@ Addition and subtraction of integer types. ::
   <expr> < <expr>
   <expr> > <expr>
 
-Comparison operators. Evaluates to a boolean value. ::
+Comparison operators. Evaluates to a boolean value.
