@@ -41,7 +41,7 @@ passes = [
 
 
 def open_unit(unit):
-    if unit == "-":
+    if str(unit) == "-":
         return sys.stdin
     return open(unit, 'r')
 

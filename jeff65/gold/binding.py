@@ -164,5 +164,6 @@ class ResolveConstants(ScopedPass):
 
     def exit__scope(self, node):
         node = node.clone()
-        del node.attrs['known_constants']
+        if 'known_constants' in node.attrs:
+            del node.attrs['known_constants']
         return node

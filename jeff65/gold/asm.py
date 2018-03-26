@@ -79,7 +79,8 @@ class FlattenSymbol(ast.TranslationPass):
 
     def exit_unit(self, node):
         node = node.clone()
-        del node.attrs['known_names']
+        if 'known_names' in node.attrs:
+            del node.attrs['known_names']
         return node
 
 
