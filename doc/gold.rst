@@ -309,10 +309,104 @@ to have a ``continue`` statement outside of a loop.
 Type Expressions
 ----------------
 
-TODO write me
+Primitive Types
+~~~~~~~~~~~~~~~
+
+Primitive types are provided for signed and unsigned integers for 8-bit, 16-bit,
+24-bit, and 32-bit integers. They are written as follows: ::
+
+  u8 u16 u24 u32
+  i8 i16 i24 i32
+
+(Types beginning with ``u`` are unsigned.) Primitive types are as wide as the
+number of bits divided by eight.
+
+
+Array Types
+~~~~~~~~~~~
+
+Array types are written as: ::
+
+  [<base>; <start> to <end>]    /* first form */
+  [<base>; <end>]               /* second form */
+
+where ``<base>`` is another type, ``<start>`` and ``<end>`` are the lower and
+upper bounds, respectively, where the lower bound is inclusive and upper bound
+is exclusive. In the second form, ``<start>`` is implied to be ``0``.
+
+The width of an array type is the width of ``<base>`` multiplied by the
+difference between ``<end>`` and ``<start>``. (For example, ``[u8; 3 to 7]`` is
+four bytes wide.)
+
+
+Pointer and Slice Types
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Pointer types are constructed by prefixing a non-array type with a ``&``, for
+example, ``&u8`` is a pointer to an 8-bit unsigned type. Pointers are always two
+bytes wide.
+
+Slice types take the form of ``&[<base>]``. Slices have a built-in length, and
+are always four bytes wide. Taking a pointer to an array produces a slice.
 
 
 Value Expressions
 -----------------
 
-TODO write me
+Expressions are written infix, similar to 'C'. Operations are resolved in the
+following order. ::
+
+  (<expr>)
+
+Parenthesised expressions are resolved from innermost out. Whitespace is allowed
+but not required around parentheses. ::
+
+  <expr>[<expr>]
+
+Indexes into an array. The expression on the left must resolve to an array or
+slice type, and the expression on the right must resolve to a ``u8`` or ``u16``.
+::
+
+   <fun>([<expr>[, ...]])
+
+Calls a function. ``<fun>`` must be an expression which evaluates to a function
+or function pointer. Expressions are evaluated and passed as arguments, and the
+function expression resolves to the return value of the function. ::
+
+  &<expr>
+  @<expr>
+
+Takes a pointer to a value, and dereferences a pointer, respectively. ::
+
+  bitnot <expr>
+  <expr> bitand <expr>
+  <expr> bitor <expr>
+  <expr> bitxor <expr>
+
+Bitwise operations are provided for unsigned types. For dyadic operations, both
+sides must be the same width. ::
+
+  <expr> << <known-expr>
+  <expr> >> <known-expr>
+
+Left-shift and right-shift operations, respectively. The right-hand side must be
+known at compile-time. ::
+
+  <expr> * <expr>
+  <expr> / <expr>
+
+Multiplication and division of integer types. ::
+
+  <expr> + <expr>
+  <expr> - <expr>
+
+Addition and subtraction of integer types. ::
+
+  <expr> == <expr>
+  <expr> != <expr>
+  <expr> <= <expr>
+  <expr> >= <expr>
+  <expr> < <expr>
+  <expr> > <expr>
+
+Comparison operators. Evaluates to a boolean value. ::
