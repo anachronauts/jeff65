@@ -44,7 +44,7 @@ def make_startup_for(main, version):
 
 
 class Image:
-    m_reloc = re.compile(r'^([^+-]+)([+-]\d+)?(,lo|,hi)?$')
+    m_reloc = re.compile(r'^([^,+-]+)([+-]\d+)?(,lo|,hi)?$')
 
     def __init__(self, fileobj, base_address=0x0801):
         self.fileobj = fileobj

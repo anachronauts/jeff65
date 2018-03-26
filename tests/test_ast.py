@@ -275,16 +275,12 @@ def test_array_multidimensional():
     pass
 
 
-@nottest
 def test_array_unmatched_open_bracket():
-    # assert_raises(ast.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
-    pass
+    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
 
 
-@nottest
 def test_array_unmatched_close_bracket():
-    # assert_raises(ast.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
-    pass
+    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
 
 
 def test_string_literal():
