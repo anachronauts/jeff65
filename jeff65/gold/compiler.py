@@ -40,11 +40,6 @@ passes = [
 ]
 
 
-class ParseError(Exception):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
 def open_unit(unit):
     if unit == "-":
         return sys.stdin
@@ -57,7 +52,7 @@ def parse(fileobj, name):
     parser = Parser(tokens)
     tree = parser.unit()
     if parser._syntaxErrors > 0:
-        raise ParseError("Unit {} had errors; terminating".format(name))
+        raise ast.ParseError("Unit {} had errors; terminating".format(name))
     builder = ast.AstBuilder()
     antlr4.ParseTreeWalker.DEFAULT.walk(builder, tree)
     return builder.ast

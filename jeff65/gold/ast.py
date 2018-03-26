@@ -17,6 +17,11 @@
 from .grammar import ParseListener
 
 
+class ParseError(Exception):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 class AstNode:
     def __init__(self, t, position, attrs=None, children=None):
         self.t = t
@@ -150,6 +155,7 @@ class AstBuilder(ParseListener):
     def _pop(self):
         c = self.stack.pop()
         self.stack[-1].children.append(c)
+        return c
 
     def _pop_attr(self, attr):
         a = self.stack.pop()
@@ -211,6 +217,12 @@ class AstBuilder(ParseListener):
 
     def exitTypePointer(self, ctx):
         self._pop_attr("type")
+
+    def enterTypeArray(self, ctx):
+        self._push(AstNode('type_array', self._pos(ctx)))
+
+    def exitTypeArray(self, ctx):
+        self._pop_attr('type')
 
     def enterExprMember(self, ctx):
         self._push(AstNode("member_access", self._pos(ctx), {
@@ -281,3 +293,8 @@ class AstBuilder(ParseListener):
 
     def exitExprNegation(self, ctx):
         self._pop()
+
+    def enterString(self, ctx):
+        self.stack[-1].children.append(AstNode('string', self._pos(ctx), {
+            'value': "".join(s.text for s in ctx.s),
+        }))

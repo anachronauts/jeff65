@@ -69,12 +69,15 @@ expr : PAREN_OPEN expr PAREN_CLOSE  # ExprParen
 
 array : BRACKET_OPEN (expr (PUNCT_COMMA expr)*)? BRACKET_CLOSE ;
 
+string : (s+=STRING)+ ;
+
 storage : storage_class=(STORAGE_MUT | STORAGE_STASH) ;
 
 typeId : name=IDENTIFIER  # TypePrimitive
        | OPERATOR_REF BRACKET_OPEN storage? typeId BRACKET_CLOSE  # TypeSlice
        | OPERATOR_REF storage? typeId  # TypePointer
-       | BRACKET_OPEN storage? typeId PUNCT_SEMICOLON expr BRACKET_CLOSE  # TypeArray
+       | BRACKET_OPEN storage? typeId PUNCT_SEMICOLON
+           (expr | rangeTo) BRACKET_CLOSE  # TypeArray
        ;
 
 rangeTo : expr PUNCT_TO expr ;
@@ -87,7 +90,7 @@ stmtUse : STMT_USE unitId=IDENTIFIER ;
 
 stmtLet : STMT_LET storage? declaration
           OPERATOR_ASSIGN
-          ( expr | array | STRING+ ) ;
+          ( expr | array | string ) ;
 
 stmtWhile : STMT_WHILE expr PUNCT_DO block PUNCT_END ;
 

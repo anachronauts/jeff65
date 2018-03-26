@@ -39,10 +39,33 @@ def test_comments_no_newline():
     assert_equal(0, len(a.children))
 
 
+def test_comments_multiline():
+    a = parse("""
+    /*
+     * a multiline comment
+     * with multiple lines
+     */
+    """)
+    assert_equal('unit', a.t)
+    assert_equal(0, len(a.children))
+
+
+def test_comments_unclosed():
+    assert_raises(gold.ParseError, parse, "/* oh no")
+
+
+def test_comments_unopened():
+    assert_raises(gold.ParseError, parse, "oh no */")
+
+
 def test_nested_comment():
     a = parse("/* a /* nested */ comment */")
     assert_equal('unit', a.t)
     assert_equal(0, len(a.children))
+
+
+def test_nested_comments_unclosed():
+    assert_raises(gold.ParseError, parse, "/* /* oh no")
 
 
 def test_comment_before_statement():
@@ -264,23 +287,35 @@ def test_array_unmatched_close_bracket():
     pass
 
 
-@nottest
 def test_string_literal():
-    # a = parse('"this is a string"')
-    # assert_equal(1, len(a.statements))
-    # t = a.statements[0]
-    # assert_is_instance(t, ast.StringNode)
-    # assert_equal(t.string, "this is a string")
-    pass
+    a = parse('let a: [u8; 5] = "this is a string"')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal("this is a string", s.attrs['value'])
 
 
-@nottest
+def test_string_multiline():
+    a = parse('''
+    let a: [u8; 5] = "this is a
+very long
+string"
+    ''')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal("this is a\nvery long\nstring", s.attrs['value'])
+
+
 def test_string_escaped():
-    # a = parse('"this is a \\"string"')
-    # assert_equal(1, len(a.statements))
-    # t = a.statements[0]
-    # assert_is_instance(t, ast.StringNode)
-    # assert_equal(t.string, 'this is a \\"string')
+    a = parse(r'let a: [u8; 5] = "this is a \"string"')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal(r'this is a "string', s.attrs['value'])
     pass
 
 
@@ -437,3 +472,11 @@ def test_isr_def():
     # assert_is_instance(f.children[0], ast.StatementLetNode)
     # assert_is_instance(f.children[1], ast.StatementLetNode)
     pass
+
+
+def test_use():
+    a = parse("use mem")
+    assert_equal(1, len(a.children))
+    u = a.children[0]
+    assert_equal('use', u.t)
+    assert_equal("mem", u.attrs['name'])

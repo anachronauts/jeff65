@@ -161,6 +161,15 @@ class GoldListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by Gold#string.
+    def enterString(self, ctx:Gold.StringContext):
+        pass
+
+    # Exit a parse tree produced by Gold#string.
+    def exitString(self, ctx:Gold.StringContext):
+        pass
+
+
     # Enter a parse tree produced by Gold#storage.
     def enterStorage(self, ctx:Gold.StorageContext):
         pass

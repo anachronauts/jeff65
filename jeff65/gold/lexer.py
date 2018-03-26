@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import re
+from . import ast
 from .grammar import Parser
 from antlr4.CommonTokenFactory import CommonTokenFactory
 from antlr4.Token import Token
@@ -164,13 +165,13 @@ class Lexer:
         return self.__factory
 
     def setTokenFactory(self, factory):
-        self.__factory = factory
+        self.__factory = factory  # pragma: no cover
 
     def getInputStream(self):
-        return self.__stream
+        return self.__stream  # pragma: no cover
 
     def getSourceName(self):
-        return self.__name
+        return self.__name  # pragma: no cover
 
     @property
     def line(self):
@@ -191,15 +192,15 @@ class Lexer:
                 # If we're in comment mode or string mode, we are NOT expecting
                 # this kind of behavior and will kick up a fuss.
                 if len(self.__comments) == 1:
-                    raise Exception(
+                    raise ast.ParseError(
                         "Premature end of input while parsing comment " +
                         "starting at {}:{}".format(*self.__comments[0]))
                 elif len(self.__comments) > 1:
-                    raise Exception(
+                    locs = ", ".join("{}:{}".format(line, column)
+                                     for line, column in self.__comments)
+                    raise ast.ParseError(
                         "Premature end of input while parsing nested " +
-                        "comments, starting at {}".format(
-                            ", ".join("{}:{}".format(pos)
-                                      for pos in self.__comments)))
+                        "comments, starting at {}".format(locs))
                 return self.__make_token(Parser.EOF, '<$EOF>')
 
         # Comment mode means that we parse until either a begin or end comment
