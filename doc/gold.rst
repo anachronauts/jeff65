@@ -157,8 +157,8 @@ memory is reserved, but the value is not included in the program image), and the
 value is computed and stored when the statement is executed. In the second form,
 memory is allocated in the program image with the initial value stored.
 
-By default, let-bindings are immutable, and may not be re-bound (though they may
-be shadowed). If the ``mut`` or ``stash`` storage classes are applied, then the
+By default, let-bindings are immutable, thought they may be shadowed by
+re-binding. If the ``mut`` or ``stash`` storage classes are applied, then the
 binding becomes mutable, and the value may be changed.
 
 
@@ -244,8 +244,9 @@ Usage: ::
 Causes at most one of the blocks provided to execute. Expressions are tested in
 order, and the first expression to evaluate to ``true`` causes the corresponding
 block to be executed. If none of the expressions evalute to ``true``, the block
-after the ``else`` is executed, if present. Once an expression which evaluates
-to ``true`` is executed, the rest of the expressions will be skipped.
+beginning with ``else`` is executed, if present. Once an expression which
+evaluates to ``true`` is executed, the rest of the expressions will not be
+evaluated.
 
 Each branch introduces a new scope.
 
@@ -410,3 +411,8 @@ Addition and subtraction of integer types. ::
   <expr> > <expr>
 
 Comparison operators. Evaluates to a boolean value. ::
+
+  <expr> = <expr>
+
+Assignment operator. The left-hand side must be a bare name, a dereference, or
+an index expression.
