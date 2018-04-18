@@ -157,7 +157,7 @@ memory is reserved, but the value is not included in the program image), and the
 value is computed and stored when the statement is executed. In the second form,
 memory is allocated in the program image with the initial value stored.
 
-By default, let-bindings are immutable, thought they may be shadowed by
+By default, let-bindings are immutable, though they may be shadowed by
 re-binding. If the ``mut`` or ``stash`` storage classes are applied, then the
 binding becomes mutable, and the value may be changed.
 
