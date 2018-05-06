@@ -75,11 +75,5 @@ def translate(unit, verbose=False):
                 'type': node.attrs['type'],
             })
             archive.symbols[sym_name] = sym
-            if 'return_addr' in node.attrs:
-                const_name = '{}/return_addr'.format(sym_name)
-                const_reloc = '{}+{}'.format(sym_name,
-                                             node.attrs['return_addr'])
-                const = blum.Constant(const_reloc, 2)
-                archive.constants[const_name] = const
 
     return archive

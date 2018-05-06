@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import pickle
+import struct
 
 
 class Archive:
@@ -72,6 +73,46 @@ class Symbol:
 
 
 class Constant:
-    def __init__(self, reloc, width):
-        self.reloc = reloc
+    def __init__(self, value, width):
+        self.value = value
         self.width = width
+
+
+class Relocation:
+    hi = b'h'
+    lo = b'l'
+
+    def __init__(self, symbol, increment=0, byte=None):
+        self.symbol = symbol
+        self.increment = increment
+        self.byte = byte
+
+    def bind(self, symbol):
+        if self.symbol is None:
+            return Relocation(symbol, self.increment, self.byte)
+        return self
+
+    def compute_offset(self, base, offsets):
+        return base + offsets[self.symbol] + self.increment
+
+    def compute_value(self, base, offsets):
+        offset = self.compute_offset(base, offsets)
+        if self.byte == self.lo:
+            return offset & 0x00ff
+        elif self.byte == self.hi:
+            return offset >> 8
+        return offset
+
+    def compute_bin(self, base, offsets):
+        offset = self.compute_offset(base, offsets)
+        bin = struct.pack('<H', offset)
+        if self.byte == self.lo:
+            return bin[0:1]
+        elif self.byte == self.hi:
+            return bin[1:2]
+        return bin
+
+
+class ArchiveWriterContext:
+    def __init__(self, archive, fileobj):
+        self.fileobj = fileobj

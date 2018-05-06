@@ -38,7 +38,7 @@ def make_startup_for(main, version):
         ),
         relocations=[
             # Relocation for the address of 'main'
-            (0x000d, main),
+            (0x000d, symbol.Relocation(main)),
         ])
     return archive
 
@@ -59,34 +59,6 @@ class Image:
 
     def add_archive(self, archive):
         self.archive.update(archive)
-
-    def compute_relocation(self, name, reloc, binary=False):
-        """Computes the address for a relocation based on an offset table.
-
-        If binary is True, then returns the result as a little-endian
-        bytestring. If the relocation ends in ',lo' or ',hi' then the
-        bytestring will be one byte long; otherwise, two.
-        """
-        m = self.m_reloc.match(reloc)
-        sym = m.group(1)
-        if sym == '.':
-            sym = name
-        inc = int(m.group(2) or 0)
-        part = m.group(3)
-        offset = self.base_address + self.offsets[sym] + inc
-        addr = struct.pack("<H", offset)
-        if binary:
-            if part == ',lo':
-                return addr[0:1]
-            elif part == ',hi':
-                return addr[1:2]
-            return addr
-        else:
-            if part == ',lo':
-                return addr[0]
-            elif part == ',hi':
-                return addr[1]
-            return offset
 
     def current_offset(self):
         return self.fileobj.tell() - len(self.prg_header)
@@ -113,18 +85,12 @@ class Image:
         for name, sym in self.archive.find_section('text'):
             self._emit_sym(name, sym)
 
-        # resolve constants
-        for name, const in self.archive.constants.items():
-            if type(const.reloc) is int:
-                self.offsets[name] = const.reloc
-
-            self.offsets[name] = self.compute_relocation(name, const.reloc)
-
         # perform relocations
         for name, offset, reloc in self.archive.relocations():
             if name not in self.offsets:
                 continue
 
             self.seek_to_offset(name, offset)
-            addr = self.compute_relocation(name, reloc, binary=True)
+            addr = reloc.bind(name).compute_bin(
+                self.base_address, self.offsets)
             self.fileobj.write(addr)
