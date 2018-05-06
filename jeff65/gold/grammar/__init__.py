@@ -18,6 +18,6 @@ from .Gold import Gold as Parser
 from .GoldListener import GoldListener as ParseListener
 
 __all__ = [
-    Parser,
-    ParseListener,
+    'Parser',
+    'ParseListener',
 ]

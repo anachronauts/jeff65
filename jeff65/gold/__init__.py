@@ -18,7 +18,7 @@ from .ast import ParseError
 from .compiler import parse, translate
 
 __all__ = [
-    ParseError,
-    parse,
-    translate,
+    'ParseError',
+    'parse',
+    'translate',
 ]

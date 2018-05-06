@@ -18,8 +18,8 @@ from .linker import link
 from .symbol import Archive, Symbol, Constant
 
 __all__ = [
-    link,
-    Archive,
-    Symbol,
-    Constant,
+    'link',
+    'Archive',
+    'Symbol',
+    'Constant',
 ]
