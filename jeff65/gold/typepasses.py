@@ -14,7 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import ast, binding, types
+from ..blum import types
+from . import ast, binding
 
 
 class ConstructTypes(ast.TranslationPass):

@@ -18,12 +18,18 @@ import pickle
 import struct
 
 
+def make_cc(code):
+    cc, = struct.unpack('<H', code.encode('ascii'))
+    return cc
+
+
 class Archive:
     """An archive is a collection of compiled symbols.
 
     The compiler produces an archive for each unit, then the linker combines
     archives into a program image.
     """
+
     def __init__(self, fileobj=None):
         self.constants = {}
         self.symbols = {}
@@ -65,27 +71,56 @@ class Archive:
 
 
 class Symbol:
-    def __init__(self, section, data, relocations=None, attrs=None):
+    discriminator = make_cc('Sy')
+    fields = [
+        ('_name', 'str', make_cc('nm'), True),
+        ('section', 'str', make_cc('sc'), True),
+        ('type_info', 'type_info', make_cc('ty'), True),
+        ('relocations', 'array relocation', make_cc('re'), True),
+        ('data', 'blob', make_cc('da'), True),
+    ]
+
+    def __init__(self, section, data, type_info, relocations=None):
         self.section = section
         self.data = data
+        self.type_info = type_info
         self.relocations = relocations or []
-        self.attrs = attrs or {}
+        self._name = None
 
 
 class Constant:
-    def __init__(self, value, width):
+    discriminator = make_cc('Cn')
+    fields = [
+        ('_name', 'str', make_cc('nm'), True),
+        ('type_info', 'type_info', make_cc('ty'), True),
+        ('value_bin', '8b', make_cc('vl'), True),
+    ]
+
+    def __init__(self, value, type_info):
         self.value = value
-        self.width = width
+        self.type_info = type_info
+        self._name = None
+
+    @property
+    def value_bin(self):
+        return self.type_info.encode(self.value)
 
 
 class Relocation:
-    hi = b'h'
-    lo = b'l'
+    full = ord('w')
+    hi = ord('h')
+    lo = ord('l')
+
+    fields = [
+        ('symbol', 'str', make_cc('sy'), True),
+        ('increment', 'u16', make_cc('ic'), True),
+        ('byte', 'u8', make_cc('by'), True),
+    ]
 
     def __init__(self, symbol, increment=0, byte=None):
         self.symbol = symbol
         self.increment = increment
-        self.byte = byte
+        self.byte = byte or self.full
 
     def bind(self, symbol):
         if self.symbol is None:
@@ -113,6 +148,95 @@ class Relocation:
         return bin
 
 
-class ArchiveWriterContext:
-    def __init__(self, archive, fileobj):
-        self.fileobj = fileobj
+class ArchiveWriter:
+    def __init__(self):
+        self.handlers = {
+            'str': self.dump_string,
+            'u16': self.dump_fmt('<H'),
+            'u8': self.dump_fmt('<B'),
+            '?': self.dump_fmt('<?'),
+            'relocation': self.dump_struct,
+            'constant': self.dump_struct,
+            'type_info': self.dump_union,
+            'array': self.dump_array,
+            '8b': self.dump_8b,
+            'blob': self.dump_blob,
+        }
+        self.offsets = []
+
+    def dump(self, archive, fileobj):
+        fileobj.write(b'\x93Blm\x0d\x0a\x1a\x0a')
+        entries = len(archive.constants) + len(archive.symbols)
+        fileobj.write(struct.pack('<L', entries))
+        for name, constant in archive.constants.items():
+            self.dump_constant(fileobj, name, constant)
+        for name, symbol in archive.symbols.items():
+            self.dump_symbol(fileobj, name, symbol)
+        fills = []
+        for offset, data in self.offsets:
+            fills.append((offset, fileobj.tell()))
+            assert len(data) == fileobj.write(data)
+        for offset, value in fills:
+            fileobj.seek(offset)
+            assert 4 == fileobj.write(struct.pack('<L', value))
+
+    def dump_constant(self, fileobj, name, obj):
+        obj._name = name
+        self.dump_union(fileobj, obj)
+
+    def dump_symbol(self, fileobj, name, obj):
+        obj._name = name
+        self.dump_union(fileobj, obj)
+
+    def dump_by_type(self, t, fileobj, obj):
+        ts = t.split()
+        return self.handlers[ts[0]](*ts[1:], fileobj, obj)
+
+    def dump_8b(self, fileobj, bs):
+        assert len(bs) == 8
+        assert len(bs) == fileobj.write(bs)
+        return len(bs)
+
+    def dump_string(self, fileobj, data: str) -> int:
+        bin = data.encode('utf8')
+        sz = struct.pack('<L', len(bin))
+        count = len(sz) + len(bin)
+        assert count == fileobj.write(sz + bin)
+        return count
+
+    def dump_fmt(self, fmt):
+        def dump(fileobj, data):
+            val = struct.pack(fmt, data)
+            assert len(val) == fileobj.write(val)
+            return len(val)
+        return dump
+
+    def dump_struct(self, fileobj, obj):
+        field_count = len([None for _, _, _, pack in obj.fields if pack])
+        assert 2 == fileobj.write(struct.pack('<H', field_count))
+        count = 2
+        for field, t, n, pack in obj.fields:
+            if not pack:
+                continue
+            assert 2 == fileobj.write(struct.pack('<H', n))
+            count += 2
+            count += self.dump_by_type(t, fileobj, getattr(obj, field))
+        return count
+
+    def dump_union(self, fileobj, obj):
+        assert 2 == fileobj.write(struct.pack('<H', obj.discriminator))
+        count = self.dump_struct(fileobj, obj)
+        return 2 + count
+
+    def dump_array(self, t, fileobj, objs):
+        assert 4 == fileobj.write(struct.pack('<L', len(objs)))
+        count = 4
+        for obj in objs:
+            count += self.dump_by_type(t, fileobj, obj)
+        return count
+
+    def dump_blob(self, fileobj, obj):
+        offset = fileobj.tell()
+        assert 6 == fileobj.write(struct.pack('<LH', 0xdeadbeef, len(obj)))
+        self.offsets.append((offset, obj))
+        return 6

@@ -16,14 +16,14 @@
 
 import re
 import struct
-from . import symbol
+from . import symbol, types
 
 
 def make_startup_for(main, version):
     archive = symbol.Archive()
     archive.symbols['$startup.__start'] = symbol.Symbol(
-        'startup',
-        struct.pack(
+        section='startup',
+        data=struct.pack(
             # Defines a simple startup header. Note that in theory, we could
             # simply make the target of the SYS instruction be our main
             # function, but our relocation system isn't smart enough for that
@@ -36,6 +36,7 @@ def make_startup_for(main, version):
             0x0000,         # 0x000a 0x080b (H)    BASIC end-of-program
             0x4c, 0xffff,   # 0x000c 0x080d (BH)   jmp $ffff
         ),
+        type_info=types.phantom,
         relocations=[
             # Relocation for the address of 'main'
             (0x000d, symbol.Relocation(main)),

@@ -1,4 +1,4 @@
-# jeff65 gold-syntax type system
+# jeff65 type system
 # Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,9 +14,32 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import struct
+from . import symbol
+
+
+class PhantomType:
+    """An unreferenceable type."""
+
+    discriminator = symbol.make_cc('Ph')
+    fields = []
+
+
+class VoidType:
+    """A type with no values."""
+
+    discriminator = symbol.make_cc('Vd')
+    fields = []
+
 
 class IntType:
     """An integral type."""
+
+    discriminator = symbol.make_cc('In')
+    fields = [
+        ('width', 'u8', symbol.make_cc('wd'), True),
+        ('signed', '?', symbol.make_cc('sg'), True),
+    ]
 
     def __init__(self, width, signed):
         self.width = width
@@ -26,6 +49,11 @@ class IntType:
         return (type(rtype) is IntType
                 and self.signed == rtype.signed
                 and self.width >= rtype.width)
+
+    def encode(self, value):
+        if self.signed:
+            return struct.pack('<q', value)
+        return struct.pack('<Q', value)
 
     def __eq__(self, other):
         return (type(other) is IntType
@@ -41,9 +69,17 @@ class IntType:
 class RefType:
     """A reference type."""
 
+    discriminator = symbol.make_cc('Rf')
+    fields = [
+        ('target', 'type_info', symbol.make_cc('tg'), True),
+    ]
+
     def __init__(self, target):
         self.target = target
         self.width = 2
+
+    def encode(self, value):
+        return struct.pack('<H6x', value)
 
     def can_assign_from(self, rtype):
         # Pointer assignment has to be equal unless the rhs is a mystery
@@ -64,6 +100,12 @@ class RefType:
 
 class FunctionType:
     """A function type."""
+
+    discriminator = symbol.make_cc('Fn')
+    fields = [
+        ('ret', 'type_info', symbol.make_cc('rt'), True),
+        ('args', 'array type_info', symbol.make_cc('as'), True),
+    ]
 
     def __init__(self, ret, *args):
         self.ret = ret
@@ -94,4 +136,6 @@ i8 = IntType(1, signed=True)
 i16 = IntType(2, signed=True)
 i24 = IntType(3, signed=True)
 i32 = IntType(4, signed=True)
-ptr = RefType(None)
+void = VoidType()
+phantom = PhantomType()
+ptr = RefType(phantom)

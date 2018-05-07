@@ -1,7 +1,7 @@
 import io
 from nose.tools import (
     assert_equal)
-from jeff65.blum import image, symbol
+from jeff65.blum import image, symbol, types
 
 
 def link(*archives):
@@ -15,14 +15,16 @@ def link(*archives):
 
 def test_empty_image():
     archive = symbol.Archive()
-    archive.symbols['$startup.__start'] = symbol.Symbol('startup', b'')
+    archive.symbols['$startup.__start'] = symbol.Symbol(
+        'startup', b'', types.phantom)
     _, bs = link(archive)
     assert_equal(bytes([0x01, 0x08]), bs)
 
 
 def test_image_with_startup():
     archive = symbol.Archive()
-    archive.symbols['$test.main'] = symbol.Symbol('text', b'')
+    archive.symbols['$test.main'] = symbol.Symbol(
+        'text', b'', types.FunctionType(None))
     _, bs = link(
         image.make_startup_for('$test.main', 0x0001),
         archive)

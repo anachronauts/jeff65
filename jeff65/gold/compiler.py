@@ -71,9 +71,10 @@ def translate(unit, verbose=False):
     for node in obj.children:
         if node.t is 'fun_symbol':
             sym_name = '{}.{}'.format(unit.stem, node.attrs['name'])
-            sym = blum.Symbol('text', node.attrs['text'], attrs={
-                'type': node.attrs['type'],
-            })
+            sym = blum.Symbol(
+                section='text',
+                data=node.attrs['text'],
+                type_info=node.attrs['type'])
             archive.symbols[sym_name] = sym
 
     return archive
