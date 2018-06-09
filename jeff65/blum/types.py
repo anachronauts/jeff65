@@ -24,12 +24,38 @@ class PhantomType:
     discriminator = symbol.make_cc('Ph')
     fields = []
 
+    def __repr__(self):
+        return 'PhantomType()'
+
+    def __eq__(self, other):
+        return isinstance(other, PhantomType)
+
+    def validate(self):
+        pass
+
+    @classmethod
+    def _empty(cls):
+        return cls()
+
 
 class VoidType:
     """A type with no values."""
 
     discriminator = symbol.make_cc('Vd')
     fields = []
+
+    def __repr__(self):
+        return 'VoidType()'
+
+    def __eq__(self, other):
+        return isinstance(other, VoidType)
+
+    def validate(self):
+        pass
+
+    @classmethod
+    def _empty(cls):
+        return cls()
 
 
 class IntType:
@@ -55,6 +81,27 @@ class IntType:
             return struct.pack('<q', value)
         return struct.pack('<Q', value)
 
+    def decode(self, data):
+        if self.signed:
+            val, = struct.unpack('<q', data)
+        else:
+            val, = struct.unpack('<Q', data)
+        assert val in self, "{} not in range for {}".format(val, repr(self))
+        return val
+
+    def __contains__(self, value):
+        if not isinstance(value, int):
+            return False
+
+        bits = self.width * 8
+        if self.signed:
+            upper = (1 << (bits - 1))
+            lower = -upper
+        else:
+            upper = (1 << bits)
+            lower = 0
+        return lower <= value < upper
+
     def __eq__(self, other):
         return (type(other) is IntType
                 and self.signed == other.signed
@@ -64,6 +111,15 @@ class IntType:
         return "{}{}".format(
             'i' if self.signed else 'u',
             self.width * 8)
+
+    def validate(self):
+        assert isinstance(self.width, int)
+        assert self.width in i8
+        assert isinstance(self.signed, bool)
+
+    @classmethod
+    def _empty(cls):
+        return cls(None, None)
 
 
 class RefType:
@@ -81,6 +137,10 @@ class RefType:
     def encode(self, value):
         return struct.pack('<H6x', value)
 
+    def decode(self, data):
+        val, = struct.unpack('<H6x', data)
+        return val
+
     def can_assign_from(self, rtype):
         # Pointer assignment has to be equal unless the rhs is a mystery
         # pointer, in which case we just allow it to go through.
@@ -97,6 +157,14 @@ class RefType:
             return "&?"
         return "&{}".format(repr(self.target))
 
+    def validate(self):
+        assert self.target is not None
+        assert self.width == 2
+
+    @classmethod
+    def _empty(cls):
+        return cls(None)
+
 
 class FunctionType:
     """A function type."""
@@ -109,23 +177,35 @@ class FunctionType:
 
     def __init__(self, ret, *args):
         self.ret = ret
-        self.args = args
+        self.args = list(args)
         self.width = None
 
     def can_assign_from(self, rtype):
         return self == rtype
 
     def __eq__(self, other):
-        return (type(other) is FunctionType
-                and self.ret == other.ret
-                and self.args == other.args)
+        return (
+            isinstance(other, FunctionType)
+            and self.ret == other.ret
+            and self.args == other.args)
 
     def __repr__(self):
         args = ", ".join(repr(arg) for arg in self.args)
         ret = ""
-        if self.ret:
-            ret = "-> {}".format(repr(self.ret))
-        return "fun({}) {}".format(args, ret)
+        if not isinstance(self.ret, VoidType):
+            ret = " -> {}".format(repr(self.ret))
+        return "fun({}){}".format(args, ret)
+
+    def validate(self):
+        assert self.ret is not None
+        assert self.args is not None
+        assert self.width is None
+
+    @classmethod
+    def _empty(cls):
+        obj = cls(None)
+        obj.args = None
+        return obj
 
 
 u8 = IntType(1, signed=False)
@@ -139,3 +219,11 @@ i32 = IntType(4, signed=True)
 void = VoidType()
 phantom = PhantomType()
 ptr = RefType(phantom)
+
+known = [
+    PhantomType,
+    VoidType,
+    IntType,
+    RefType,
+    FunctionType,
+]

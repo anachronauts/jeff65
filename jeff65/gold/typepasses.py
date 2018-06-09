@@ -56,7 +56,8 @@ class PropagateTypes(binding.ScopedPass):
     def enter_fun(self, node):
         node = node.clone(with_attrs={
             'type': types.FunctionType(
-                node.attrs['return'], *node.attrs['args']),
+                node.attrs['return'] or types.void,
+                *node.attrs['args']),
         })
         del node.attrs['return']
         return super().enter_fun(node)

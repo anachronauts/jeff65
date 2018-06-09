@@ -42,4 +42,4 @@ def test_compile_simple():
     assert_equal('text', sym.section)
     assert_equal(b'\x60', sym.data)
     assert_equal(0, len(sym.relocations))
-    assert_equal(types.FunctionType(None), sym.type_info)
+    assert_equal(types.FunctionType(types.void), sym.type_info)

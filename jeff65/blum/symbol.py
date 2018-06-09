@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import pickle
+import mmap
 import struct
 
 
@@ -46,10 +46,13 @@ class Archive:
         self.symbols.update(archive.symbols)
 
     def load(self, fileobj):
-        self.update(pickle.load(fileobj))
+        reader = ArchiveReader()
+        reader.load(fileobj)
+        self.update(reader.archive)
 
     def dump(self, fileobj):
-        pickle.dump(self, fileobj)
+        writer = ArchiveWriter()
+        writer.dump(self, fileobj)
 
     def dumpf(self, path):
         with open(path, 'wb') as f:
@@ -87,6 +90,16 @@ class Symbol:
         self.relocations = relocations or []
         self._name = None
 
+    def validate(self):
+        assert isinstance(self.section, str)
+        assert isinstance(self.data, bytes)
+        assert self.type_info is not None
+        assert isinstance(self.relocations, list)
+
+    @classmethod
+    def _empty(cls):
+        return cls(None, None, None)
+
 
 class Constant:
     discriminator = make_cc('Cn')
@@ -98,12 +111,38 @@ class Constant:
 
     def __init__(self, value, type_info):
         self.value = value
+        self._value_bin = None
         self.type_info = type_info
         self._name = None
+
+    def __repr__(self):
+        return 'Constant({}, {})'.format(self.value, self.type_info)
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, Constant)
+            and self.value == other.value
+            and self.type_info == other.type_info)
 
     @property
     def value_bin(self):
         return self.type_info.encode(self.value)
+
+    @value_bin.setter
+    def value_bin(self, value):
+        self._value_bin = value
+
+    def validate(self):
+        assert self.type_info is not None
+        if self.value is None and self._value_bin is not None:
+            self.value = self.type_info.decode(self._value_bin)
+            self._value_bin = None
+        assert self.value is not None
+        assert self._value_bin is None
+
+    @classmethod
+    def _empty(cls):
+        return cls(None, None)
 
 
 class Relocation:
@@ -147,6 +186,22 @@ class Relocation:
             return bin[1:2]
         return bin
 
+    def validate(self):
+        assert isinstance(self.symbol, str)
+        assert isinstance(self.increment, int)
+        assert self.byte in [self.full, self.hi, self.lo]
+
+    @classmethod
+    def _empty(cls):
+        return cls(None)
+
+
+ARCHIVE_HEADER = b'\x93Blm\x0d\x0a\x1a\x0a'
+
+
+class ArchiveError(Exception):
+    pass
+
 
 class ArchiveWriter:
     def __init__(self):
@@ -165,7 +220,7 @@ class ArchiveWriter:
         self.offsets = []
 
     def dump(self, archive, fileobj):
-        fileobj.write(b'\x93Blm\x0d\x0a\x1a\x0a')
+        fileobj.write(ARCHIVE_HEADER)
         entries = len(archive.constants) + len(archive.symbols)
         fileobj.write(struct.pack('<L', entries))
         for name, constant in archive.constants.items():
@@ -240,3 +295,116 @@ class ArchiveWriter:
         assert 6 == fileobj.write(struct.pack('<LH', 0xdeadbeef, len(obj)))
         self.offsets.append((offset, obj))
         return 6
+
+
+class ArchiveReader:
+    def __init__(self):
+        from . import types  # avoid circular import
+
+        self.handlers = {
+            'str': self.load_string,
+            'u16': self.load_fmt('<H'),
+            'u8': self.load_fmt('<B'),
+            '?': self.load_fmt('<?'),
+            'relocation': self.load_struct(Relocation),
+            'constant': self.load_struct(Constant),
+            'type_info': self.load_union(types.known),
+            'array': self.load_array,
+            '8b': self.load_8b,
+            'blob': self.load_blob,
+        }
+        self.archive = Archive()
+
+    def loadb(self, bs):
+        off = self.verify(bs)
+
+        off, entries = self.load_fmt('<L', bs, off)
+        for _ in range(entries):
+            off, entry = self.load_entry(bs, off)
+            if isinstance(entry, Constant):
+                self.archive.constants[entry._name] = entry
+            elif isinstance(entry, Symbol):
+                self.archive.symbols[entry._name] = entry
+            else:
+                raise ArchiveError("Unknown entry type {}".format(type(entry)))
+            entry._name = None
+
+    def load(self, fileobj):
+        with mmap.mmap(fileobj.fileno(), 0, access=mmap.ACCESS_READ) as bs:
+            self.loadb(bs)
+
+    def verify(self, bs):
+        if bs[0:len(ARCHIVE_HEADER)] == ARCHIVE_HEADER:
+            return len(ARCHIVE_HEADER)
+        # Header did not match
+        # TODO attempt to diagnose.
+        raise ArchiveError("File is not a valid blum archive")
+
+    def load_entry(self, bs, off):
+        return self.load_union([Symbol, Constant], bs, off)
+
+    def load_by_type(self, t, bs, off):
+        ts = t.split()
+        return self.handlers[ts[0]](*ts[1:], bs, off)
+
+    def load_8b(self, bs, off):
+        return off+8, bs[off:off+8]
+
+    def load_string(self, bs, off):
+        off, sz = self.load_fmt('<L', bs, off)
+        data = bs[off:off+sz].decode('utf8')
+        return off+sz, data
+
+    def load_fmt(self, fmt, *args):
+        sz = struct.calcsize(fmt)
+
+        def _load(bs, off):
+            val, = struct.unpack_from(fmt, bs, off)
+            return off+sz, val
+        if len(args) > 0:
+            return _load(*args)
+        return _load
+
+    def load_struct(self, ty, *args):
+        def _load(bs, off):
+            field_map = {cc: (field, ft) for field, ft, cc, _ in ty.fields}
+            field_count, = struct.unpack_from('<H', bs, off)
+            off += 2
+            obj = ty._empty()
+            for _ in range(field_count):
+                cc, = struct.unpack_from('<H', bs, off)
+                field, ft = field_map[cc]
+                off, val = self.load_by_type(ft, bs, off+2)
+                try:
+                    setattr(obj, field, val)
+                except AttributeError as ex:
+                    raise ArchiveError(
+                        "Can't set {} on {}".format(field, type(obj))) from ex
+            obj.validate()
+            return off, obj
+        if len(args) > 0:
+            return _load(*args)
+        return _load
+
+    def load_union(self, types, *args):
+        def _load(bs, off):
+            disc, = struct.unpack_from('<H', bs, off)
+            sel = next(t for t in types if t.discriminator == disc)
+            return self.load_struct(sel, bs, off+2)
+        if len(args) > 0:
+            return _load(*args)
+        return _load
+
+    def load_array(self, t, bs, off):
+        objs = []
+        sz, = struct.unpack_from('<L', bs, off)
+        off += 4
+        for _ in range(sz):
+            off, val = self.load_by_type(t, bs, off)
+            objs.append(val)
+        return off, objs
+
+    def load_blob(self, bs, off):
+        blob_off, blob_len = struct.unpack_from('<LH', bs, off)
+        off += struct.calcsize('<LH')
+        return off, bs[blob_off:blob_off+blob_len]
