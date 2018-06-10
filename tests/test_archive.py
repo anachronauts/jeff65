@@ -209,7 +209,13 @@ def test_unpack_constant():
 
 def test_pack_symbol():
     archive = symbol.Archive()
-    archive.symbols['eggs'] = symbol.Symbol('text', b'spam', types.u32)
+    archive.symbols['eggs'] = symbol.Symbol(
+        section='text',
+        data=b'spam',
+        type_info=types.u32,
+        relocations={
+            0xcafe: symbol.Relocation('beans', 7)
+        })
     writer = symbol.ArchiveWriter()
     with io.BytesIO() as f:
         writer.dump(archive, f)
@@ -218,8 +224,9 @@ def test_pack_symbol():
             b'nm\x04\x00\x00\x00eggs' +
             b'sc\x04\x00\x00\x00text' +
             b'tyIn\x02\x00wd\x04sg\x00' +
-            b're\x00\x00\x00\x00' +
-            b'da\x3e\x00\x00\x00\x04\x00' +
+            b're\x01\x00\x00\x00\xfe\xca' +
+            b'\x03\x00sy\x05\x00\x00\x00beansic\x07\x00byw' +
+            b'da\x54\x00\x00\x00\x04\x00' +
             b'spam',
             f.getvalue())
 
@@ -229,8 +236,9 @@ def test_unpack_symbol():
             b'nm\x04\x00\x00\x00eggs' +
             b'sc\x04\x00\x00\x00text' +
             b'tyIn\x02\x00wd\x04sg\x00' +
-            b're\x00\x00\x00\x00' +
-            b'da\x3e\x00\x00\x00\x04\x00' +
+            b're\x01\x00\x00\x00\xfe\xca' +
+            b'\x03\x00sy\x05\x00\x00\x00beansic\x07\x00byw' +
+            b'da\x54\x00\x00\x00\x04\x00' +
             b'spam')
     reader = symbol.ArchiveReader()
     reader.loadb(data)
@@ -239,4 +247,8 @@ def test_unpack_symbol():
     assert_equal('text', sym.section)
     assert_equal(b'spam', sym.data)
     assert_equal(types.u32, sym.type_info)
-    assert_equal(0, len(sym.relocations))
+    assert_equal([0xcafe], list(sym.relocations))
+    reloc = sym.relocations[0xcafe]
+    assert_equal('beans', reloc.symbol)
+    assert_equal(7, reloc.increment)
+    assert_equal(symbol.Relocation.full, reloc.byte)

@@ -37,10 +37,10 @@ def make_startup_for(main, version):
             0x4c, 0xffff,   # 0x000c 0x080d (BH)   jmp $ffff
         ),
         type_info=types.phantom,
-        relocations=[
+        relocations={
             # Relocation for the address of 'main'
-            (0x000d, symbol.Relocation(main)),
-        ])
+            0x000d: symbol.Relocation(main),
+        })
     return archive
 
 

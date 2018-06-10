@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import collections
+import collections.abc
 import mmap
 import struct
 
@@ -69,7 +71,7 @@ class Archive:
 
     def relocations(self):
         for name, sym in self.symbols.items():
-            for offset, reloc in sym.relocations:
+            for offset, reloc in sym.relocations.items():
                 yield (name, offset, reloc)
 
 
@@ -79,7 +81,7 @@ class Symbol:
         ('_name', 'str', make_cc('nm'), True),
         ('section', 'str', make_cc('sc'), True),
         ('type_info', 'type_info', make_cc('ty'), True),
-        ('relocations', 'array relocation', make_cc('re'), True),
+        ('relocations', 'table u16 relocation', make_cc('re'), True),
         ('data', 'blob', make_cc('da'), True),
     ]
 
@@ -87,14 +89,17 @@ class Symbol:
         self.section = section
         self.data = data
         self.type_info = type_info
-        self.relocations = relocations or []
         self._name = None
+        if relocations is not None:
+            self.relocations = collections.OrderedDict(relocations)
+        else:
+            self.relocations = collections.OrderedDict()
 
     def validate(self):
         assert isinstance(self.section, str)
         assert isinstance(self.data, bytes)
         assert self.type_info is not None
-        assert isinstance(self.relocations, list)
+        assert isinstance(self.relocations, collections.abc.Mapping)
 
     @classmethod
     def _empty(cls):
@@ -214,6 +219,7 @@ class ArchiveWriter:
             'constant': self.dump_struct,
             'type_info': self.dump_union,
             'array': self.dump_array,
+            'table': self.dump_table,
             '8b': self.dump_8b,
             'blob': self.dump_blob,
         }
@@ -290,6 +296,14 @@ class ArchiveWriter:
             count += self.dump_by_type(t, fileobj, obj)
         return count
 
+    def dump_table(self, tkey, tvalue, fileobj, table):
+        assert 4 == fileobj.write(struct.pack('<L', len(table)))
+        count = 4
+        for key, value in table.items():
+            count += self.dump_by_type(tkey, fileobj, key)
+            count += self.dump_by_type(tvalue, fileobj, value)
+        return count
+
     def dump_blob(self, fileobj, obj):
         offset = fileobj.tell()
         assert 6 == fileobj.write(struct.pack('<LH', 0xdeadbeef, len(obj)))
@@ -310,6 +324,7 @@ class ArchiveReader:
             'constant': self.load_struct(Constant),
             'type_info': self.load_union(types.known),
             'array': self.load_array,
+            'table': self.load_table,
             '8b': self.load_8b,
             'blob': self.load_blob,
         }
@@ -403,6 +418,16 @@ class ArchiveReader:
             off, val = self.load_by_type(t, bs, off)
             objs.append(val)
         return off, objs
+
+    def load_table(self, tkey, tvalue, bs, off):
+        table = collections.OrderedDict()
+        sz, = struct.unpack_from('<L', bs, off)
+        off += 4
+        for _ in range(sz):
+            off, key = self.load_by_type(tkey, bs, off)
+            off, val = self.load_by_type(tvalue, bs, off)
+            table[key] = val
+        return off, table
 
     def load_blob(self, bs, off):
         blob_off, blob_len = struct.unpack_from('<LH', bs, off)
