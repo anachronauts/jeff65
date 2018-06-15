@@ -20,7 +20,6 @@ def test_compile_empty():
         raise
 
     assert_equal(0, len(archive.symbols))
-    assert_equal(0, len(archive.constants))
 
 
 def test_compile_simple():
@@ -37,7 +36,6 @@ def test_compile_simple():
         raise
 
     assert_equal(1, len(archive.symbols))
-    assert_equal(0, len(archive.constants))
     sym = archive.symbols['-.main']
     assert_equal('text', sym.section)
     assert_equal(b'\x60', sym.data)

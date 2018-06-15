@@ -67,14 +67,6 @@ def cmd_objdump(args):
 
     print("Unit: '{}'".format(args.file.stem))
 
-    if len(archive.constants) == 0:
-        print("Constants: (none)")
-    else:
-        print("Constants:")
-        for name, constant in archive.constants.items():
-            print("    {}: {}".format(name, constant))
-    print()
-
     if len(archive.symbols) == 0:
         print("Symbols: (none)")
     else:

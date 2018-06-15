@@ -15,17 +15,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import struct
-from . import symbol
+from .fmt import Fmt
+
+
+# We'll make this empty for now, and use it in class definitions, then mutate
+# it at the end of the file, causing classes to "suddenly" know about the other
+# classes.
+known = []
+fmt_type_info = Fmt.union(known)
 
 
 class PhantomType:
     """An unreferenceable type."""
 
-    discriminator = symbol.make_cc('Ph')
+    discriminator = Fmt.make_cc('Ph')
     fields = []
 
     def __repr__(self):
-        return 'PhantomType()'
+        return '???'
 
     def __eq__(self, other):
         return isinstance(other, PhantomType)
@@ -41,11 +48,11 @@ class PhantomType:
 class VoidType:
     """A type with no values."""
 
-    discriminator = symbol.make_cc('Vd')
+    discriminator = Fmt.make_cc('Vd')
     fields = []
 
     def __repr__(self):
-        return 'VoidType()'
+        return 'void'
 
     def __eq__(self, other):
         return isinstance(other, VoidType)
@@ -61,10 +68,10 @@ class VoidType:
 class IntType:
     """An integral type."""
 
-    discriminator = symbol.make_cc('In')
+    discriminator = Fmt.make_cc('In')
     fields = [
-        ('width', 'u8', symbol.make_cc('wd'), True),
-        ('signed', '?', symbol.make_cc('sg'), True),
+        ('width', Fmt.u8, Fmt.make_cc('wd'), True),
+        ('signed', Fmt.bool, Fmt.make_cc('sg'), True),
     ]
 
     def __init__(self, width, signed):
@@ -125,9 +132,9 @@ class IntType:
 class RefType:
     """A reference type."""
 
-    discriminator = symbol.make_cc('Rf')
+    discriminator = Fmt.make_cc('Rf')
     fields = [
-        ('target', 'type_info', symbol.make_cc('tg'), True),
+        ('target', fmt_type_info, Fmt.make_cc('tg'), True),
     ]
 
     def __init__(self, target):
@@ -153,8 +160,6 @@ class RefType:
                 and self.target == other.target)
 
     def __repr__(self):
-        if self.target is None:
-            return "&?"
         return "&{}".format(repr(self.target))
 
     def validate(self):
@@ -169,10 +174,10 @@ class RefType:
 class FunctionType:
     """A function type."""
 
-    discriminator = symbol.make_cc('Fn')
+    discriminator = Fmt.make_cc('Fn')
     fields = [
-        ('ret', 'type_info', symbol.make_cc('rt'), True),
-        ('args', 'array type_info', symbol.make_cc('as'), True),
+        ('ret', fmt_type_info, Fmt.make_cc('rt'), True),
+        ('args', Fmt.array(fmt_type_info), Fmt.make_cc('as'), True),
     ]
 
     def __init__(self, ret, *args):
@@ -220,10 +225,12 @@ void = VoidType()
 phantom = PhantomType()
 ptr = RefType(phantom)
 
-known = [
+# Because we mutate this list, everywhere that uses it now knows about these
+# types.
+known.extend([
     PhantomType,
     VoidType,
     IntType,
     RefType,
     FunctionType,
-]
+])
