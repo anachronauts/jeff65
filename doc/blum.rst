@@ -332,7 +332,7 @@ in other units.
 +--------+------------------------------+-----------------------------------------------+
 | ``ty`` | `Type Union`_                | The type of the symbol.                       |
 +--------+------------------------------+-----------------------------------------------+
-| ``re`` | Table of unsigned 2-byte     | The relocations required to link the symbol.  |
+| ``re`` | Table of unsigned 16-bit     | The relocations required to link the symbol.  |
 |        | integer and `Re struct`_     |                                               |
 +--------+------------------------------+-----------------------------------------------+
 | ``da`` | `Blob Data`_                 | The data associated with the symbol.          |
@@ -364,11 +364,11 @@ Type Union
 
 A `union layout`_ value containing one of the following:
 
- * `Ph struct`_
- * `Vd struct`_
- * `In struct`_
- * `Rf struct`_
- * `Fn struct`_
+* `Ph struct`_
+* `Vd struct`_
+* `In struct`_
+* `Rf struct`_
+* `Fn struct`_
 
 
 ``Ph`` Struct
