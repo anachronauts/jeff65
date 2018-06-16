@@ -3,7 +3,8 @@ from nose.tools import (
     assert_equal,
     assert_false,
     assert_raises)
-from jeff65.gold import asm, ast, storage, types
+from jeff65.gold import ast, storage, types
+from jeff65.gold.passes import asm
 
 sys.stderr = sys.stdout
 

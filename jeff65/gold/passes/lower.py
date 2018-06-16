@@ -1,4 +1,4 @@
-# jeff65 gold-syntax storage classes
+# jeff65 gold-syntax lowering passes
 # Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,20 +14,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-class AbsoluteStorage:
-    def __init__(self, address, width):
-        self.address = address
-        self.width = width
-
-    def __repr__(self):
-        return "<{} bytes at ${:x}>".format(self.width, self.address)
+from . import asm
+from .. import ast
 
 
-class ImmediateStorage:
-    def __init__(self, value, width):
-        self.value = value
-        self.width = width
+class LowerAssignment(ast.TranslationPass):
+    def exit_set(self, node):
+        lhs = node.children[0]
+        rhs = node.children[1]
+        assert node.attrs['type'].width == lhs.width
+        assert node.attrs['type'].width == rhs.width
 
-    def __repr__(self):
-        return "<immediate {} bytes = ${:x}>".format(self.width, self.value)
+        return [
+            asm.lda(node.position, rhs),
+            asm.sta(node.position, lhs),
+        ]
+
+
+class LowerFunctions(ast.TranslationPass):
+    def exit_fun(self, node):
+        node = node.clone()
+        node.children.append(asm.rts(node.position))
+        return node

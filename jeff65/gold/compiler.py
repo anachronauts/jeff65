@@ -16,23 +16,24 @@
 
 import sys
 import antlr4
-from .lexer import Lexer
-from .grammar import Parser
-from . import asm, ast, binding, lower, storage, typepasses, units
+from . import ast
 from .. import blum
+from .grammar import Parser
+from .lexer import Lexer
+from .passes import asm, binding, lower, resolve, typepasses
 
 
 passes = [
     # binding.ExplicitScopes,
-    units.ResolveUnits,
+    resolve.ResolveUnits,
     binding.ShadowNames,
     typepasses.ConstructTypes,
     binding.BindNamesToTypes,
-    units.ResolveMembers,
+    resolve.ResolveMembers,
     typepasses.PropagateTypes,
     binding.EvaluateConstants,
     binding.ResolveConstants,
-    storage.ResolveStorage,
+    resolve.ResolveStorage,
     lower.LowerAssignment,
     lower.LowerFunctions,
     asm.AssembleWithRelocations,
