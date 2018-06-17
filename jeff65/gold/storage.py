@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from . import pattern
+
 
 class AbsoluteStorage:
     def __init__(self, address, width):
@@ -23,6 +25,15 @@ class AbsoluteStorage:
     def __repr__(self):
         return "<{} bytes at ${:x}>".format(self.width, self.address)
 
+    def _to_predicate(self, a):
+        pa = a.make_predicate(self.address)
+        pw = a.make_predicate(self.width)
+
+        def _storage_predicate(s):
+            return (pa._match(s.address)
+                    and pw._match(s.width))
+        return pattern.Predicate(a.context, None, _storage_predicate)
+
 
 class ImmediateStorage:
     def __init__(self, value, width):
@@ -31,3 +42,12 @@ class ImmediateStorage:
 
     def __repr__(self):
         return "<immediate {} bytes = ${:x}>".format(self.width, self.value)
+
+    def _to_predicate(self, a):
+        pv = a.make_predicate(self.value)
+        pw = a.make_predicate(self.width)
+
+        def _storage_predicate(s):
+            return (pv._match(s.value)
+                    and pw._match(s.width))
+        return pattern.Predicate(a.context, None, _storage_predicate)

@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import struct
-from .. import ast, storage
+from .. import ast, pattern, storage
 
 
 class AssemblyError(Exception):
@@ -31,33 +31,27 @@ class AsmRun:
         return "<asm {}>".format(self.data)
 
 
-class AssembleWithRelocations(ast.TranslationPass):
-    def enter_lda(self, node):
-        s = node.attrs['storage']
-        if type(s) is storage.ImmediateStorage:
-            if s.width != 1:
-                raise AssemblyError(
-                    "LDA loads one byte ({} given)".format(s.width))
-            return AsmRun(struct.pack("<BB", 0xa9, s.value))
-        raise NotImplementedError()
+AssembleWithRelocations = pattern.transform(
+    lambda p: ast.AstNode('lda', p.any(), attrs={
+        'storage': storage.ImmediateStorage(p.any('value'),
+                                            p.require(1, AssemblyError)),
+    }),
+    lambda m: AsmRun(struct.pack('<BB', 0xa9, m['value'])),
 
-    def enter_sta(self, node):
-        s = node.attrs['storage']
-        if type(s) is storage.AbsoluteStorage:
-            if s.width != 1:
-                raise AssemblyError(
-                    "STA stores one byte ({} given)".format(s.width))
-            return AsmRun(struct.pack("<BH", 0x8d, s.address))
-        raise NotImplementedError()
+    lambda p: ast.AstNode('sta', p.any(), attrs={
+        'storage': storage.AbsoluteStorage(p.any('address'),
+                                           p.require(1, AssemblyError)),
+    }),
+    lambda m: AsmRun(struct.pack('<BH', 0x8d, m['address'])),
 
-    def enter_jmp(self, node):
-        s = node.attrs['storage']
-        if type(s) is storage.AbsoluteStorage:
-            return AsmRun(struct.pack("<BH", 0x4c, s.address))
-        raise NotImplementedError()
+    lambda p: ast.AstNode('jmp', p.any(), attrs={
+        'storage': storage.AbsoluteStorage(p.any('address'), p.any()),
+    }),
+    lambda m: AsmRun(struct.pack('<BH', 0x4c, m['address'])),
 
-    def enter_rts(self, node):
-        return AsmRun(bytes([0x60]))
+    lambda p: ast.AstNode('rts', p.any()),
+    lambda m: AsmRun(bytes([0x60])),
+)
 
 
 class FlattenSymbol(ast.TranslationPass):
