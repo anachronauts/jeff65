@@ -531,6 +531,21 @@ def test_fun_call_many():
         a.children[0])
 
 
+def test_member_access_function():
+    a = parse_block("foo.bar(baz)")
+    assert_equal(1, len(a.children))
+    assert_equal(
+        ast.AstNode('call', None, attrs={
+            'target': ast.AstNode(
+                'member_access', None, attrs={'member': 'bar'}, children=[
+                    ast.AstNode('identifier', None, attrs={'name': 'foo'}),
+                ]),
+        }, children=[
+            ast.AstNode('identifier', None, attrs={'name': 'baz'}),
+        ]),
+        a.children[0])
+
+
 def test_return():
     a = parse_block("return 1 + 2")
     assert False, "TODO: AST support return statements"
