@@ -1,5 +1,5 @@
-# jeff65 main entry point
-# Copyright (C) 2017  jeff65 maintainers
+# jeff65 gold-syntax lowering passes
+# Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +14,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import main
+from . import asm, ast
 
 
-main()
+class LowerAssignment(ast.TranslationPass):
+    def exit_set(self, node):
+        lhs = node.children[0]
+        rhs = node.children[1]
+        assert node.attrs['type'].width == lhs.width
+        assert node.attrs['type'].width == rhs.width
+
+        return [
+            asm.lda(node.position, rhs),
+            asm.sta(node.position, lhs),
+        ]
+
+
+class LowerFunctions(ast.TranslationPass):
+    def exit_fun(self, node):
+        node = node.clone()
+        node.children.append(asm.rts(node.position))
+        return node

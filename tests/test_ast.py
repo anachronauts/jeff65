@@ -1,121 +1,143 @@
 import io
-from nose.tools import (assert_equal, assert_is_instance, assert_raises,
-                        assert_is_none)
-from jeff65.gold import ast, lexer
+import sys
+from nose.tools import (
+    assert_equal,
+    assert_is_instance,
+    assert_is_none,
+    assert_raises)
+from jeff65 import gold
+from jeff65.gold import ast, compiler
+
+sys.stderr = sys.stdout
 
 
 def parse(source):
     with io.StringIO(source) as s:
-        x = list(lexer.lex(s))
-        a = ast.parse_all(x)
-        assert_is_instance(a, ast.UnitNode)
-        return a
+        return gold.parse(s, '<test>')
+
+
+def parse_expr(source):
+    with io.StringIO(source) as s:
+        return compiler.parse_expr(s, '<test>')
 
 
 def test_empty_file():
     a = parse("")
-    assert_equal(0, len(a.statements))
+    assert_equal('unit', a.t)
+    assert_equal(0, len(a.children))
 
 
 def test_whitespace_only_file():
     a = parse("\n")
-    assert_equal(0, len(a.statements))
+    assert_equal('unit', a.t)
+    assert_equal(0, len(a.children))
 
 
 def test_comments_newline():
     a = parse("/* a comment */\n")
-    assert_equal(0, len(a.statements))
+    assert_equal('unit', a.t)
+    assert_equal(0, len(a.children))
 
 
 def test_comments_no_newline():
     a = parse("/* a comment */")
-    assert_equal(0, len(a.statements))
+    assert_equal('unit', a.t)
+    assert_equal(0, len(a.children))
+
+
+def test_comments_multiline():
+    a = parse("""
+    /*
+     * a multiline comment
+     * with multiple lines
+     */
+    """)
+    assert_equal('unit', a.t)
+    assert_equal(0, len(a.children))
+
+
+def test_comments_unclosed():
+    assert_raises(gold.ParseError, parse, "/* oh no")
+
+
+def test_comments_unopened():
+    assert_raises(gold.ParseError, parse, "oh no */")
 
 
 def test_nested_comment():
     a = parse("/* a /* nested */ comment */")
-    assert_equal(0, len(a.statements))
+    assert_equal('unit', a.t)
+    assert_equal(0, len(a.children))
 
 
-def test_comment_before_expression():
-    a = parse("/* a comment */ 1 + 2")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.OperatorAddNode)
-    assert_is_instance(c.lhs, ast.NumericNode)
-    assert_is_instance(c.rhs, ast.NumericNode)
+def test_nested_comments_unclosed():
+    assert_raises(gold.ParseError, parse, "/* /* oh no")
 
 
-def test_comment_after_expression():
-    a = parse("1 + 2 /* a comment */")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.OperatorAddNode)
-    assert_is_instance(c.lhs, ast.NumericNode)
-    assert_is_instance(c.rhs, ast.NumericNode)
+def test_comment_before_statement():
+    expected = parse("constant x: u8 = 1")
+    actual = parse("/* a comment */ constant x: u8 = 1")
+    assert_equal(expected, actual)
 
 
-def test_comment_within_expression():
-    a = parse("1 + /* a comment */ 2")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.OperatorAddNode)
-    assert_is_instance(c.lhs, ast.NumericNode)
-    assert_is_instance(c.rhs, ast.NumericNode)
+def test_comment_after_statement():
+    expected = parse("constant x: u8 = 1")
+    actual = parse("constant x: u8 = 1 /* a comment */")
+    assert_equal(expected, actual)
+
+
+def test_comment_within_statement():
+    expected = parse("constant x: u8 = 1")
+    actual = parse("constant x: u8 = /* a comment */ 1")
+    assert_equal(expected, actual)
 
 
 def test_associativity():
-    a = parse("1 + 2 * 3")
-    assert_equal(1, len(a.statements))
-    e1 = a.statements[0]
-    assert_is_instance(e1, ast.OperatorAddNode)
-    assert_is_instance(e1.rhs, ast.OperatorMultiplyNode)
+    a = parse_expr("1 + 2 * 3")
+    e = a.children[0]
+    assert_equal('add', e.t)
+    assert_equal('mul', e.children[1].t)
 
 
 def test_sign():
-    a = parse("-1 + 2")
-    assert_equal(1, len(a.statements))
-    e1 = a.statements[0]
-    assert_is_instance(e1, ast.OperatorAddNode)
-    assert_is_instance(e1.lhs, ast.OperatorSubtractNode)
-    assert_is_instance(e1.rhs, ast.NumericNode)
+    a = parse("constant x: u8 = -1 + 2")
+    e = a.children[0].children[0]
+    assert_equal('add', e.t)
+    assert_equal('negate', e.children[0].t)
 
 
 def test_parentheses():
-    a = parse("(1 + 2) * 3")
-    assert_equal(1, len(a.statements))
-    e1 = a.statements[0]
-    assert_is_instance(e1, ast.OperatorMultiplyNode)
-    assert_is_instance(e1.lhs, ast.OperatorAddNode)
+    a = parse("constant x: u8 = (1 + 2) * 3")
+    e = a.children[0].children[0]
+    assert_equal('mul', e.t)
+    assert_equal('add', e.children[0].t)
 
 
 def test_nested_parentheses():
-    a = parse("((1 + 2) / 3) + 4")
-    assert_equal(1, len(a.statements))
-    e1 = a.statements[0]
-    assert_is_instance(e1, ast.OperatorAddNode)
-    assert_is_instance(e1.lhs, ast.OperatorDivideNode)
-    assert_is_instance(e1.lhs.lhs, ast.OperatorAddNode)
+    a = parse("constant x: u8 = ((1 + 2) / 3) + 4")
+    e = a.children[0].children[0]
+    assert_equal('add', e.t)
+    assert_equal('div', e.children[0].t)
+    assert_equal('add', e.children[0].children[0].t)
 
 
 def test_parentheses_with_sign():
-    a = parse("(-1 + 2)")
-    e1 = a.statements[0]
-    assert_is_instance(e1, ast.OperatorAddNode)
-    assert_is_instance(e1.lhs, ast.OperatorSubtractNode)
-    assert_is_instance(e1.rhs, ast.NumericNode)
+    a = parse("constant x: u8 = -(1 + 2)")
+    e = a.children[0].children[0]
+    assert_equal('negate', e.t)
+    assert_equal('add', e.children[0].t)
 
 
 def test_unmatched_open_parentheses():
-    assert_raises(ast.ParseError, parse, "(1 + 2")
+    assert_raises(gold.ParseError, parse, "constant x: u8 = (1 + 2")
 
 
 def test_unmatched_close_parentheses():
-    assert_raises(ast.ParseError, parse, "1 + 2)")
+    assert_raises(gold.ParseError, parse, "constant x: u8 = 1 + 2)")
 
 
 def test_comparison_not_equals():
-    a = parse("1 != 2")
+    a = parse_expr("1 != 2")
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorNotEqualsNode)
@@ -180,39 +202,52 @@ def test_comparison_gte():
     assert_is_instance(s.rhs, ast.IdentifierNode)
 
 
-def test_let_with_storage_class():
+def test_let_with_mut_storage_class():
     a = parse("let mut a: u8 = 7")
-    assert_equal(1, len(a.statements))
-    t = a.statements[0]
-    assert_is_instance(t, ast.StatementLetNode)
-    s = t.binding
-    assert_is_instance(s, ast.StorageClassNode)
-    assert_equal(s.text, "mut")
-    b = s.binding
-    assert_is_instance(b, ast.OperatorAssignNode)
-    assert_is_instance(b.rhs, ast.NumericNode)
-    assert_equal("7", b.rhs.text)
-    assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
-    assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
-    assert_equal("a", b.lhs.lhs.text)
-    assert_is_instance(b.lhs.rhs, ast.IdentifierNode)
-    assert_equal("u8", b.lhs.rhs.text)
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    assert_equal(3, len(s.attrs))
+    assert_equal('a', s.attrs['name'])
+    assert_equal('mut', s.attrs['storage'])
+    assert_equal('u8', s.attrs['type'])
+    assert_equal(1, len(s.children))
+    n = s.children[0]
+    assert_equal('numeric', n.t)
+    assert_equal(7, n.attrs['value'])
+
+
+def test_let_with_stash_storage_class():
+    a = parse("let stash a: u8 = 7")
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    assert_equal(3, len(s.attrs))
+    assert_equal('a', s.attrs['name'])
+    assert_equal('stash', s.attrs['storage'])
+    assert_equal('u8', s.attrs['type'])
+    assert_equal(1, len(s.children))
+    n = s.children[0]
+    assert_equal('numeric', n.t)
+    assert_equal(7, n.attrs['value'])
 
 
 def test_let_without_storage_class():
     a = parse("let a: u8 = 7")
-    assert_equal(1, len(a.statements))
-    t = a.statements[0]
-    assert_is_instance(t, ast.StatementLetNode)
-    b = t.binding
-    assert_is_instance(b, ast.OperatorAssignNode)
-    assert_is_instance(b.rhs, ast.NumericNode)
-    assert_equal("7", b.rhs.text)
-    assert_is_instance(b.lhs, ast.PunctuationValueTypeNode)
-    assert_is_instance(b.lhs.lhs, ast.IdentifierNode)
-    assert_equal("a", b.lhs.lhs.text)
-    assert_is_instance(b.lhs.rhs, ast.IdentifierNode)
-    assert_equal("u8", b.lhs.rhs.text)
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    assert_equal(2, len(s.attrs))
+    assert_equal('a', s.attrs['name'])
+    assert_equal('u8', s.attrs['type'])
+    assert_equal(1, len(s.children))
+    n = s.children[0]
+    assert_equal('numeric', n.t)
+    assert_equal(7, n.attrs['value'])
+
+
+def test_let_with_invalid_storage_class():
+    assert_raises(gold.ParseError, parse, "let bogus a: u8 = 7")
 
 
 def test_let_multistatement():
@@ -220,9 +255,9 @@ def test_let_multistatement():
     let a: u8 = 0
     let b: u8 = 0
     """)
-    assert_equal(2, len(a.statements))
-    assert_is_instance(a.statements[0], ast.StatementLetNode)
-    assert_is_instance(a.statements[1], ast.StatementLetNode)
+    assert_equal(2, len(a.children))
+    assert_equal('let', a.children[0].t)
+    assert_equal('let', a.children[1].t)
 
 
 def test_array_declaration():
@@ -273,7 +308,7 @@ def test_array_declaration_shorthand():
     assert_equal(values.rhs.rhs.text, "2")
 
 
-def test_array_multidiminsional():
+def test_array_multidimensional():
     a = parse("let x: [u8; 2, 1 to 3] = [[0, 1], [2, 3]]")
     assert_equal(1, len(a.statements))
     t = a.statements[0]
@@ -307,11 +342,11 @@ def test_array_multidiminsional():
 
 
 def test_array_unmatched_open_bracket():
-    assert_raises(ast.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
+    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
 
 
 def test_array_unmatched_close_bracket():
-    assert_raises(ast.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
+    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
 
 
 def test_basic_assign():
@@ -394,19 +429,35 @@ def test_basic_decrement():
 
 
 def test_string_literal():
-    a = parse('"this is a string"')
-    assert_equal(1, len(a.statements))
-    t = a.statements[0]
-    assert_is_instance(t, ast.StringNode)
-    assert_equal(t.string, "this is a string")
+    a = parse('let a: [u8; 5] = "this is a string"')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal("this is a string", s.attrs['value'])
+
+
+def test_string_multiline():
+    a = parse('''
+    let a: [u8; 5] = "this is a
+very long
+string"
+    ''')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal("this is a\nvery long\nstring", s.attrs['value'])
 
 
 def test_string_escaped():
-    a = parse('"this is a \\"string"')
-    assert_equal(1, len(a.statements))
-    t = a.statements[0]
-    assert_is_instance(t, ast.StringNode)
-    assert_equal(t.string, 'this is a \\"string')
+    a = parse(r'let a: [u8; 5] = "this is a \"string"')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal(r'this is a "string', s.attrs['value'])
+    pass
 
 
 def test_fun_call_empty():
@@ -457,13 +508,12 @@ def test_return_empty():
 
 def test_fun_def_void_empty():
     a = parse("fun foo() endfun")
-    assert_equal(1, len(a.statements))
-    f = a.statements[0]
-    assert_is_instance(f, ast.StatementFunNode)
-    s = f.signature
-    assert_is_instance(s, ast.FunctionCallNode)
-    assert_equal("foo", s.fun.text)
-    assert_is_none(s.args)
+    print(a.pretty())
+    f = a.children[0]
+    assert_equal('fun', f.t)
+    assert_equal('foo', f.attrs['name'])
+    assert_is_none(f.attrs['return'])
+    assert_equal(0, len(f.attrs['args']))
     assert_equal(0, len(f.children))
 
 
@@ -597,3 +647,11 @@ def test_while_missing_do():
 
 def test_while_missing_end():
     assert_raises(ast.ParseError, parse, "while x < 5 do x = x + 1")
+
+
+def test_use():
+    a = parse("use mem")
+    assert_equal(1, len(a.children))
+    u = a.children[0]
+    assert_equal('use', u.t)
+    assert_equal("mem", u.attrs['name'])

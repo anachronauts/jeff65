@@ -2,5 +2,6 @@ language: python
 python:
   - "3.6"
 script:
-  - flake8 jeff65 tests
-  - nosetests --with-coverage
+  - make check
+after_success:
+  - coveralls
