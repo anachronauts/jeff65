@@ -150,67 +150,82 @@ def test_unmatched_close_parentheses():
 def test_comparison_not_equals():
     a = parse_expr("1 != 2")
     assert_equal(1, len(a.children))
-    s = a.children[0]
-    assert_is_instance(s, ast.OperatorNotEqualsNode)
-    assert_is_instance(s.lhs, ast.NumericNode)
-    assert_equal(s.lhs.text, "1")
-    assert_is_instance(s.rhs, ast.NumericNode)
-    assert_equal(s.rhs.text, "2")
+    assert_equal(
+        ast.AstNode('cmp_ne', None, children=[
+            ast.AstNode('numeric', None, attrs={'value': 1}),
+            ast.AstNode('numeric', None, attrs={'value': 2}),
+        ]),
+        a.children[0])
 
 
 def test_comparison_equals():
     a = parse_expr("2 == 1 + 1")
     assert_equal(1, len(a.children))
-    s = a.statements[0]
-    assert_is_instance(s, ast.OperatorEqualsNode)
-    assert_is_instance(s.lhs, ast.NumericNode)
-    assert_is_instance(s.rhs, ast.OperatorAddNode)
-    assert_is_instance(s.rhs.lhs, ast.NumericNode)
-    assert_is_instance(s.rhs.rhs, ast.NumericNode)
+    assert_equal(
+        ast.AstNode('cmp_eq', None, children=[
+            ast.AstNode('numeric', None, attrs={'value': 2}),
+            ast.AstNode('add', None, children=[
+                ast.AstNode('numeric', None, attrs={'value': 1}),
+                ast.AstNode('numeric', None, attrs={'value': 1}),
+            ]),
+        ]),
+        a.children[0])
 
 
 def test_comparison_lt():
     a = parse_expr("3 < (1 + 1) * 2")
     assert_equal(1, len(a.children))
-    s = a.statements[0]
-    assert_is_instance(s, ast.OperatorLessThanNode)
-    assert_is_instance(s.lhs, ast.NumericNode)
-    assert_is_instance(s.rhs, ast.OperatorMultiplyNode)
-    assert_is_instance(s.rhs.rhs, ast.NumericNode)
-    assert_is_instance(s.rhs.lhs, ast.OperatorAddNode)
-    assert_is_instance(s.rhs.lhs.lhs, ast.NumericNode)
-    assert_is_instance(s.rhs.lhs.rhs, ast.NumericNode)
+    assert_equal(
+        ast.AstNode('cmp_lt', None, children=[
+            ast.AstNode('numeric', None, attrs={'value': 3}),
+            ast.AstNode('mul', None, children=[
+                ast.AstNode('add', None, children=[
+                    ast.AstNode('numeric', None, attrs={'value': 1}),
+                    ast.AstNode('numeric', None, attrs={'value': 1}),
+                ]),
+                ast.AstNode('numeric', None, attrs={'value': 2}),
+            ]),
+        ]),
+        a.children[0])
 
 
 def test_comparison_gt():
     a = parse_expr("5 > (1 + 1) * 2")
     assert_equal(1, len(a.children))
-    s = a.statements[0]
-    assert_is_instance(s, ast.OperatorGreaterThanNode)
-    assert_is_instance(s.lhs, ast.NumericNode)
-    assert_is_instance(s.rhs, ast.OperatorMultiplyNode)
-    assert_is_instance(s.rhs.rhs, ast.NumericNode)
-    assert_is_instance(s.rhs.lhs, ast.OperatorAddNode)
-    assert_is_instance(s.rhs.lhs.lhs, ast.NumericNode)
-    assert_is_instance(s.rhs.lhs.rhs, ast.NumericNode)
+    assert_equal(
+        ast.AstNode('cmp_gt', None, children=[
+            ast.AstNode('numeric', None, attrs={'value': 5}),
+            ast.AstNode('mul', None, children=[
+                ast.AstNode('add', None, children=[
+                    ast.AstNode('numeric', None, attrs={'value': 1}),
+                    ast.AstNode('numeric', None, attrs={'value': 1}),
+                ]),
+                ast.AstNode('numeric', None, attrs={'value': 2}),
+            ]),
+        ]),
+        a.children[0])
 
 
 def test_comparison_lte():
     a = parse_expr("x <= 5")
     assert_equal(1, len(a.children))
-    s = a.statements[0]
-    assert_is_instance(s, ast.OperatorLessThanOrEqualNode)
-    assert_is_instance(s.lhs, ast.IdentifierNode)
-    assert_is_instance(s.rhs, ast.NumericNode)
+    assert_equal(
+        ast.AstNode('cmp_le', None, children=[
+            ast.AstNode('identifier', None, attrs={'name': 'x'}),
+            ast.AstNode('numeric', None, attrs={'value': 5}),
+        ]),
+        a.children[0])
 
 
 def test_comparison_gte():
     a = parse_expr("5 >= x")
     assert_equal(1, len(a.children))
-    s = a.statements[0]
-    assert_is_instance(s, ast.OperatorGreaterThanOrEqualNode)
-    assert_is_instance(s.lhs, ast.NumericNode)
-    assert_is_instance(s.rhs, ast.IdentifierNode)
+    assert_equal(
+        ast.AstNode('cmp_ge', None, children=[
+            ast.AstNode('numeric', None, attrs={'value': 5}),
+            ast.AstNode('identifier', None, attrs={'name': 'x'}),
+        ]),
+        a.children[0])
 
 
 def test_let_with_mut_storage_class():

@@ -282,6 +282,25 @@ class AstBuilder(ParseListener):
     def exitExprSum(self, ctx):
         self._pop()
 
+    def enterExprCompare(self, ctx):
+        if ctx.op.text == '!=':
+            self._push(AstNode('cmp_ne', self._pos(ctx)))
+        elif ctx.op.text == '==':
+            self._push(AstNode('cmp_eq', self._pos(ctx)))
+        elif ctx.op.text == '<':
+            self._push(AstNode('cmp_lt', self._pos(ctx)))
+        elif ctx.op.text == '<=':
+            self._push(AstNode('cmp_le', self._pos(ctx)))
+        elif ctx.op.text == '>':
+            self._push(AstNode('cmp_gt', self._pos(ctx)))
+        elif ctx.op.text == '>=':
+            self._push(AstNode('cmp_ge', self._pos(ctx)))
+        else:
+            assert False
+
+    def exitExprCompare(self, ctx):
+        self._pop()
+
     def enterExprProduct(self, ctx):
         if ctx.op.text == '*':
             self._push(AstNode("mul", self._pos(ctx)))
