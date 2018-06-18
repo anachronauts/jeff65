@@ -110,14 +110,14 @@ def ExplicitScopes(p):
     in scope throughout the unit.
     """
 
-    # the reason this has to be a descending transformation is fairly
-    # straightforward as these things go; since we match the node *above* the
-    # 'let', the zero_or_more_nodes('after') will chew up any lets further
-    # down, and they won't get transformed. The reason that this actually
-    # *works* when descending is slightly less so: note that in a descending
-    # transform, the transformed node is itself transformed. Because a
-    # subsequent 'let' gets moved into the new 'let_scoped', the transform will
-    # now match the 'let_scoped'.
+    # the reason this has to be a descending transformation is because when we
+    # match the node containing the 'let' nodes, only the first 'let' node is
+    # transformed; subsequent ones are collected by the
+    # zero_or_more_nodes('after'), and moved inside it. During a descending
+    # transform, the children of the transformed node are traversed, meaning
+    # that the new 'let_scoped' will be the subject of a match if it contains
+    # any more 'let' nodes. See test_explicit_scopes_multiple in
+    # test_binding.py for a demonstration.
     yield (
         p.any_node(key='root', with_children=[
             p.zero_or_more_nodes('before', exclude=['let']),
