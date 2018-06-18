@@ -234,7 +234,7 @@ class PredicateFactory:
 
     def zero_or_more_nodes(self, key=None, allow=None, exclude=None):
         return SequencePredicate(
-            self.context, key or '!',
+            self.context, key,
             lambda v: ((allow is None or v.t in allow)
                        and (exclude is None or v.t not in exclude)))
 
@@ -270,12 +270,11 @@ class SequencePredicate(Predicate):
         # the match. If we reach the max_count or our predicate stops matching,
         # we return True.
 
-        count_key = self.key + '.count'
-        self.context[count_key] = 0
-        self.context[self.key] = []
+        matched = []
+        if self.key is not None:
+            self.context[self.key] = matched
 
-        while (self.max_count is None
-               or self.context[count_key] < self.max_count):
+        while self.max_count is None or len(matched) < self.max_count:
             if len(vq) == 0:
                 break
             v = vq.popleft()
@@ -283,10 +282,9 @@ class SequencePredicate(Predicate):
                 # backtrack
                 vq.appendleft(v)
                 break
-            self.context[count_key] += 1
-            self.context[self.key].append(v)
+            matched.append(v)
 
-        return self.context[count_key] >= self.min_count
+        return len(matched) >= self.min_count
 
     def _match(self, value):
         raise ValueError("Cannot single-match a sequence")
