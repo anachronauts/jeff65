@@ -13,12 +13,23 @@ sys.stderr = sys.stdout
 
 def parse(source):
     with io.StringIO(source) as s:
-        return gold.parse(s, '<test>')
+        a = gold.parse(s, '<test>')
+        print(a.pretty())
+        return a
 
 
 def parse_expr(source):
     with io.StringIO(source) as s:
-        return compiler.parse_expr(s, '<test>')
+        a = compiler.parse_expr(s, '<test>')
+        print(a.pretty())
+        return a
+
+
+def parse_block(source):
+    with io.StringIO(source) as s:
+        a = compiler.parse_block(s, '<test>')
+        print(a.pretty())
+        return a
 
 
 def test_empty_file():
@@ -100,46 +111,46 @@ def test_associativity():
 
 
 def test_sign():
-    a = parse("constant x: u8 = -1 + 2")
-    e = a.children[0].children[0]
+    a = parse_expr("-1 + 2")
+    e = a.children[0]
     assert_equal('add', e.t)
     assert_equal('negate', e.children[0].t)
 
 
 def test_parentheses():
-    a = parse("constant x: u8 = (1 + 2) * 3")
-    e = a.children[0].children[0]
+    a = parse_expr("(1 + 2) * 3")
+    e = a.children[0]
     assert_equal('mul', e.t)
     assert_equal('add', e.children[0].t)
 
 
 def test_nested_parentheses():
-    a = parse("constant x: u8 = ((1 + 2) / 3) + 4")
-    e = a.children[0].children[0]
+    a = parse_expr("((1 + 2) / 3) + 4")
+    e = a.children[0]
     assert_equal('add', e.t)
     assert_equal('div', e.children[0].t)
     assert_equal('add', e.children[0].children[0].t)
 
 
 def test_parentheses_with_sign():
-    a = parse("constant x: u8 = -(1 + 2)")
-    e = a.children[0].children[0]
+    a = parse_expr("-(1 + 2)")
+    e = a.children[0]
     assert_equal('negate', e.t)
     assert_equal('add', e.children[0].t)
 
 
 def test_unmatched_open_parentheses():
-    assert_raises(gold.ParseError, parse, "constant x: u8 = (1 + 2")
+    assert_raises(gold.ParseError, parse_expr, "(1 + 2")
 
 
 def test_unmatched_close_parentheses():
-    assert_raises(gold.ParseError, parse, "constant x: u8 = 1 + 2)")
+    assert_raises(gold.ParseError, parse_expr, "1 + 2)")
 
 
 def test_comparison_not_equals():
     a = parse_expr("1 != 2")
-    assert_equal(1, len(a.statements))
-    s = a.statements[0]
+    assert_equal(1, len(a.children))
+    s = a.children[0]
     assert_is_instance(s, ast.OperatorNotEqualsNode)
     assert_is_instance(s.lhs, ast.NumericNode)
     assert_equal(s.lhs.text, "1")
@@ -148,8 +159,8 @@ def test_comparison_not_equals():
 
 
 def test_comparison_equals():
-    a = parse("2 == 1 + 1")
-    assert_equal(1, len(a.statements))
+    a = parse_expr("2 == 1 + 1")
+    assert_equal(1, len(a.children))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorEqualsNode)
     assert_is_instance(s.lhs, ast.NumericNode)
@@ -159,8 +170,8 @@ def test_comparison_equals():
 
 
 def test_comparison_lt():
-    a = parse("3 < (1 + 1) * 2")
-    assert_equal(1, len(a.statements))
+    a = parse_expr("3 < (1 + 1) * 2")
+    assert_equal(1, len(a.children))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorLessThanNode)
     assert_is_instance(s.lhs, ast.NumericNode)
@@ -172,8 +183,8 @@ def test_comparison_lt():
 
 
 def test_comparison_gt():
-    a = parse("5 > (1 + 1) * 2")
-    assert_equal(1, len(a.statements))
+    a = parse_expr("5 > (1 + 1) * 2")
+    assert_equal(1, len(a.children))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorGreaterThanNode)
     assert_is_instance(s.lhs, ast.NumericNode)
@@ -185,8 +196,8 @@ def test_comparison_gt():
 
 
 def test_comparison_lte():
-    a = parse("x <= 5")
-    assert_equal(1, len(a.statements))
+    a = parse_expr("x <= 5")
+    assert_equal(1, len(a.children))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorLessThanOrEqualNode)
     assert_is_instance(s.lhs, ast.IdentifierNode)
@@ -194,8 +205,8 @@ def test_comparison_lte():
 
 
 def test_comparison_gte():
-    a = parse("5 >= x")
-    assert_equal(1, len(a.statements))
+    a = parse_expr("5 >= x")
+    assert_equal(1, len(a.children))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorGreaterThanOrEqualNode)
     assert_is_instance(s.lhs, ast.NumericNode)
@@ -262,22 +273,20 @@ def test_let_multistatement():
 
 def test_array_declaration():
     a = parse("let x: [u8; 0 to 3] = [0, 1, 2]")
-    assert_equal(1, len(a.statements))
-    t = a.statements[0]
-    assert_is_instance(t, ast.StatementLetNode)
-    assert_is_instance(t.binding, ast.OperatorAssignNode)
-    assert_is_instance(t.binding.lhs, ast.PunctuationValueTypeNode)
-    assert_is_instance(t.binding.lhs.rhs, ast.BracketsNode)
-    assert_is_instance(t.binding.rhs, ast.BracketsNode)
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    t = s.attrs['type']
+    assert_equal('type_array', t.t)
+    assert_equal({'type': 'u8'}, t.attrs)
+    assert_equal(2, len(t.children))
+    assert_equal('numeric', t.children[0].t)
+    assert_equal({'value': 0}, t.children[0].attrs)
+    assert_equal('numeric', t.children[1].t)
+    assert_equal({'value': 3}, t.children[1].attrs)
 
-    signature = t.binding.lhs.rhs.contents
-    assert_is_instance(signature, ast.PunctuationArrayRangeNode)
-    assert_equal(signature.lhs.text, "u8")
-    assert_is_instance(signature.rhs, ast.OperatorRangeNode)
-    assert_equal(signature.rhs.lhs.text, "0")
-    assert_equal(signature.rhs.rhs.text, "3")
-
-    values = t.binding.rhs.contents
+    assert False, "TODO: create a node for the RHS list"
+    values = s.binding.rhs.contents
     assert_is_instance(values, ast.PunctuationCommaNode)
     assert_equal(values.lhs.text, "0")
     assert_is_instance(values.rhs, ast.PunctuationCommaNode)
@@ -287,19 +296,17 @@ def test_array_declaration():
 
 def test_array_declaration_shorthand():
     a = parse("let x: [u8; 3] = [0, 1, 2]")
-    assert_equal(1, len(a.statements))
-    t = a.statements[0]
-    assert_is_instance(t, ast.StatementLetNode)
-    assert_is_instance(t.binding, ast.OperatorAssignNode)
-    assert_is_instance(t.binding.lhs, ast.PunctuationValueTypeNode)
-    assert_is_instance(t.binding.lhs.rhs, ast.BracketsNode)
-    assert_is_instance(t.binding.rhs, ast.BracketsNode)
+    assert_equal(1, len(a.children))
+    s = a.children[0]
+    assert_equal('let', s.t)
+    t = s.attrs['type']
+    assert_equal('type_array', t.t)
+    assert_equal({'type': 'u8'}, t.attrs)
+    assert_equal(1, len(t.children))
+    assert_equal('numeric', t.children[0].t)
+    assert_equal({'value': 3}, t.children[0].attrs)
 
-    signature = t.binding.lhs.rhs.contents
-    assert_is_instance(signature, ast.PunctuationArrayRangeNode)
-    assert_equal(signature.lhs.text, "u8")
-    assert_equal(signature.rhs.text, "3")
-
+    assert False, "TODO: create a node for the RHS list"
     values = t.binding.rhs.contents
     assert_is_instance(values, ast.PunctuationCommaNode)
     assert_equal(values.lhs.text, "0")
@@ -309,6 +316,7 @@ def test_array_declaration_shorthand():
 
 
 def test_array_multidimensional():
+    assert False, "TODO: the syntax file doesn't even support this"
     a = parse("let x: [u8; 2, 1 to 3] = [[0, 1], [2, 3]]")
     assert_equal(1, len(a.statements))
     t = a.statements[0]
@@ -350,28 +358,37 @@ def test_array_unmatched_close_bracket():
 
 
 def test_basic_assign():
-    a = parse("x = 5")
-    assert_equal(1, len(a.statements))
-    s = a.statements[0]
-    assert_is_instance(s, ast.OperatorAssignNode)
-    assert_is_instance(s.lhs, ast.IdentifierNode)
-    assert_is_instance(s.rhs, ast.NumericNode)
+    a = parse_block("x = 5")
+    assert_equal(1, len(a.children))
+    assert_equal(
+        ast.AstNode('set', None, children=[
+            ast.AstNode('identifier', None, attrs={'name': 'x'}),
+            ast.AstNode('numeric', None, attrs={'value': 5}),
+        ]),
+        a.children[0])
 
 
 def test_multiple_assign():
-    a = parse("""
+    a = parse_block("""
     x = 5
     y = 6
     """)
-    assert_equal(2, len(a.statements))
-    s = a.statements[0]
-    assert_is_instance(s, ast.OperatorAssignNode)
-    s = a.statements[1]
-    assert_is_instance(s, ast.OperatorAssignNode)
+    assert_equal(
+        ast.AstNode('<block>', None, children=[
+            ast.AstNode('set', None, children=[
+                ast.AstNode('identifier', None, attrs={'name': 'x'}),
+                ast.AstNode('numeric', None, attrs={'value': 5}),
+            ]),
+            ast.AstNode('set', None, children=[
+                ast.AstNode('identifier', None, attrs={'name': 'y'}),
+                ast.AstNode('numeric', None, attrs={'value': 6}),
+            ]),
+        ]), a)
 
 
 def test_array_member_assign():
-    a = parse("x[0] = 5")
+    a = parse_block("x[0] = 5")
+    assert False, "TODO: handle indexed expressions"
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorAssignNode)
@@ -386,7 +403,8 @@ def test_array_member_assign():
 
 
 def test_assign_with_array_member():
-    a = parse("x = y[0]")
+    a = parse_block("x = y[0]")
+    assert False, "TODO: handle indexed expressions"
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorAssignNode)
@@ -401,7 +419,8 @@ def test_assign_with_array_member():
 
 
 def test_basic_increment():
-    a = parse("x += 1")
+    a = parse_block("x += 1")
+    assert False, "TODO: support increment statements"
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorAssignNode)
@@ -415,7 +434,8 @@ def test_basic_increment():
 
 
 def test_basic_decrement():
-    a = parse("x -= 1")
+    a = parse_block("x -= 1")
+    assert False, "TODO: support decrement statements"
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.OperatorAssignNode)
@@ -461,36 +481,44 @@ def test_string_escaped():
 
 
 def test_fun_call_empty():
-    a = parse("foo()")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.FunctionCallNode)
-    assert_equal("foo", c.fun.text)
-    assert_is_none(c.args)
+    a = parse_block("foo()")
+    assert_equal(1, len(a.children))
+    assert_equal(
+        ast.AstNode('call', None, attrs={
+            'target': ast.AstNode('identifier', None, attrs={'name': 'foo'})
+        }),
+        a.children[0])
 
 
 def test_fun_call_one():
-    a = parse("foo(1)")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.FunctionCallNode)
-    assert_equal("foo", c.fun.text)
-    assert_equal("1", c.args.text)
+    a = parse_block("foo(1)")
+    assert_equal(1, len(a.children))
+    assert_equal(
+        ast.AstNode('call', None, attrs={
+            'target': ast.AstNode('identifier', None, attrs={'name': 'foo'})
+        }, children=[
+            ast.AstNode('numeric', None, attrs={'value': 1}),
+        ]),
+        a.children[0])
 
 
 def test_fun_call_many():
-    a = parse("foo(1, 2, 3)")
-    assert_equal(1, len(a.statements))
-    c = a.statements[0]
-    assert_is_instance(c, ast.FunctionCallNode)
-    assert_equal("foo", c.fun.text)
-    assert_equal("1", c.args.lhs.text)
-    assert_equal("2", c.args.rhs.lhs.text)
-    assert_equal("3", c.args.rhs.rhs.text)
+    a = parse_block("foo(1, 2, 3)")
+    assert_equal(1, len(a.children))
+    assert_equal(
+        ast.AstNode('call', None, attrs={
+            'target': ast.AstNode('identifier', None, attrs={'name': 'foo'})
+        }, children=[
+            ast.AstNode('numeric', None, attrs={'value': 1}),
+            ast.AstNode('numeric', None, attrs={'value': 2}),
+            ast.AstNode('numeric', None, attrs={'value': 3}),
+        ]),
+        a.children[0])
 
 
 def test_return():
-    a = parse("return 1 + 2")
+    a = parse_block("return 1 + 2")
+    assert False, "TODO: AST support return statements"
     assert_equal(1, len(a.statements))
     r = a.statements[0]
     assert_is_instance(r, ast.StatementReturnNode)
@@ -500,7 +528,8 @@ def test_return():
 
 
 def test_return_empty():
-    a = parse("return")
+    a = parse_block("return")
+    assert False, "TODO: AST support return statements"
     assert_equal(1, len(a.statements))
     r = a.statements[0]
     assert_is_none(r.rhs)
@@ -508,7 +537,6 @@ def test_return_empty():
 
 def test_fun_def_void_empty():
     a = parse("fun foo() endfun")
-    print(a.pretty())
     f = a.children[0]
     assert_equal('fun', f.t)
     assert_equal('foo', f.attrs['name'])
@@ -523,6 +551,7 @@ def test_fun_def_void():
        return
     endfun
     """)
+    assert False, "TODO: AST support function args, return statements"
     assert_equal(1, len(a.statements))
     f = a.statements[0]
     assert_is_instance(f, ast.StatementFunNode)
@@ -550,6 +579,7 @@ def test_fun_def_nonvoid():
         return x
     endfun
     """)
+    assert False, "TODO: AST support function args, return types, return stmts"
     assert_equal(1, len(a.statements))
     f = a.statements[0]
     assert_is_instance(f, ast.StatementFunNode)
@@ -571,6 +601,7 @@ def test_fun_def_nonvoid():
 
 def test_isr_def_empty():
     a = parse("isr bar endisr")
+    assert False, "TODO: AST support isrs"
     assert_equal(1, len(a.statements))
     f = a.statements[0]
     assert_is_instance(f, ast.StatementIsrNode)
@@ -586,6 +617,7 @@ def test_isr_def():
         let b: u8 = 0
     endisr
     """)
+    assert False, "TODO: AST support isrs"
     assert_equal(1, len(a.statements))
     f = a.statements[0]
     assert_is_instance(f, ast.StatementIsrNode)
@@ -598,11 +630,12 @@ def test_isr_def():
 
 
 def test_while_single_statement():
-    a = parse("""
+    a = parse_block("""
     while x < 5 do
         x = x + 1
     end
     """)
+    assert False, "TODO: AST support while, comparisons"
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.StatementWhileNode)
@@ -618,12 +651,13 @@ def test_while_single_statement():
 
 
 def test_while_multistatement():
-    a = parse("""
+    a = parse_block("""
     while x < 5 do
         x = x + 1
         y = 2 * x
     end
     """)
+    assert False, "TODO: AST support while, comparisons"
     assert_equal(1, len(a.statements))
     s = a.statements[0]
     assert_is_instance(s, ast.StatementWhileNode)

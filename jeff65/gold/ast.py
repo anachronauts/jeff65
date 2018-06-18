@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import antlr4
 from .grammar import ParseListener
 
 
@@ -144,6 +145,10 @@ class TranslationPass:
 class AstBuilder(ParseListener):
     def __init__(self):
         self.stack = []
+
+    def walk(self, tree):
+        antlr4.ParseTreeWalker.DEFAULT.walk(self, tree)
+        return self.ast
 
     @property
     def ast(self):

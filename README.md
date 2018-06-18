@@ -26,16 +26,6 @@ Invocation:
       -h, --help  show this help message and exit
 
 
-## Status
-
-* Basic syntax definition: finished, needs formal documentation.
-* Lexer / Tokenizer: finished.
-* Stage 1 Parsing (AST Generation): 75% finished.
-* Stage 2 Parsing (AST validation and traversal): 15% finished.
-* Stage 3 Parsing (AST optimization): not planned (for now).
-* 6502 ASM Code Generation: not yet begun.
-
-
 ## Licensing
 
 The *jeff65* compiler itself is provided under the GPLv3 license; if you

@@ -46,29 +46,39 @@ def open_unit(unit):
     return open(unit, 'r')
 
 
-def parse(fileobj, name):
+def _make_parser(fileobj, name):
     lexer = Lexer(fileobj, name=name)
     tokens = antlr4.CommonTokenStream(lexer)
-    parser = Parser(tokens)
+    return Parser(tokens)
+
+
+def parse(fileobj, name):
+    parser = _make_parser(fileobj, name)
     tree = parser.unit()
     if parser._syntaxErrors > 0:
         raise ast.ParseError("Unit {} had errors; terminating".format(name))
     builder = ast.AstBuilder()
-    antlr4.ParseTreeWalker.DEFAULT.walk(builder, tree)
-    return builder.ast
+    return builder.walk(tree)
 
 
 def parse_expr(fileobj, name):
-    lexer = Lexer(fileobj, name=name)
-    tokens = antlr4.CommonTokenStream(lexer)
-    parser = Parser(tokens)
+    parser = _make_parser(fileobj, name)
     tree = parser.expr()
     if parser._syntaxErrors > 0:
-        raise ast.ParseError("Unit {} had errors; terminating".format(name))
+        raise ast.ParseError("Expression had errors; terminating")
     builder = ast.AstBuilder()
     builder._push(ast.AstNode('<expr>', (0, 0)))
-    antlr4.ParseTreeWalker.DEFAULT.walk(builder, tree)
-    return builder.ast
+    return builder.walk(tree)
+
+
+def parse_block(fileobj, name):
+    parser = _make_parser(fileobj, name)
+    tree = parser.block()
+    if parser._syntaxErrors > 0:
+        raise ast.ParseError("Block had errors; terminating")
+    builder = ast.AstBuilder()
+    builder._push(ast.AstNode('<block>', (0, 0)))
+    return builder.walk(tree)
 
 
 def translate(unit, verbose=False):
