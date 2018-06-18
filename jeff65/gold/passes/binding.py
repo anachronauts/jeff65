@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .. import ast
+from .. import ast, pattern
 
 
 class ScopedPass(ast.TranslationPass):
@@ -73,47 +73,67 @@ class ScopedPass(ast.TranslationPass):
         return self.exit__scope(node)
 
 
-class ExplicitScopes(ast.TranslationPass):
+@pattern.transform(pattern.Order.Descending)
+def ExplicitScopes(p):
     """Translation pass to make lexical scopes explicit.
-
     Introducing a binding inside a function results in a new implicit scope
     being introduced, which continues to the end of the explicit scope, i.e.
     let-bindings, constant-bindings, and use-bindings are not valid before they
     are mentioned inside function scope. For example, the following tree:
-
     fun
       :name 'foo'
       call
         :target 'spam'
       let
-        :name 'bar'
-        :type u8
-        42
+        let_set!
+          :name 'bar'
+          :type u8
+          42
       call
         :target 'eggs'
         'bar'
-
     should be transformed into
-
     fun
       :name 'foo'
       call
         :target 'spam'
-      let_s
-        :name 'bar'
-        :type u8
-        42
+      let_scoped
+        let_set!
+          :name 'bar'
+          :type u8
+          42
         call
           :target 'eggs'
           'bar'
-
     Note that the call to 'eggs' now explicitly has 'bar' in-scope.
-
     This does not apply to toplevel declarations; all toplevel declarations are
     in scope throughout the unit.
-
     """
-    pass  # TODO implement me
+
+    # the reason this has to be a descending transformation is fairly
+    # straightforward as these things go; since we match the node *above* the
+    # 'let', the zero_or_more_nodes('after') will chew up any lets further
+    # down, and they won't get transformed. The reason that this actually
+    # *works* when descending is slightly less so: note that in a descending
+    # transform, the transformed node is itself transformed. Because a
+    # subsequent 'let' gets moved into the new 'let_scoped', the transform will
+    # now match the 'let_scoped'.
+    yield (
+        p.any_node(key='root', with_children=[
+            p.zero_or_more_nodes('before', exclude=['let']),
+            ast.AstNode('let', p.any('let.p'), children=[
+                p.zero_or_more_nodes('let.c'),
+            ]),
+            p.zero_or_more_nodes('after'),
+        ]),
+        lambda m: m['root'].clone(with_children=[
+            *m['before'],
+            ast.AstNode('let_scoped', m['let.p'], children=[
+                *m['let.c'],
+                *m['after'],
+            ]),
+        ])
+    )
 
 
 class ShadowNames(ScopedPass):

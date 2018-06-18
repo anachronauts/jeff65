@@ -15,19 +15,29 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import binding
-from .. import ast, mem
+from .. import ast, mem, pattern
 from ..storage import AbsoluteStorage, ImmediateStorage
 
 
-class ResolveStorage(ast.TranslationPass):
-    def enter_deref(self, node):
-        assert node.children[0].t == 'numeric'
-        return AbsoluteStorage(node.children[0].attrs['value'],
-                               node.attrs['type'].width)
+@pattern.transform(pattern.Order.Descending)
+def ResolveStorage(p):
+    yield (
+        ast.AstNode('deref', p.any(), attrs={
+            'type': p.any('type'),
+        }, children=[
+            ast.AstNode(p.require('numeric'), p.any(), attrs={
+                'value': p.any('address'),
+            })
+        ]),
+        lambda m: AbsoluteStorage(m['address'], m['type'].width)
+    )
 
-    def enter_numeric(self, node):
-        assert node.attrs['value'] < 256
-        return ImmediateStorage(node.attrs['value'], 1)
+    yield (
+        ast.AstNode('numeric', p.any(), attrs={
+            'value': p.lt(256, 'value', require=True)
+        }),
+        lambda m: ImmediateStorage(m['value'], 1)
+    )
 
 
 class ResolveUnits(binding.ScopedPass):

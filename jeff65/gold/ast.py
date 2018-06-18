@@ -29,9 +29,9 @@ class AstNode:
         self.attrs = attrs or {}
         self.children = children or []
 
-    def clone(self, with_attrs=None):
+    def clone(self, with_attrs=None, with_children=None):
         node = AstNode(self.t, self.position, dict(self.attrs),
-                       list(self.children))
+                       list(with_children or self.children))
         if with_attrs:
             node.attrs.update(with_attrs)
         return node

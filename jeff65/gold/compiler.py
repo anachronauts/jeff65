@@ -24,7 +24,7 @@ from .passes import asm, binding, lower, resolve, typepasses
 
 
 passes = [
-    # binding.ExplicitScopes,
+    binding.ExplicitScopes,
     resolve.ResolveUnits,
     binding.ShadowNames,
     typepasses.ConstructTypes,

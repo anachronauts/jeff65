@@ -31,27 +31,32 @@ class AsmRun:
         return "<asm {}>".format(self.data)
 
 
-AssembleWithRelocations = pattern.transform(
-    lambda p: ast.AstNode('lda', p.any(), attrs={
-        'storage': storage.ImmediateStorage(p.any('value'),
-                                            p.require(1, AssemblyError)),
-    }),
-    lambda m: AsmRun(struct.pack('<BB', 0xa9, m['value'])),
+@pattern.transform(pattern.Order.Any)
+def AssembleWithRelocations(p):
+    yield (
+        ast.AstNode('lda', p.any(), attrs={
+            'storage': storage.ImmediateStorage(p.any('value'),
+                                                p.require(1, AssemblyError)),
+        }),
+        lambda m: AsmRun(struct.pack('<BB', 0xa9, m['value']))
+    )
 
-    lambda p: ast.AstNode('sta', p.any(), attrs={
-        'storage': storage.AbsoluteStorage(p.any('address'),
-                                           p.require(1, AssemblyError)),
-    }),
-    lambda m: AsmRun(struct.pack('<BH', 0x8d, m['address'])),
+    yield (
+        ast.AstNode('sta', p.any(), attrs={
+            'storage': storage.AbsoluteStorage(p.any('address'),
+                                               p.require(1, AssemblyError)),
+        }),
+        lambda m: AsmRun(struct.pack('<BH', 0x8d, m['address']))
+    )
 
-    lambda p: ast.AstNode('jmp', p.any(), attrs={
-        'storage': storage.AbsoluteStorage(p.any('address'), p.any()),
-    }),
-    lambda m: AsmRun(struct.pack('<BH', 0x4c, m['address'])),
+    yield (
+        ast.AstNode('jmp', p.any(), attrs={
+            'storage': storage.AbsoluteStorage(p.any('address'), p.any()),
+        }),
+        lambda m: AsmRun(struct.pack('<BH', 0x4c, m['address']))
+    )
 
-    lambda p: ast.AstNode('rts', p.any()),
-    lambda m: AsmRun(bytes([0x60])),
-)
+    yield (ast.AstNode('rts', p.any()), lambda m: AsmRun(bytes([0x60])))
 
 
 class FlattenSymbol(ast.TranslationPass):
