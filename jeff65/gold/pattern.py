@@ -14,6 +14,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Pattern-based AST transformation system.
+
+This module provides something similar to Scheme R5RS syntax-rules, on top of
+procedural DFS transform system.
+"""
+
 import enum
 import functools
 from collections import deque
@@ -21,6 +27,14 @@ from . import ast
 
 
 class Order(enum.Enum):
+    """Denotes the order that nodes are matched.
+
+    'Descending' results in nodes being matched from outermost to innermost,
+    i.e. during the descent of the DFS traversal. 'Ascending' results in the
+    opposite.
+
+    Use 'Any' if the order does not matter for the transform to work correctly.
+    """
     Descending = 0
     Ascending = 1
 
@@ -30,10 +44,18 @@ class Order(enum.Enum):
 
 
 def transform(order):
+    """Converts the decorated generator function into a transform.
+
+    The decorated generator function will be passed a single argument of type
+    PatternFactory. It should yield one or more pairs of (pattern, template),
+    where pattern is some mixture of AstNode, Predicate, and SequencePredicate
+    instances, and template is a function which, when called with a
+    dictionary-like of captures, returns an object to replace the matched node.
+    """
     def _decorate_transform(f):
         def _make_transform():
-            matcher = PatternMatcher(f.__name__, order)
-            pf = PredicateFactory(matcher.captures)
+            transform = PatternPass(f.__name__, order)
+            pf = PredicateFactory(transform.captures)
             analyser = PatternAnalyser(pf)
             for pattern, template in f(pf):
                 # Convert the pattern into a predicate
@@ -43,8 +65,8 @@ def transform(order):
                     # do the non-recursive transform
                     predicates = [analyser.make_predicate(pattern)]
                 assert 1 == len(predicates)
-                matcher.ptpairs.append((predicates[0], template))
-            return matcher
+                transform.ptpairs.append((predicates[0], template))
+            return transform
         functools.update_wrapper(_make_transform, f)
         return _make_transform
     return _decorate_transform
@@ -54,41 +76,42 @@ class MatchError(Exception):
     pass
 
 
-class PatternMatcher:
+class PatternPass:
+    """A pattern based-translation pass.
+
+    Use the pattern.transform function to define instances of this. Instances
+    store pairs of patterns and templates. If the transform finds a node which
+    matches the pattern, the node is replaced with the result of calling the
+    corresponding template function with a dictionary-like of values captured
+    by the match.
+    """
+
     transform_attrs = False
 
     def __init__(self, name, order):
         self.__name__ = name
+        self.order = order
         self.ptpairs = []
         self.captures = {}
         if order == Order.Ascending:
-            self._getattr = self._ascending_getattr
+            self._transform_enter = self._dummy
         elif order == Order.Descending:
-            self._getattr = self._descending_getattr
+            self._transform_exit = self._dummy
         else:
             raise ValueError(f"Unknown order {order}")
 
     def __getattr__(self, attr):
-        return self._getattr(attr)
-
-    def __getitem__(self, key):
-        return self.captures[key]
-
-    def _ascending_getattr(self, attr):
         if attr.startswith('enter_'):
-            return self._dummy
+            return self._transform_enter
         elif attr.startswith('exit_'):
             return self._transform_exit
         raise AttributeError(f"object has no attribute '{attr}'")
 
-    def _descending_getattr(self, attr):
-        if attr.startswith('enter_'):
-            return self._transform_enter
-        elif attr.startswith('exit_'):
-            return self._dummy
-        raise AttributeError(f"object has no attribute '{attr}'")
+    def __getitem__(self, key):
+        return self.captures[key]
 
     def _transform_enter(self, node):
+        assert self.order == Order.Descending
         for predicate, template in self.ptpairs:
             self.captures.clear()
             if predicate._match(node):
@@ -96,6 +119,7 @@ class PatternMatcher:
         return node
 
     def _transform_exit(self, node):
+        assert self.order == Order.Ascending
         for predicate, template in self.ptpairs:
             self.captures.clear()
             if predicate._match(node):
@@ -108,6 +132,7 @@ class PatternMatcher:
 
 class PatternAnalyser:
     """Converts a pattern into a bound predicate."""
+
     transform_attrs = False
 
     def __init__(self, pf):
