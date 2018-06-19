@@ -14,10 +14,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import logging
 import sys
 from . import grammar
 from .. import ast, blum, parsing
 from .passes import asm, binding, lower, resolve, simplify, typepasses
+
+logger = logging.getLogger(__name__)
 
 
 passes = [
@@ -56,14 +59,12 @@ def parse(fileobj, name):
     return unit[0]
 
 
-def translate(unit, verbose=False):
+def translate(unit):
     with open_unit(unit) as input_file:
         obj = parse(input_file, name=unit.name)
         for p in passes:
             obj = obj.transform(p())
-            if (verbose):
-                print(p.__name__)
-                print(obj.pretty())
+            logger.debug(__("Pass {}:\n{}", p.__name__, obj.pretty()))
 
     archive = blum.Archive()
     for node in obj.children:

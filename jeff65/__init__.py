@@ -15,24 +15,51 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import argparse
+import logging
 import pathlib
 import sys
-from . import gold
-from . import blum
+
+
+class BraceMessage:
+    def __init__(self, fmt, *args, **kwargs):
+        self.fmt = fmt
+        self.args = args
+        self.kwargs = kwargs
+
+    def __str__(self):
+        return self.fmt.format(*self.args, **self.kwargs)
+
+    @classmethod
+    def install(cls):
+        """Add to builtins as __.
+
+        Hacking builtins is generally a bad idea, but this is similar to _ in
+        gettext, which is part of the standard library, so...
+        """
+        import builtins
+        builtins.__ = cls
+
+
+BraceMessage.install()
 
 
 def main():
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers()
 
+    parser.add_argument("--debug",
+                        help="run in debug mode",
+                        dest="debug", action="store_true",
+                        default=False)
+    parser.add_argument("-v", "--verbose",
+                        help="show additional information during operation",
+                        dest="verbose", action="store_true",
+                        default=False)
+
+    subparsers = parser.add_subparsers()
     compile_parser = subparsers.add_parser(
         'compile', help="compile one or more files")
     compile_parser.add_argument('file', help="the file to compile",
                                 type=pathlib.PurePath)
-    compile_parser.add_argument("-v", "--verbose",
-                                help="show the output of each pass",
-                                dest="verbose", action="store_true",
-                                default=False)
     compile_parser.set_defaults(func=cmd_compile)
 
     objdump_parser = subparsers.add_parser(
@@ -42,6 +69,10 @@ def main():
     objdump_parser.set_defaults(func=cmd_objdump)
 
     args = parser.parse_args()
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    elif args.verbose:
+        logging.basicConfig(level=logging.INFO)
 
     if hasattr(args, 'func'):
         args.func(args)
@@ -55,13 +86,18 @@ def cmd_none(args):
 
 
 def cmd_compile(args):
-    archive = gold.translate(args.file, args.verbose)
+    from . import gold
+    from . import blum
+
+    archive = gold.translate(args.file)
     archive.dumpf(args.file.with_suffix('.blum'))
     blum.link('{}.main'.format(args.file.stem), archive,
               args.file.with_suffix('.prg'))
 
 
 def cmd_objdump(args):
+    from . import blum
+
     archive = blum.Archive()
     archive.loadf(args.file)
 
