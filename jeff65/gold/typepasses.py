@@ -14,7 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import ast, binding, types
+from ..blum import types
+from . import ast, binding
 
 
 class ConstructTypes(ast.TranslationPass):
@@ -55,7 +56,8 @@ class PropagateTypes(binding.ScopedPass):
     def enter_fun(self, node):
         node = node.clone(with_attrs={
             'type': types.FunctionType(
-                node.attrs['return'], *node.attrs['args']),
+                node.attrs['return'] or types.void,
+                *node.attrs['args']),
         })
         del node.attrs['return']
         return super().enter_fun(node)
