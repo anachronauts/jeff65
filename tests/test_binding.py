@@ -1,6 +1,7 @@
 from nose.tools import (
     assert_equal)
-from jeff65.gold import ast, types
+from jeff65.blum import types
+from jeff65.gold import ast
 from jeff65.gold.passes import binding
 
 
