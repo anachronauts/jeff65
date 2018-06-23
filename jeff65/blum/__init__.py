@@ -15,11 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .linker import link
-from .symbol import Archive, Symbol, Constant
+from .symbol import Archive, Symbol, Relocation
 
 __all__ = [
     'link',
     'Archive',
     'Symbol',
-    'Constant',
+    'Relocation',
 ]

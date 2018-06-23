@@ -22,4 +22,4 @@ demo: examples/heart.prg
 	x64 $<
 
 examples/heart.prg: examples/heart.gold
-	python -m jeff65 $<
+	python -m jeff65 compile $<
