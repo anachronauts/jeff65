@@ -4,7 +4,8 @@ from nose.tools import (
     assert_false,
     assert_raises)
 from jeff65.blum import types
-from jeff65.gold import asm, ast, storage
+from jeff65.gold import ast, storage
+from jeff65.gold.passes import asm
 
 sys.stderr = sys.stdout
 

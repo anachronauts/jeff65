@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import binding
-
 
 class ExternalUnit:
     """Represents an external unit."""
@@ -67,30 +65,3 @@ def member_type(t):
         return fun
 
     return add_to_fun
-
-
-class ResolveUnits(binding.ScopedPass):
-    """Resolves external units identified in 'use' statements."""
-    from . import mem  # this needs to be down here to dodge circular-import
-
-    builtin_units = {
-        'mem': mem.MemUnit(),
-    }
-
-    def exit_use(self, node):
-        name = node.attrs['name']
-        unit = self.builtin_units[name]
-        self.bind_name(name, unit)
-        return []
-
-
-class ResolveMembers(binding.ScopedPass):
-    """Resolves members to functions."""
-
-    transform_attrs = True
-
-    def exit_member_access(self, node):
-        member = node.attrs['member']
-        name = node.children[0].attrs['name']
-        unit = self.look_up_name(name)
-        return unit.member(member)
