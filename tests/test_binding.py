@@ -1,3 +1,4 @@
+import string
 import hypothesis.strategies as st
 from collections import namedtuple
 from hypothesis import assume
@@ -29,22 +30,28 @@ class ScopedTransform(RuleBasedStateMachine):
         self.frames = []
         self.transform = binding.ScopedPass()
 
+    unscoped_types = Bundle('unscoped_types')
     names = Bundle('names')
     constants = Bundle('constants')
+
+    @rule(target=unscoped_types, u=st.text(
+        alphabet=string.ascii_letters + '_'))
+    def u(self, u):
+        return u
 
     @rule(target=names, n=st.text())
     def n(self, n):
         return n
 
     @rule(t=st.sampled_from(binding.ScopedPass.scoped_types))
-    def enter_node(self, t):
+    def enter_scoped_node(self, t):
         orig = ast.AstNode(t, None)
         node = self.transform.transform_enter(t, orig)
         self.frames.append(Frame(t, node, orig, {}))
 
     @precondition(lambda self: len(self.frames) > 0)
     @rule(t=st.sampled_from(binding.ScopedPass.scoped_types))
-    def exit_node(self, t):
+    def exit_scoped_node(self, t):
         # this would probably be more efficient if we could use preconditions
         # somehow?
         assume(self.frames[-1].t == t)
@@ -55,10 +62,30 @@ class ScopedTransform(RuleBasedStateMachine):
         assert frame.names == node.get_attr_default('known_names', {})
 
     @precondition(lambda self: len(self.frames) > 0)
+    @rule(t=unscoped_types)
+    def enter_unscoped_node(self, t):
+        orig = ast.AstNode(t, None)
+        node = self.transform.transform_enter(t, orig)
+        self.frames.append(Frame(t, node, orig, None))
+
+    @precondition(lambda self: len(self.frames) > 0)
+    @rule(t=unscoped_types)
+    def exit_unscoped_node(self, t):
+        # this would probably be more efficient if we could use preconditions
+        # somehow?
+        assume(self.frames[-1].t == t)
+        frame = self.frames.pop()
+        node, *nodes = self.transform.transform_exit(t, frame.node)
+        assert len(nodes) == 0
+        assert frame.orig == ast.AstNode(t, None)
+        assert None is node.get_attr_default('known_names', None)
+
+    @precondition(lambda self: len(self.frames) > 0)
     @rule(n=names, v=st.integers())
     def bind_name(self, n, v):
         self.transform.bind_name(n, v)
-        self.frames[-1].names[n] = v
+        frame = next(f for f in reversed(self.frames) if f.names is not None)
+        frame.names[n] = v
 
     @precondition(lambda self: len(self.frames) > 0)
     @rule(n=names)
@@ -66,7 +93,7 @@ class ScopedTransform(RuleBasedStateMachine):
         try:
             ev = next(f.names[n]
                       for f in reversed(self.frames)
-                      if n in f.names)
+                      if f.names is not None and n in f.names)
         except StopIteration:
             ev = None
         assert ev == self.transform.look_up_name(n)
