@@ -20,6 +20,7 @@ from .. import ast, pattern
 class ScopedPass(ast.TranslationPass):
     """Base class for translation passes which understand binding scope.
     """
+    scoped_types = ['unit', 'fun']
 
     def __init__(self):
         self.scopes = []
@@ -47,30 +48,22 @@ class ScopedPass(ast.TranslationPass):
                 return known_constants[name]
         return None
 
-    def enter__scope(self, node):
-        # we MUST clone the node here in order to deal with the fact that the
-        # children could be altered either by the transform function or by the
-        # pass itself. By cloning once, we assure that changes made will be to
-        # the same object.
-        node = node.clone()
-        self.scopes.append(node)
+    def transform_enter(self, t, node):
+        node = super().transform_enter(t, node)
+        if t in self.scoped_types:
+            # we MUST clone the node here in order to deal with the fact that
+            # the children could be altered either by the transform function or
+            # by the pass itself. By cloning once, we assure that changes made
+            # will be to the same object.
+            node = node.clone()
+            self.scopes.append(node)
         return node
 
-    def exit__scope(self, node):
-        self.scopes.pop()
+    def transform_exit(self, t, node):
+        node = super().transform_exit(t, node)
+        if t in self.scoped_types:
+            self.scopes.pop()
         return node
-
-    def enter_unit(self, node):
-        return self.enter__scope(node)
-
-    def exit_unit(self, node):
-        return self.exit__scope(node)
-
-    def enter_fun(self, node):
-        return self.enter__scope(node)
-
-    def exit_fun(self, node):
-        return self.exit__scope(node)
 
 
 @pattern.transform(pattern.Order.Descending)
