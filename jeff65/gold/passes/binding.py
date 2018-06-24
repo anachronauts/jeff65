@@ -57,13 +57,22 @@ class ScopedPass(ast.TranslationPass):
             # will be to the same object.
             node = node.clone()
             self.scopes.append(node)
+            node = self.enter__scope(node)
         return node
 
     def transform_exit(self, t, node):
-        node = super().transform_exit(t, node)
+        if t in self.scoped_types:
+            node = self.exit__scope(node)
+        nodes = super().transform_exit(t, node)
         if t in self.scoped_types:
             self.scopes.pop()
+        return nodes
+
+    def enter__scope(self, node):
         return node
+
+    def exit__scope(self, nodes):
+        return nodes
 
 
 @pattern.transform(pattern.Order.Descending)
