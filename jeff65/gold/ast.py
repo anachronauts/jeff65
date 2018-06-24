@@ -49,7 +49,7 @@ class AstNode:
             and self.children == other.children)
 
     def transform(self, transformer):
-        node = getattr(transformer, "enter_{}".format(self.t))(self)
+        node = transformer.transform_enter(self.t, self)
 
         if transformer.transform_attrs and type(node) is AstNode:
             attrs = {}
@@ -78,7 +78,7 @@ class AstNode:
                     node = node.clone()
                 node.children = children
 
-        nodes = getattr(transformer, "exit_{}".format(self.t))(node)
+        nodes = transformer.transform_exit(self.t, node)
 
         if type(nodes) is None:
             nodes = []
@@ -127,18 +127,17 @@ class TranslationPass:
 
     transform_attrs = False
 
+    def transform_enter(self, t, node):
+        return getattr(self, f'enter_{t}', self.__generic_enter)(node)
+
+    def transform_exit(self, t, node):
+        return getattr(self, f'exit_{t}', self.__generic_exit)(node)
+
     def __generic_enter(self, node):
         return node
 
     def __generic_exit(self, node):
         return [node]
-
-    def __getattr__(self, attr):
-        if attr.startswith("enter_"):
-            return self.__generic_enter
-        elif attr.startswith("exit_"):
-            return self.__generic_exit
-        return getattr(object, attr)
 
 
 class AstBuilder(ParseListener):

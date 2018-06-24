@@ -93,41 +93,25 @@ class PatternPass:
         self.order = order
         self.ptpairs = []
         self.captures = {}
-        if order == Order.Ascending:
-            self._transform_enter = self._dummy
-        elif order == Order.Descending:
-            self._transform_exit = self._dummy
-        else:
-            raise ValueError(f"Unknown order {order}")
-
-    def __getattr__(self, attr):
-        if attr.startswith('enter_'):
-            return self._transform_enter
-        elif attr.startswith('exit_'):
-            return self._transform_exit
-        raise AttributeError(f"object has no attribute '{attr}'")
 
     def __getitem__(self, key):
         return self.captures[key]
 
-    def _transform_enter(self, node):
-        assert self.order == Order.Descending
-        for predicate, template in self.ptpairs:
-            self.captures.clear()
-            if predicate._match(node):
-                return template(self)
+    def transform_enter(self, t, node):
+        if self.order == Order.Descending:
+            for predicate, template in self.ptpairs:
+                self.captures.clear()
+                if predicate._match(node):
+                    return template(self)
         return node
 
-    def _transform_exit(self, node):
-        assert self.order == Order.Ascending
-        for predicate, template in self.ptpairs:
-            self.captures.clear()
-            if predicate._match(node):
-                return template(self)
-        return node
-
-    def _dummy(self, node):
-        return node
+    def transform_exit(self, t, node):
+        if self.order == Order.Ascending:
+            for predicate, template in self.ptpairs:
+                self.captures.clear()
+                if predicate._match(node):
+                    return template(self)
+        return [node]
 
 
 class PatternAnalyser:
@@ -137,13 +121,6 @@ class PatternAnalyser:
 
     def __init__(self, pf):
         self.pf = pf
-
-    def __getattr__(self, attr):
-        if attr.startswith('enter_'):
-            return self._enter
-        elif attr.startswith('exit_'):
-            return self._exit
-        raise AttributeError(f"object has no attribute '{attr}'")
 
     def make_predicate(self, obj):
         if isinstance(obj, Predicate):
@@ -170,10 +147,10 @@ class PatternAnalyser:
             return True
         return self.pf.predicate(_attrs_predicate)
 
-    def _enter(self, node):
+    def transform_enter(self, t, node):
         return node
 
-    def _exit(self, node):
+    def transform_exit(self, t, node):
         return self.pf.node(
             self.make_predicate(node.t),
             self.make_predicate(node.position),

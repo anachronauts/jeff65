@@ -61,4 +61,4 @@ class PropagateTypes(binding.ScopedPass):
                 *node.attrs['args']),
         })
         del node.attrs['return']
-        return super().enter_fun(node)
+        return node
