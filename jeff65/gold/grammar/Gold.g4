@@ -28,8 +28,8 @@ tokens {
     OPERATOR_DEREF, OPERATOR_REF,
 
     // statement keywords
-    STMT_CONSTANT, STMT_FOR, STMT_FUN, STMT_IF, STMT_ISR, STMT_LET, STMT_RETURN,
-    STMT_USE, STMT_WHILE,
+    STMT_ASM, STMT_CONSTANT, STMT_FOR, STMT_FUN, STMT_IF, STMT_ISR, STMT_LET,
+    STMT_RETURN, STMT_USE, STMT_WHILE,
 
     // storage classes
     STORAGE_MUT, STORAGE_STASH,
@@ -62,7 +62,7 @@ expr : PAREN_OPEN expr PAREN_CLOSE  # ExprParen
      | expr op=( OPERATOR_PLUS | OPERATOR_MINUS ) expr  # ExprSum
      | expr op=( OPERATOR_EQ | OPERATOR_NE
                | OPERATOR_LE | OPERATOR_GE
-                | OPERATOR_LT | OPERATOR_GT) expr  # ExprCompare
+               | OPERATOR_LT | OPERATOR_GT) expr  # ExprCompare
      | value=NUMERIC  # ExprNumber
      | name=IDENTIFIER  # ExprId
      ;
@@ -102,6 +102,8 @@ stmtIf : STMT_IF expr PUNCT_THEN block
          ( PUNCT_ELSE block )?
          PUNCT_END ;
 
+stmtAsm : STMT_ASM string PUNCT_DO string PUNCT_END ;
+
 stmtIsr : STMT_ISR IDENTIFIER block PUNCT_ENDISR ;
 
 stmtFun : STMT_FUN name=IDENTIFIER
@@ -117,7 +119,8 @@ stmtAssign : expr OPERATOR_ASSIGN expr  # stmtAssignVal
            | expr OPERATOR_ASSIGN_DEC expr  # stmtAssignDec
            ;
 
-block : ( stmtConstant
+block : ( stmtAsm
+        | stmtConstant
         | stmtFor
         | stmtIf
         | stmtLet

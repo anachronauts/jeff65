@@ -287,6 +287,15 @@ class GoldListener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by Gold#stmtAsm.
+    def enterStmtAsm(self, ctx:Gold.StmtAsmContext):
+        pass
+
+    # Exit a parse tree produced by Gold#stmtAsm.
+    def exitStmtAsm(self, ctx:Gold.StmtAsmContext):
+        pass
+
+
     # Enter a parse tree produced by Gold#stmtIsr.
     def enterStmtIsr(self, ctx:Gold.StmtIsrContext):
         pass

@@ -61,6 +61,7 @@ known_words = {
     '&': Parser.OPERATOR_REF,
 
     # statement leaders
+    'asm': Parser.STMT_ASM,
     'constant': Parser.STMT_CONSTANT,
     'for': Parser.STMT_FOR,
     'fun': Parser.STMT_FUN,
