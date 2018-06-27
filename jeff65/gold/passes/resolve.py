@@ -16,27 +16,32 @@
 
 from . import binding
 from .. import ast, mem, pattern
-from ..storage import AbsoluteStorage, ImmediateStorage
 
 
 @pattern.transform(pattern.Order.Descending)
 def ResolveStorage(p):
     yield (
-        ast.AstNode('deref', p.any(), attrs={
+        ast.AstNode('deref', p.any('position'), attrs={
             'type': p.any('type'),
         }, children=[
             ast.AstNode(p.require('numeric'), p.any(), attrs={
                 'value': p.any('address'),
             })
         ]),
-        lambda m: AbsoluteStorage(m['address'], m['type'].width)
+        lambda m: ast.AstNode('absolute_storage', m['position'], attrs={
+            'address': m['address'],
+            'width': m['type'].width,
+        })
     )
 
     yield (
-        ast.AstNode('numeric', p.any(), attrs={
+        ast.AstNode('numeric', p.any('position'), attrs={
             'value': p.lt(256, 'value', require=True)
         }),
-        lambda m: ImmediateStorage(m['value'], 1)
+        lambda m: ast.AstNode('immediate_storage', m['position'], attrs={
+            'value': m['value'],
+            'width': 1,
+        })
     )
 
 

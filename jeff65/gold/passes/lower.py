@@ -22,8 +22,8 @@ class LowerAssignment(ast.TranslationPass):
     def exit_set(self, node):
         lhs = node.children[0]
         rhs = node.children[1]
-        assert node.attrs['type'].width == lhs.width
-        assert node.attrs['type'].width == rhs.width
+        assert node.attrs['type'].width == lhs.attrs['width']
+        assert node.attrs['type'].width == rhs.attrs['width']
 
         return [
             asm.lda(node.position, rhs),

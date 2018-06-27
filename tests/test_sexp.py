@@ -10,6 +10,15 @@ def test_parse_empty():
     assert_equal([], loads('()'))
 
 
+def test_parse_nil():
+    assert_equal(None, loads('nil'))
+
+
+def test_parse_bool():
+    assert_equal(True, loads('#t'))
+    assert_equal(False, loads('#f'))
+
+
 def test_parse_atom():
     assert_equal(Atom('spam'), loads('spam'))
 
@@ -37,7 +46,8 @@ def test_parse_nested():
 
 
 @given(d=st.recursive(
-    st.integers() | st.text() | st.builds(Atom, st.text(
+    st.none() | st.booleans() | st.integers() | st.text() |
+    st.builds(Atom, st.text(
         min_size=1, alphabet=string.ascii_letters)),
     lambda children: st.lists(children)))
 def test_roundtrip(d):

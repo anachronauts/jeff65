@@ -1,10 +1,9 @@
 import sys
 from nose.tools import (
     assert_equal,
-    assert_false,
     assert_raises)
 from jeff65.blum import types
-from jeff65.gold import ast, storage
+from jeff65.gold import ast
 from jeff65.gold.passes import asm
 
 sys.stderr = sys.stdout
@@ -15,7 +14,7 @@ def assemble(node):
     result = node.transform(asm.AssembleWithRelocations())
     assert_equal(1, len(result))
     assert_equal(backup, node)  # check that the previous AST wasn't mutated
-    return result[0]
+    return result[0].attrs['bin']
 
 
 def flatten(unit):
@@ -26,87 +25,65 @@ def flatten(unit):
 
 
 def test_assemble_rts():
-    a = asm.rts(None)
-    assert_equal('rts', a.t)
-    assert_equal(1, a.attrs['size'])
-    b = assemble(a)
-    assert_equal(bytes([0x60]), b.data)
+    assert_equal(b'\x60', assemble(asm.rts(None)))
 
 
 def test_assemble_jmp_abs():
-    a = asm.jmp(None, storage.AbsoluteStorage(0xbeef, 0))
-    assert_equal('jmp', a.t)
-    assert_equal(3, a.attrs['size'])
-    b = assemble(a)
-    assert_equal(bytes([0x4c, 0xef, 0xbe]), b.data)
+    assert_equal(b'\x4c\xef\xbe', assemble(
+        asm.jmp(None, ast.AstNode('absolute_storage', None, attrs={
+            'address': 0xbeef,
+            'width': 0,
+        }))))
 
 
 def test_assemble_lda_imm():
-    a = asm.lda(None, storage.ImmediateStorage(0x42, 1))
-    assert_equal('lda', a.t)
-    assert_equal(2, a.attrs['size'])
-    b = assemble(a)
-    assert_equal(bytes([0xa9, 0x42]), b.data)
+    assert_equal(b'\xa9\x42', assemble(
+        asm.lda(None, ast.AstNode('immediate_storage', None, attrs={
+            'value': 0x42,
+            'width': 1,
+        }))
+    ))
 
 
 def test_assemble_lda_imm_too_wide():
-    a = asm.lda(None, storage.ImmediateStorage(0xcafe, 2))
-    assert_raises(asm.AssemblyError, assemble, a)
+    assert_raises(
+        asm.AssemblyError, assemble,
+        asm.lda(None, ast.AstNode('immediate_storage', None, attrs={
+            'value': 0xcafe,
+            'width': 2,
+        })))
 
 
 def test_assemble_sta_abs():
-    a = asm.sta(None, storage.AbsoluteStorage(0xbeef, 1))
-    assert_equal('sta', a.t)
-    assert_equal(3, a.attrs['size'])
-    b = assemble(a)
-    assert_equal(bytes([0x8d, 0xef, 0xbe]), b.data)
+    assert_equal(b'\x8d\xef\xbe', assemble(
+        asm.sta(None, ast.AstNode('absolute_storage', None, attrs={
+            'address': 0xbeef,
+            'width': 1,
+        }))))
 
 
 def test_assemble_sta_abs_too_wide():
-    a = asm.sta(None, storage.AbsoluteStorage(0xbeef, 2))
-    assert_raises(asm.AssemblyError, assemble, a)
+    assert_raises(
+        asm.AssemblyError, assemble,
+        asm.sta(None, ast.AstNode('absolute_storage', None, attrs={
+            'address': 0xbeef,
+            'width': 2,
+        })))
 
 
 def test_flatten_symbol():
-    a = ast.AstNode('unit', None, attrs={
-        'known_names': {},
-    }, children=[
+    assert_equal(ast.AstNode('unit', None, children=[
+        ast.AstNode('fun_symbol', None, attrs={
+            'name': 'meaning-of-life',
+            'type': types.FunctionType(types.u8),
+            'text': b'\xa9\x42\x60',
+        })
+    ]), flatten(ast.AstNode('unit', None, children=[
         ast.AstNode('fun', None, attrs={
             'name': 'meaning-of-life',
             'type': types.FunctionType(types.u8),
         }, children=[
-            asm.AsmRun(bytes([0xa9, 0x42])),
-            asm.AsmRun(bytes([0x60])),
+            ast.AstNode('asmrun', None, attrs={'bin': b'\xa9\x42'}),
+            ast.AstNode('asmrun', None, attrs={'bin': b'\x60'}),
         ])
-    ])
-    b = flatten(a)
-    assert_equal(1, len(b.children))
-    sym = b.children[0]
-    assert_equal(0, len(sym.children))
-    assert_equal('meaning-of-life', sym.attrs['name'])
-    assert_equal(types.FunctionType(types.u8), sym.attrs['type'])
-    assert_equal(bytes([0xa9, 0x42, 0x60]), sym.attrs['text'])
-    assert_false('return_addr' in sym.attrs)
-
-
-def test_flatten_symbol_with_return_addr():
-    a = ast.AstNode('unit', None, attrs={
-        'known_names': {},
-    }, children=[
-        ast.AstNode('fun', None, attrs={
-            'name': 'meaning-of-life',
-            'type': types.FunctionType(types.u8),
-            'return_addr': '.+3',
-        }, children=[
-            asm.AsmRun(bytes([0xa9, 0x42])),
-            asm.AsmRun(bytes([0x4c, 0xff, 0xff])),
-        ])
-    ])
-    b = flatten(a)
-    assert_equal(1, len(b.children))
-    sym = b.children[0]
-    assert_equal(0, len(sym.children))
-    assert_equal('meaning-of-life', sym.attrs['name'])
-    assert_equal(types.FunctionType(types.u8), sym.attrs['type'])
-    assert_equal(bytes([0xa9, 0x42, 0x4c, 0xff, 0xff]), sym.attrs['text'])
-    assert_equal('.+3', sym.attrs['return_addr'])
+    ])))

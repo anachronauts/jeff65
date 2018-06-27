@@ -37,7 +37,7 @@ class AstNode:
             self.attrs[attr] = default_value
         return self.attrs[attr]
 
-    def transform(self, transformer):
+    def transform(self, transformer, always_list=False):
         node = transformer.transform_enter(self.t, self)
 
         if transformer.transform_attrs and type(node) is AstNode:
@@ -74,7 +74,7 @@ class AstNode:
         elif type(nodes) is not list:
             nodes = [nodes]
 
-        if self.t == 'unit':
+        if not always_list and self.t == 'unit':
             assert len(nodes) == 1
             return nodes[0]
         return nodes
@@ -111,12 +111,13 @@ class AstNode:
         return "".join(pp)
 
     def dump(self, f):
-        data = self.transform(AstSerializer())
-        sexp.dump(f, data)
+        sexp.dump(f, self._ast_serialize())
 
     def dumps(self):
-        data = self.transform(AstSerializer())
-        return sexp.dumps(data)
+        return sexp.dumps(self._ast_serialize())
+
+    def _ast_serialize(self):
+        return self.transform(AstSerializer())
 
 
 class AstSerializer:
@@ -129,6 +130,20 @@ class AstSerializer:
         at = sexp.Atom(t)
         attrs = []
         for k, v in node.attrs.items():
-            attrs.append([sexp.Atom(':' + k), v])
+            attrs.append([sexp.Atom(k), self._convert(v)])
         # this has to be a double-list to avoid it being exploded
         return [[at, attrs, *node.children]]
+
+    def _convert(self, value):
+        try:
+            return value._ast_serialize()
+        except AttributeError:
+            pass
+
+        if isinstance(value, dict):
+            return [sexp.Atom('dict*'),
+                    *([sexp.Atom('list*'), k, self._convert(v)]
+                      for k, v in value.items())]
+        elif isinstance(value, bytes):
+            return [sexp.Atom('bytes*'), *value]
+        return value

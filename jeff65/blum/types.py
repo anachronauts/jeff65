@@ -16,6 +16,7 @@
 
 import struct
 from .fmt import Fmt
+from ..brundle.sexp import Atom
 
 
 # We'll make this empty for now, and use it in class definitions, then mutate
@@ -44,6 +45,9 @@ class PhantomType:
     def _empty(cls):
         return cls()
 
+    def _ast_serialize(self):
+        return [Atom('phantom-type*')]
+
 
 class VoidType:
     """A type with no values."""
@@ -63,6 +67,9 @@ class VoidType:
     @classmethod
     def _empty(cls):
         return cls()
+
+    def _ast_serialize(self):
+        return [Atom('void-type*')]
 
 
 class IntType:
@@ -128,6 +135,9 @@ class IntType:
     def _empty(cls):
         return cls(None, None)
 
+    def _ast_serialize(self):
+        return [Atom('int-type*'), self.width, self.signed]
+
 
 class RefType:
     """A reference type."""
@@ -170,6 +180,9 @@ class RefType:
     def _empty(cls):
         return cls(None)
 
+    def _ast_serialize(self):
+        return [Atom('ref-type*'), self.target._ast_serialize()]
+
 
 class FunctionType:
     """A function type."""
@@ -211,6 +224,11 @@ class FunctionType:
         obj = cls(None)
         obj.args = None
         return obj
+
+    def _ast_serialize(self):
+        return [Atom('fun-type*'),
+                self.ret._ast_serialize(),
+                [Atom('list*'), *(a._ast_serialize() for a in self.args)]]
 
 
 u8 = IntType(1, signed=False)

@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from ..brundle.sexp import Atom
 from ..blum import types
 from . import units
 
@@ -52,3 +53,6 @@ class MemUnit(units.ExternalUnit):
 
     def __repr__(self):
         return "MemUnit()"
+
+    def _ast_serialize(self):
+        return [Atom('unit*'), 'mem']

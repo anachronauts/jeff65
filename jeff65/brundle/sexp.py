@@ -28,6 +28,7 @@ class T(Enum):
     ATOM = auto()
     STRING = auto()
     NUMERIC = auto()
+    BOOLEAN = auto()
 
 
 @attr.s(frozen=True, slots=True)
@@ -50,6 +51,7 @@ m_str_control = re.compile(fr'{m_str_escape.pattern}|{m_str_delim.pattern}')
 m_whitespace = re.compile(r'\s+', re.M)
 m_numeric = re.compile(fr'[+-]?\d[^\s{terminators}]*')
 m_atom = re.compile(fr'[\w:][^\s{terminators}]*')
+m_bool = re.compile(r'#[tf]')
 singles = {
     '(': T.PAREN_OPEN,
     ')': T.PAREN_CLOSE,
@@ -113,6 +115,11 @@ def lexer(stream, line=0, column=0):
         if m:
             column = m.end()
             continue
+        m = m_bool.match(current, column)
+        if m:
+            yield make_token(T.BOOLEAN, m.group())
+            column = m.end()
+            continue
         # This has to be run before the word match, since the word regex
         # matches numbers as well.
         m = m_numeric.match(current, column)
@@ -151,6 +158,8 @@ def parse(tokens):
             data[-1].append(int(tok.text))
         elif tok.t == T.STRING:
             data[-1].append(tok.text)
+        elif tok.t == T.BOOLEAN:
+            data[-1].append(tok.text == '#t')
         elif tok.t == T.ATOM:
             if tok.text == 'nil':
                 data[-1].append(None)
@@ -176,6 +185,8 @@ def dump(f, data, indent=0):
     it = ' '*indent
     if data is None:
         f.write('nil')
+    elif isinstance(data, bool):
+        f.write('#t' if data else '#f')
     elif isinstance(data, int):
         f.write('{}'.format(repr(data)))
     elif isinstance(data, str):
@@ -189,7 +200,7 @@ def dump(f, data, indent=0):
             f.write('(')
             dump(f, data[0], indent+1)
             f.write(')')
-        elif not any(isinstance(e, list) for e in data):
+        elif not any(isinstance(e, list) and len(e) > 0 for e in data):
             f.write('('.format(it))
             for e in data[:-1]:
                 dump(f, e, indent)

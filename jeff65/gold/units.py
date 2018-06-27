@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from ..brundle.sexp import Atom
+
 
 class ExternalUnit:
     """Represents an external unit."""
@@ -41,6 +43,9 @@ class UnitSymbol:
     def __repr__(self):
         return "<{} {}.{}: {}>".format(
             type(self).__name__, self.unit, self.name, self.type)
+
+    def _ast_serialize(self):
+        return [Atom('get-member*'), self.unit._ast_serialize()]
 
 
 class IntrinsicSymbol(UnitSymbol):
