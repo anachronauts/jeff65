@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from ..brundle.sexp import Atom
+from ..brundle import sexp
 
 
 class ExternalUnit:
@@ -44,8 +44,11 @@ class UnitSymbol:
         return "<{} {}.{}: {}>".format(
             type(self).__name__, self.unit, self.name, self.type)
 
-    def _ast_serialize(self):
-        return [Atom('get-member*'), self.unit._ast_serialize()]
+    def _il_serialize(self):
+        return sexp.slist(children=[
+            sexp.satom('get-member'),
+            self.unit._il_serialize(),
+            sexp.sstring(self.name)])
 
 
 class IntrinsicSymbol(UnitSymbol):

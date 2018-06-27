@@ -66,6 +66,8 @@ def translate(unit, verbose=False):
             obj = obj.transform(p())
             if (verbose):
                 print(p.__name__)
+                # print(obj.pretty())
+                # print(obj._il_serialize().pretty(no_position=True))
                 print(obj.dumps())
 
     archive = blum.Archive()

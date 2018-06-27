@@ -15,13 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import attr
-from . import sexp
 
 
 @attr.s(slots=True, repr=False)
 class AstNode:
     t = attr.ib()
-    position = attr.ib(cmp=False, hash=False)
+    position = attr.ib(default=None, cmp=False, hash=False)
     attrs = attr.ib(factory=dict)
     children = attr.ib(factory=list)
 
@@ -80,6 +79,8 @@ class AstNode:
         return nodes
 
     def __repr__(self):
+        if self.position is None:
+            return "<ast {}>".format(self.t)
         return "<ast {} at {}:{}>".format(self.t, *self.position)
 
     def pretty(self, indent=0, no_position=False):
@@ -111,39 +112,77 @@ class AstNode:
         return "".join(pp)
 
     def dump(self, f):
-        sexp.dump(f, self._ast_serialize())
+        from . import sexp
+        sexp.dump(f, self._il_serialize())
 
     def dumps(self):
-        return sexp.dumps(self._ast_serialize())
+        from . import sexp
+        return sexp.dumps(self._il_serialize())
 
-    def _ast_serialize(self):
-        return self.transform(AstSerializer())
+    def _il_serialize(self):
+        nodes = self.transform(IlSerializer(), always_list=True)
+        assert len(nodes) == 1
+        return nodes[0]
 
 
-class AstSerializer:
+class IlSerializer:
     transform_attrs = True
 
     def transform_enter(self, t, node):
         return node
 
     def transform_exit(self, t, node):
-        at = sexp.Atom(t)
+        from . import sexp
+        at = sexp.satom('@' + t)
+        if node.position is None:
+            pos = sexp.snil()
+        else:
+            pos = sexp.slist(
+                children=[sexp.snumeric(v) for v in node.position])
+
         attrs = []
         for k, v in node.attrs.items():
-            attrs.append([sexp.Atom(k), self._convert(v)])
-        # this has to be a double-list to avoid it being exploded
-        return [[at, attrs, *node.children]]
+            attrs.append(sexp.slist(children=[
+                sexp.satom(k),
+                self._convert(v)]))
+        return sexp.slist(children=[
+            at,
+            pos,
+            sexp.slist(children=attrs),
+            *node.children,
+        ])
 
-    def _convert(self, value):
+    @classmethod
+    def _convert(cls, value):
+        from . import sexp
         try:
-            return value._ast_serialize()
+            return value._il_serialize()
         except AttributeError:
             pass
 
         if isinstance(value, dict):
-            return [sexp.Atom('dict*'),
-                    *([sexp.Atom('list*'), k, self._convert(v)]
-                      for k, v in value.items())]
+            return sexp.slist(children=[
+                sexp.satom('dict'),
+                *(sexp.slist(children=[
+                    sexp.satom('list'),
+                    sexp.sstring(k),
+                    cls._convert(v),
+                ]) for k, v in value.items())
+            ])
         elif isinstance(value, bytes):
-            return [sexp.Atom('bytes*'), *value]
-        return value
+            return sexp.slist(children=[
+                sexp.satom('bytes'),
+                *(sexp.snumeric(v) for v in value)
+            ])
+        elif value is None:
+            return sexp.snil()
+        elif isinstance(value, int):
+            return sexp.snumeric(value)
+        elif isinstance(value, bool):
+            return sexp.sboolean(value)
+        elif isinstance(value, str):
+            return sexp.sstring(value)
+        elif isinstance(value, list):
+            return sexp.slist(children=value)
+        else:
+            raise Exception(f"Don't know how to cope with {value}")

@@ -16,7 +16,7 @@
 
 import struct
 from .fmt import Fmt
-from ..brundle.sexp import Atom
+from ..brundle import sexp
 
 
 # We'll make this empty for now, and use it in class definitions, then mutate
@@ -45,8 +45,8 @@ class PhantomType:
     def _empty(cls):
         return cls()
 
-    def _ast_serialize(self):
-        return [Atom('phantom-type*')]
+    def _il_serialize(self):
+        return sexp.slist(children=[sexp.satom('phantom-type')])
 
 
 class VoidType:
@@ -68,8 +68,8 @@ class VoidType:
     def _empty(cls):
         return cls()
 
-    def _ast_serialize(self):
-        return [Atom('void-type*')]
+    def _il_serialize(self):
+        return sexp.slist(children=[sexp.satom('void-type')])
 
 
 class IntType:
@@ -135,8 +135,11 @@ class IntType:
     def _empty(cls):
         return cls(None, None)
 
-    def _ast_serialize(self):
-        return [Atom('int-type*'), self.width, self.signed]
+    def _il_serialize(self):
+        return sexp.slist(children=[
+            sexp.satom('int-type'),
+            sexp.snumeric(self.width),
+            sexp.sboolean(self.signed)])
 
 
 class RefType:
@@ -180,8 +183,10 @@ class RefType:
     def _empty(cls):
         return cls(None)
 
-    def _ast_serialize(self):
-        return [Atom('ref-type*'), self.target._ast_serialize()]
+    def _il_serialize(self):
+        return sexp.slist(children=[
+            sexp.satom('ref-type'),
+            self.target._il_serialize()])
 
 
 class FunctionType:
@@ -225,10 +230,13 @@ class FunctionType:
         obj.args = None
         return obj
 
-    def _ast_serialize(self):
-        return [Atom('fun-type*'),
-                self.ret._ast_serialize(),
-                [Atom('list*'), *(a._ast_serialize() for a in self.args)]]
+    def _il_serialize(self):
+        return sexp.slist(children=[
+            sexp.satom('fun-type'),
+            self.ret._il_serialize(),
+            sexp.slist(children=[
+                sexp.satom('list'),
+                *(a._il_serialize() for a in self.args)])])
 
 
 u8 = IntType(1, signed=False)

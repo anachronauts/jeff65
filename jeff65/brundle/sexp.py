@@ -18,10 +18,12 @@ import io
 import re
 from enum import Enum, auto
 import attr
+from . import ast
 
 
 class T(Enum):
     EOF = auto()
+    SOF = auto()
     MYSTERY = auto()
     PAREN_OPEN = auto()
     PAREN_CLOSE = auto()
@@ -34,27 +36,28 @@ class T(Enum):
 @attr.s(frozen=True, slots=True)
 class Token:
     t = attr.ib()
-    position = attr.ib()
+    position = attr.ib(cmp=False)
     text = attr.ib()
 
+    @classmethod
+    def is_t(cls, v, *ts):
+        return isinstance(v, cls) and v.t in ts
 
-@attr.s(frozen=True, slots=True)
-class Atom:
-    text = attr.ib()
 
-
-terminators = re.escape('()"')
+terminators = re.escape('()[]"')
 str_delim = '"'
 m_str_escape = re.compile(r'\\.', re.M)
 m_str_delim = re.compile(re.escape(str_delim))
 m_str_control = re.compile(fr'{m_str_escape.pattern}|{m_str_delim.pattern}')
 m_whitespace = re.compile(r'\s+', re.M)
 m_numeric = re.compile(fr'[+-]?\d[^\s{terminators}]*')
-m_atom = re.compile(fr'[\w:][^\s{terminators}]*')
+m_atom = re.compile(fr'[^\s{terminators}]+')
 m_bool = re.compile(r'#[tf]')
 singles = {
     '(': T.PAREN_OPEN,
     ')': T.PAREN_CLOSE,
+    '[': T.PAREN_OPEN,
+    ']': T.PAREN_CLOSE,
 }
 
 
@@ -67,6 +70,8 @@ def lexer(stream, line=0, column=0):
     def make_token(t, text):
         return Token(t, (line, column), text)
 
+    # our parser needs a start-of-file token for anchoring.
+    yield make_token(T.SOF, '<sof>')
     while True:
         if current is None or column >= len(current):
             try:
@@ -77,6 +82,7 @@ def lexer(stream, line=0, column=0):
                 # If we're in string mode, we are NOT expecting this kind of
                 # behavior and will kick up a fuss.
                 # TODO: check this
+                yield make_token(T.EOF, '<eof>')
                 break
 
         # String collects a string until it's done, then emits a single STRING
@@ -146,30 +152,103 @@ def lexer(stream, line=0, column=0):
     # end while, in case you forgot
 
 
+# character-to-predicate mappings to support matches local function of the
+# parse function
+_parser_predicates = {
+    '(': lambda v: v == Token(T.PAREN_OPEN, None, '('),
+    ')': lambda v: v == Token(T.PAREN_CLOSE, None, ')'),
+    '[': lambda v: v == Token(T.PAREN_OPEN, None, '['),
+    ']': lambda v: v == Token(T.PAREN_CLOSE, None, ']'),
+    'a': lambda v: Token.is_t(v, T.ATOM),
+    'n': lambda v: Token.is_t(v, T.NUMERIC),
+    '?': lambda v: Token.is_t(v, T.BOOLEAN),
+    's': lambda v: Token.is_t(v, T.STRING),
+    'u': lambda v: isinstance(v, ast.AstNode) and v.t == 'unit',
+    'e': lambda v: isinstance(v, ast.AstNode) and v.t == 'list',
+    '$': lambda v: Token.is_t(v, T.EOF),
+    '^': lambda v: Token.is_t(v, T.SOF),
+    '<': lambda v: Token.is_t(v, T.PAREN_OPEN),
+}
+
+
+def sunit(position=None, children=None):
+    return ast.AstNode('unit', position, children=children or [])
+
+
+def slist(position=None, children=None):
+    return ast.AstNode('list', position, children=children or [])
+
+
+def snil(position=None):
+    return ast.AstNode('nil', position)
+
+
+def satom(name, position=None):
+    return ast.AstNode('atom', position, attrs={'name': name})
+
+
+def snumeric(value, position=None):
+    return ast.AstNode('numeric', position, attrs={'value': value})
+
+
+def sboolean(value, position=None):
+    return ast.AstNode('boolean', position, attrs={'value': value})
+
+
+def sstring(value, position=None):
+    return ast.AstNode('string', position, attrs={'value': value})
+
+
 def parse(tokens):
-    data = [[]]
-    for tok in tokens:
-        if tok.t == T.PAREN_OPEN:
-            data.append([])
-        elif tok.t == T.PAREN_CLOSE:
-            lst = data.pop()
-            data[-1].append(lst)
-        elif tok.t == T.NUMERIC:
-            data[-1].append(int(tok.text))
-        elif tok.t == T.STRING:
-            data[-1].append(tok.text)
-        elif tok.t == T.BOOLEAN:
-            data[-1].append(tok.text == '#t')
-        elif tok.t == T.ATOM:
-            if tok.text == 'nil':
-                data[-1].append(None)
+    """Parses a stream of tokens """
+    stack = []
+
+    def matches(pattern):
+        if len(stack) < len(pattern):
+            return False
+        ps = (_parser_predicates[c] for c in reversed(pattern))
+        return all(p(v) for p, v in zip(ps, reversed(stack)))
+
+    def unshift(count):
+        vals = stack[-count:]
+        del stack[-count:]
+        return vals
+
+    def lift(v):
+        stack[-1].children.append(v)
+
+    while True:
+        stack.append(next(tokens))
+        if matches('^'):
+            stack.append(sunit(stack[-1].position))
+        elif matches('<'):
+            stack.append(slist(stack[-1].position))
+        elif matches('a'):
+            a, = unshift(1)
+            if a.text == 'nil':
+                lift(snil(a.position))
             else:
-                data[-1].append(Atom(tok.text))
+                lift(satom(a.text, a.position))
+        elif matches('n'):
+            n, = unshift(1)
+            lift(snumeric(int(n.text), n.position))
+        elif matches('?'):
+            b, = unshift(1)
+            lift(sboolean(b.text == '#t', b.position))
+        elif matches('s'):
+            s, = unshift(1)
+            lift(sstring(s.text, s.position))
+        elif matches('(e)') or matches('[e]'):
+            _, e, _ = unshift(3)
+            lift(e)
+        elif matches('^u$'):
+            break
         else:
+            tok = stack[-1]
             raise Exception(f"Unexpected '{tok.text}' at {tok.position}")
-    assert len(data) == 1
-    assert len(data[0]) == 1
-    return data[0][0]
+
+    assert len(stack) == 3
+    return stack[1]
 
 
 def load(stream):
@@ -181,43 +260,48 @@ def loads(s):
         return load(f)
 
 
-def dump(f, data, indent=0):
+def dump(f, node, indent=0):
     it = ' '*indent
-    if data is None:
+    if node.t == 'nil':
         f.write('nil')
-    elif isinstance(data, bool):
-        f.write('#t' if data else '#f')
-    elif isinstance(data, int):
-        f.write('{}'.format(repr(data)))
-    elif isinstance(data, str):
-        f.write('"{}"'.format(data.replace('"', r'\"')))
-    elif isinstance(data, Atom):
-        f.write('{}'.format(data.text))
-    elif isinstance(data, list):
-        if len(data) == 0:
+    elif node.t == 'boolean':
+        f.write('#t' if node.attrs['value'] else '#f')
+    elif node.t == 'numeric':
+        f.write(repr(node.attrs['value']))
+    elif node.t == 'string':
+        f.write('"{}"'.format(node.attrs['value'].replace('"', r'\"')))
+    elif node.t == 'atom':
+        f.write(node.attrs['name'])
+    elif node.t == 'list':
+        if len(node.children) == 0:
             f.write('()')
-        elif len(data) == 1:
+        elif len(node.children) == 1:
             f.write('(')
-            dump(f, data[0], indent+1)
+            dump(f, node.children[0], indent+1)
             f.write(')')
-        elif not any(isinstance(e, list) and len(e) > 0 for e in data):
+        elif not any(n.t == 'list' and len(n.children) > 0
+                     for n in node.children):
             f.write('('.format(it))
-            for e in data[:-1]:
-                dump(f, e, indent)
+            for n in node.children[:-1]:
+                dump(f, n, indent)
                 f.write(' ')
-            dump(f, data[-1], indent)
+            dump(f, node.children[-1], indent)
             f.write(')')
         else:
             f.write('('.format(it))
-            dump(f, data[0], 0)
+            dump(f, node.children[0], 0)
             f.write('\n{} '.format(it))
-            for e in data[1:-1]:
-                dump(f, e, indent+1)
+            for n in node.children[1:-1]:
+                dump(f, n, indent+1)
                 f.write('\n{} '.format(it))
-            dump(f, data[-1], indent+1)
+            dump(f, node.children[-1], indent+1)
             f.write(')'.format(it))
+    elif node.t == 'unit':
+        for n in node.children:
+            dump(f, n, indent)
+            f.write('\n{}'.format(it))
     else:
-        raise Exception(f"don't know what to do with '{data}'")
+        raise Exception(f"don't know what to do with '{node}'")
 
 
 def dumps(data):
