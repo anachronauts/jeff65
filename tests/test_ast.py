@@ -6,6 +6,7 @@ from nose.tools import (
     assert_raises,
     nottest)
 from jeff65 import gold
+from jeff65 import parsing
 
 sys.stderr = sys.stdout
 
@@ -51,11 +52,11 @@ def test_comments_multiline():
 
 
 def test_comments_unclosed():
-    assert_raises(gold.ParseError, parse, "/* oh no")
+    assert_raises(parsing.ParseError, parse, "/* oh no")
 
 
 def test_comments_unopened():
-    assert_raises(gold.ParseError, parse, "oh no */")
+    assert_raises(parsing.ParseError, parse, "oh no */")
 
 
 def test_nested_comment():
@@ -65,7 +66,7 @@ def test_nested_comment():
 
 
 def test_nested_comments_unclosed():
-    assert_raises(gold.ParseError, parse, "/* /* oh no")
+    assert_raises(parsing.ParseError, parse, "/* /* oh no")
 
 
 def test_comment_before_statement():
@@ -123,11 +124,11 @@ def test_parentheses_with_sign():
 
 
 def test_unmatched_open_parentheses():
-    assert_raises(gold.ParseError, parse, "constant x: u8 = (1 + 2")
+    assert_raises(parsing.ParseError, parse, "constant x: u8 = (1 + 2")
 
 
 def test_unmatched_close_parentheses():
-    assert_raises(gold.ParseError, parse, "constant x: u8 = 1 + 2)")
+    assert_raises(parsing.ParseError, parse, "constant x: u8 = 1 + 2)")
 
 
 def test_let_with_mut_storage_class():
@@ -175,7 +176,7 @@ def test_let_without_storage_class():
 
 
 def test_let_with_invalid_storage_class():
-    assert_raises(gold.ParseError, parse, "let bogus a: u8 = 7")
+    assert_raises(parsing.ParseError, parse, "let bogus a: u8 = 7")
 
 
 def test_let_multistatement():
@@ -276,11 +277,11 @@ def test_array_multidimensional():
 
 
 def test_array_unmatched_open_bracket():
-    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
+    assert_raises(parsing.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
 
 
 def test_array_unmatched_close_bracket():
-    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
+    assert_raises(parsing.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
 
 
 def test_string_literal():
@@ -472,6 +473,7 @@ def test_isr_def():
 
 def test_use():
     a = parse("use mem")
+    print(a.pretty())
     assert_equal(1, len(a.children))
     u = a.children[0]
     assert_equal('use', u.t)

@@ -15,12 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
-import antlr4
-from . import ast
-from .. import blum
-from .grammar import Parser
-from .lexer import Lexer
-from .passes import asm, binding, lower, resolve, typepasses
+from . import ast, grammar
+from .. import blum, parsing
+from .passes import asm, binding, lower, resolve, simplify, typepasses
 
 
 passes = [
@@ -48,15 +45,15 @@ def open_unit(unit):
 
 
 def parse(fileobj, name):
-    lexer = Lexer(fileobj, name=name)
-    tokens = antlr4.CommonTokenStream(lexer)
-    parser = Parser(tokens)
-    tree = parser.unit()
-    if parser._syntaxErrors > 0:
-        raise ast.ParseError("Unit {} had errors; terminating".format(name))
-    builder = ast.AstBuilder()
-    antlr4.ParseTreeWalker.DEFAULT.walk(builder, tree)
-    return builder.ast
+    stream = parsing.ReStream(fileobj)
+    tree = grammar.parse(
+        stream, grammar.lex,
+        lambda t, s, c, m: ast.AstNode(t, s.start, children=c))
+    # if parser._syntaxErrors > 0:
+    #     raise ast.ParseError("Unit {} had errors; terminating".format(name))
+    unit = tree.transform(simplify.Simplify(), always_list=True)
+    assert len(unit) == 1
+    return unit[0]
 
 
 def translate(unit, verbose=False):

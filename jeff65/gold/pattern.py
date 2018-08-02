@@ -60,7 +60,7 @@ def transform(order):
             for pattern, template in f(pf):
                 # Convert the pattern into a predicate
                 if isinstance(pattern, ast.AstNode):
-                    predicates = pattern.transform(analyser)
+                    predicates = pattern.transform(analyser, always_list=True)
                 else:
                     # do the non-recursive transform
                     predicates = [analyser.make_predicate(pattern)]
