@@ -69,6 +69,15 @@ def collapse_left_recursion(p, sym):
     )
 
 
+def token(p, t, key=None):
+    return p.predicate(lambda n: n.t == t, key=key)
+
+
+def append_ret(lst, elem):
+    lst.append(elem)
+    return lst
+
+
 @pattern.transform(pattern.Order.Ascending)
 def Simplify(p):
     # remove dummy node unit_stmt
@@ -264,38 +273,34 @@ def Simplify(p):
         }, children=m['args'])
     )
 
-    # Collapse left-recursion on strings. TODO less string concatenation
+    # Collapse left-recursion on strings. Note that the list we use to build
+    # the string is wrapped in another list to protect it from being spliced
+    # directly into the node children.
     yield (
         ast.AstNode('string_inner', p.any(), children=[]),
-        lambda m: ""
+        lambda m: [[]]
     )
     yield (
         ast.AstNode('string_inner', p.any(), children=[
             p.any('string0'),
-            p.predicate(lambda t: t.t == T.STRING, key='string1'),
+            token(p, T.STRING, 'string1'),
         ]),
-        lambda m: m['string0'] + m['string1'].text
+        lambda m: [append_ret(m['string0'], m['string1'].text)]
     )
     yield (
         ast.AstNode('string_inner', p.any(), children=[
             p.any('string0'),
-            p.predicate(lambda t: t.t == T.STRING_ESCAPE, key='string1'),
+            token(p, T.STRING_ESCAPE, 'string1'),
         ]),
-        lambda m: m['string0'] + m['string1'].text[1]
-    )
-    yield (
-        ast.AstNode('string_start', p.any(), children=[
-            p.any(),
-            p.any('value'),
-        ]),
-        lambda m: m['value']
+        lambda m: [append_ret(m['string0'], m['string1'].text[1])]
     )
     yield (
         ast.AstNode('string', p.any('position'), children=[
+            token(p, T.STRING_DELIM),
             p.any('value'),
-            p.any(),
+            token(p, T.STRING_DELIM),
         ]),
         lambda m: ast.AstNode('string', m['position'], attrs={
-            'value': m['value'],
+            'value': "".join(m['value']),
         })
     )

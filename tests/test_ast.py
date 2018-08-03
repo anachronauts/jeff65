@@ -293,6 +293,15 @@ def test_string_literal():
     assert_equal("this is a string", s.attrs['value'])
 
 
+def test_string_literal_with_space_after():
+    a = parse('let a: [u8; 5] = "this is a string" ')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal("this is a string", s.attrs['value'])
+
+
 def test_string_multiline():
     a = parse('''
     let a: [u8; 5] = "this is a

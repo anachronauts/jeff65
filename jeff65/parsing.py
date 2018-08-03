@@ -271,6 +271,75 @@ class ItemSet:
         return frozenset(
             item.advanced for item in self.items if item.next_symbol == symbol)
 
+    @property
+    def mode(self):
+        """Gets the lexer mode for this itemset."""
+
+        # A simple example of rules using lexer modes:
+        #
+        #     R -> n S z  (mode U)
+        #     S -> x y    (mode V)
+        #
+        # where n is a mode-0 token and x, y, z are mode U tokens. In this
+        # case, we want to accept n, shift to mode V, accept tokens x, y, z,
+        # then shift back to mode U. The itemsets for the above rules are:
+        #
+        #  0. R -> . n S z
+        #
+        #  1. R -> n . S z
+        #   + S -> . x y
+        #
+        #  2. S -> x . y
+        #
+        #  3. S -> x y .
+        #
+        #  4. R -> n S . z
+        #
+        #  5. R -> n S z .
+        #
+        # Clearly, in set 0 we want mode U so we can get n, shifting us to set
+        # 1. The set stack is now [0, 1], and we want to be in mode V so we can
+        # get x for our lookahead.
+        #
+        # Now we shift set 2, making our set stack [0, 1, 2]. We still want
+        # mode V to get y. This lets us shift set 3, set stack [0, 1, 2, 3]. We
+        # still want mode V, so we can get z.
+        #
+        # At this point, we reduce by S, which makes our set stack [0, 1, 4].
+        # We don't get a new lookahead after a reduce, so we don't care about
+        # the mode.
+        #
+        # Then we shift by 5, set stack [0, 1, 4, 5]. At this point, we need to
+        # be back in mode U for whatever comes after R.
+        #
+        # From the above we can derive the following set-mode associations.
+        # Pairs marked (I) indicates that the mode has the same mode as the
+        # previous one on the stack (ignoring set 4, which doesn't really have
+        # a mode):  0=U, 1=V, 2=V (I), 3=V (I), 5=U
+        #
+        # In sets 0 and 1, we're at position 0 in a rule with the appropriate
+        # mode, so we assign the mode based on that. Set 2 can inherit. In set
+        # 5, we're at the end of a rule with the appropriate mode. Assigning
+        # based on that also assigns mode V to set 3, which is not necessary,
+        # but harmless.
+        #
+        # Therefore, we only care about rules where the pointer is at the
+        # beginning or end.
+        modes = {r.mode for r in self.items
+                 if r.pointer == 0 or r.next_symbol is None}
+
+        # If there are no such rules, we can inherit. Note that we can't assign
+        # based on the rule that we're in the middle of, because then we'd be
+        # trying to assign mode U to set 1, which we're already assigning mode
+        # V to.
+        if len(modes) == 0:
+            return Parser.INHERIT_MODE
+
+        # If we end up with two rules giving us conflicting modes, we will
+        # consider that an error in the grammar.
+        assert len(modes) == 1, f"mode/mode conflict: {self.items}"
+        return modes.pop()
+
 
 class Grammar:
     EMPTY = object()
@@ -642,22 +711,13 @@ class TranslationTable:
         operate in different modes. Each itemset/state is associated with one
         mode, that of the rule(s) which are currently in-progress.
         """
-        modes = []
 
-        for itemset in self.itemsets:
-            partials = [r for r in itemset.items if r.pointer > 0]
-            ms = {r.mode for r in partials}
-            if len(ms) == 0:
-                modes.append(Parser.NORMAL_MODE)
-            else:
-                assert len(ms) == 1, f"mode/mode conflict: {partials}"
-                modes.append(ms.pop())
-
-        return modes
+        return [s.mode for s in self.itemsets]
 
 
 class Parser:
     NORMAL_MODE = 0
+    INHERIT_MODE = -1
 
     def __init__(self, agtable, modes, hidden, channel):
         self.agtable = agtable
@@ -665,9 +725,15 @@ class Parser:
         self.hidden = hidden
         self.channel = channel
 
-    def next_token_skip_hidden(self, stream, next_token, state):
+    def select_mode(self, set_stack):
+        return next((self.modes[s]
+                     for s in reversed(set_stack)
+                     if self.modes[s] != self.INHERIT_MODE),
+                    self.NORMAL_MODE)
+
+    def next_token_skip_hidden(self, stream, next_token, set_stack):
         while True:
-            lookahead = next_token(stream, self.modes[state])
+            lookahead = next_token(stream, self.select_mode(set_stack))
             if lookahead.channel == self.channel \
                or lookahead.channel == ReStream.CHANNEL_ALL:
                 return lookahead
@@ -701,8 +767,7 @@ class Parser:
         # start_time = time.perf_counter()
         output = []
         set_stack = [0]
-        lookahead = self.next_token_skip_hidden(
-            stream, next_token, set_stack[-1])
+        lookahead = self.next_token_skip_hidden(stream, next_token, set_stack)
 
         while True:
             try:
@@ -720,7 +785,7 @@ class Parser:
                 output.append((lookahead, lookahead.span))
                 set_stack.append(arg)
                 lookahead = self.next_token_skip_hidden(
-                    stream, next_token, set_stack[-1])
+                    stream, next_token, set_stack)
             elif action == 'reduce':
                 if arg > 0:
                     children, spans = zip(*output[-arg:])

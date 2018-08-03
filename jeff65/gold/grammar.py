@@ -226,8 +226,7 @@ grammar = Grammar('start', [T.EOF], [
 
     Rule('array', [T.BRACKET_OPEN, 'alist', T.BRACKET_CLOSE]),
 
-    Rule('string', ['string_start', T.STRING_DELIM]),
-    Rule('string_start', [T.STRING_DELIM, 'string_inner'], mode=Mode.STRING),
+    Rule('string', [T.STRING_DELIM, 'string_inner', T.STRING_DELIM]),
     Rule('string_inner', [], mode=Mode.STRING),
     Rule('string_inner', ['string_inner', T.STRING], mode=Mode.STRING),
     Rule('string_inner', ['string_inner', T.STRING_ESCAPE], mode=Mode.STRING),
@@ -355,9 +354,7 @@ comment_grammar = Grammar('start', [T.COMMENT_CLOSE, T.WHITESPACE, T.EOF], [
          mode=Mode.COMMENT),
 
     # enter/exit mode split
-    Rule('comment_start', [T.COMMENT_OPEN, 'comment_inner'],
-         mode=Mode.COMMENT),
-    Rule('comment', ['comment_start', T.COMMENT_CLOSE]),
+    Rule('comment', [T.COMMENT_OPEN, 'comment_inner', T.COMMENT_CLOSE]),
 
     # the empty rule handles whitespace
     Rule('hidden', []),
