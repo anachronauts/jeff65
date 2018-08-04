@@ -16,291 +16,270 @@
 
 from .. import ast, pattern
 from ..grammar import T
+from ..pattern import Predicate as P
 
 
-def parse_numeric(text):
-    if text.startswith('0x'):
-        return int(text[2:], 16)
-    elif text.startswith('0o'):
-        return int(text[2:], 8)
-    elif text.startswith('0b'):
-        return int(text[2:], 2)
-    return int(text)
+def require_token(t):
+    return P.require(lambda n, c: n.t == t)
 
 
-def unop(p, operator, sym):
-    yield (
-        ast.AstNode('expr', p.any('position'), children=[
-            p.predicate(lambda t: t.t == operator),
-            p.any('rhs'),
-        ]),
-        lambda m: ast.AstNode(sym, m['position'], children=[
-            m['rhs'],
-        ])
-    )
+def token(t, key=None):
+    return P(key, lambda n, c: n.t == t)
 
 
-def binop(p, operator, sym):
-    yield (
-        ast.AstNode('expr', p.any('position'), children=[
-            p.any('lhs'),
-            p.predicate(lambda t: t.t == operator),
-            p.any('rhs'),
-        ]),
-        lambda m: ast.AstNode(sym, m['position'], children=[
-            m['lhs'],
-            m['rhs'],
-        ])
-    )
+def unop(operator, sym):
+    @pattern.match(
+        ast.AstNode('expr', P('position'), children=[
+            token(operator), P('rhs'),
+        ]))
+    def name_unop(self, position, rhs):
+        return ast.AstNode(sym, position, children=[rhs])
+
+    return name_unop
 
 
-def collapse_left_recursion(p, sym):
-    yield (
-        ast.AstNode(sym, p.any('position'), children=[
-            ast.AstNode(p.require(sym), p.any(), children=[
-                p.zero_or_more_nodes('children0'),
+def binop(operator, sym):
+    @pattern.match(
+        ast.AstNode('expr', P('position'), children=[
+            P('lhs'), token(operator), P('rhs'),
+        ]))
+    def name_binop(self, position, lhs, rhs):
+        return ast.AstNode(sym, position, children=[lhs, rhs])
+
+    return name_binop
+
+
+def left_recursion(sym):
+    @pattern.match(
+        ast.AstNode(sym, P('position'), children=[
+            ast.AstNode(sym, P.any(), children=[
+                P.zero_or_more_nodes('children0')
             ]),
-            p.zero_or_more_nodes('children1'),
-        ]),
-        lambda m: ast.AstNode(sym, m['position'], children=[
-            *m['children0'],
-            *m['children1'],
-        ])
-    )
+            P.zero_or_more_nodes('children1'),
+        ]))
+    def collapse_left_recursion(self, position, children0, children1):
+        return ast.AstNode(sym, position, children=children0+children1)
 
-
-def token(p, t, key=None):
-    return p.predicate(lambda n: n.t == t, key=key)
-
-
-def append_ret(lst, elem):
-    lst.append(elem)
-    return lst
+    return collapse_left_recursion
 
 
 @pattern.transform(pattern.Order.Ascending)
-def Simplify(p):
+class Simplify:
+    transform_attrs = False
+
     # remove dummy node unit_stmt
-    yield (
-        ast.AstNode('unit_stmt', p.any(), children=[
-            p.any_node(key='node'),
-        ]),
-        lambda m: m['node']
-    )
+    @pattern.match(
+        ast.AstNode('unit_stmt', P.any(), children=[
+            P.any_node('node'),
+        ]))
+    def remove_unit_stmt(self, node):
+        return node
 
     # remove dummy node block_stmt
-    yield (
-        ast.AstNode('block_stmt', p.any(), children=[
-            p.any_node(key='node'),
-        ]),
-        lambda m: m['node']
-    )
+    @pattern.match(
+        ast.AstNode('block_stmt', P.any(), children=[
+            P.any_node('node'),
+        ]))
+    def remove_block_stmt(self, node):
+        return node
 
-    yield from collapse_left_recursion(p, 'unit')
-    yield from collapse_left_recursion(p, 'block')
-    yield (
-        ast.AstNode('alist_inner', p.any('position'), children=[
-            ast.AstNode('alist_inner', p.any(), children=[
-                p.zero_or_more_nodes('children0'),
-            ]),
-            p.zero_or_more_nodes('children1'),
-        ]),
-        lambda m: ast.AstNode('alist_inner', m['position'], children=[
-            *m['children0'],
-            *m['children1'],
-        ])
-    )
+    collapse_unit = left_recursion('unit')
+    collapse_block = left_recursion('block')
+    collapse_alist_inner = left_recursion('alist_inner')
 
-    yield (
-        ast.AstNode('alist', p.any('position'), children=[
-            ast.AstNode('alist_inner', p.any(), children=[
-                p.zero_or_more_nodes('children'),
+    @pattern.match(
+        ast.AstNode('alist', P('position'), children=[
+            ast.AstNode('alist_inner', P.any(), children=[
+                P.zero_or_more_nodes('children'),
             ])
-        ]),
-        lambda m: ast.AstNode('alist', m['position'], children=m['children'])
-    )
+        ]))
+    def collapse_alist(self, position, children):
+        return ast.AstNode('alist', position, children=children)
 
-    yield (
-        ast.AstNode('stmt_use', p.any('position'), children=[
-            p.any(),
-            p.any('unit_name'),
-        ]),
-        lambda m: ast.AstNode('use', m['position'], attrs={
-            'name': m['unit_name'].text,
+    @pattern.match(
+        ast.AstNode('stmt_use', P('position'), children=[
+            require_token(T.STMT_USE),
+            P('unit_name'),
+        ]))
+    def collapse_stmt_use(self, position, unit_name):
+        return ast.AstNode('use', position, attrs={
+            'name': unit_name.text,
         })
-    )
 
-    yield (
-        ast.AstNode('stmt_constant', p.any('position'), children=[
-            p.any(),
-            ast.AstNode('declaration', p.any(), children=[
-                p.any('name'),
-                p.any(),
-                p.any('type'),
+    @pattern.match(
+        ast.AstNode('stmt_constant', P('position'), children=[
+            require_token(T.STMT_CONSTANT),
+            ast.AstNode('declaration', P.any(), children=[
+                P('name'),
+                require_token(T.PUNCT_COLON),
+                P('ty'),
             ]),
-            p.any(),
-            p.any('rhs'),
-        ]),
-        lambda m: ast.AstNode('constant', m['position'], attrs={
-            'name': m['name'].text,
-            'type': m['type'],
-        }, children=[m['rhs']])
-    )
+            require_token(T.OPERATOR_ASSIGN),
+            P('rhs'),
+        ]))
+    def collapse_stmt_constant(self, position, name, ty, rhs):
+        return ast.AstNode('constant', position, attrs={
+            'name': name.text,
+            'type': ty,
+        }, children=[rhs])
 
-    yield (
-        ast.AstNode('stmt_let', p.any('position'), children=[
-            p.any(),
-            p.zero_or_more_nodes('storage', allow={'storage'}),
-            ast.AstNode('declaration', p.any(), children=[
-                p.any('name'),
-                p.any(),
-                p.any('type'),
+    @pattern.match(
+        ast.AstNode('stmt_let', P('position'), children=[
+            require_token(T.STMT_LET),
+            P.zero_or_more_nodes('storage', allow={'storage'}),
+            ast.AstNode('declaration', P.any(), children=[
+                P('name'),
+                require_token(T.PUNCT_COLON),
+                P('ty'),
             ]),
-            p.any(),
-            p.any('rhs'),
-        ]),
-        lambda m: ast.AstNode('let', m['position'], attrs={
-            'name': m['name'].text,
-            'type': m['type'],
-            **{'storage': s.children[0].text for s in m['storage']},
-        }, children=[m['rhs']])
-    )
+            require_token(T.OPERATOR_ASSIGN),
+            P('rhs'),
+        ]))
+    def collapse_stmt_lst(self, position, storage, name, ty, rhs):
+        return ast.AstNode('let', position, attrs={
+            'name': name.text,
+            'type': ty,
+            **{'storage': s.children[0].text for s in storage},
+        }, children=[rhs])
 
-    yield (
-        ast.AstNode('stmt_assign', p.any('position'), children=[
-            p.any('lhs'),
-            p.any(),
-            p.any('rhs'),
-        ]),
-        lambda m: ast.AstNode('set', m['position'], children=[
-            m['lhs'],
-            m['rhs'],
-        ])
-    )
+    @pattern.match(
+        ast.AstNode('stmt_assign', P('position'), children=[
+            P('lhs'),
+            require_token(T.OPERATOR_ASSIGN),
+            P('rhs'),
+        ]))
+    def collapse_stmt_assign(self, position, lhs, rhs):
+        return ast.AstNode('set', position, children=[lhs, rhs])
 
     # TODO: handle arguments, return values
-    yield (
-        ast.AstNode('stmt_fun', p.any('position'), children=[
-            p.any(),
-            p.any('name'),
-            p.any(),
-            p.any(),
-            p.any('block'),
-            p.any(),
-        ]),
-        lambda m: ast.AstNode('fun', m['position'], attrs={
-            'name': m['name'].text,
+    @pattern.match(
+        ast.AstNode('stmt_fun', P('position'), children=[
+            require_token(T.STMT_FUN),
+            P('name'),
+            require_token(T.PAREN_OPEN),
+            require_token(T.PAREN_CLOSE),
+            ast.AstNode('block', P.any(), children=[
+                P.zero_or_more_nodes('body'),
+            ]),
+            require_token(T.PUNCT_ENDFUN),
+        ]))
+    def collapse_stmt_fun(self, position, name, body):
+        return ast.AstNode('fun', position, attrs={
+            'name': name.text,
             'return': None,
             'args': [],
-        }, children=m['block'].children)
-    )
+        }, children=body)
 
-    yield (
-        ast.AstNode('type_id', p.any(), children=[p.any('type')]),
-        lambda m: m['type'].text,
-    )
+    @pattern.match(ast.AstNode('type_id', P.any(), children=[P('ty')]))
+    def simple_type(self, ty):
+        return ty.text
 
-    yield (
-        ast.AstNode('type_id', p.any('position'), children=[
-            p.predicate(lambda t: t.t == T.OPERATOR_REF),
-            p.any('type'),
-        ]),
-        lambda m: ast.AstNode('type_ref', m['position'], attrs={
-            'type': m['type'],
+    @pattern.match(
+        ast.AstNode('type_id', P('position'), children=[
+            token(T.OPERATOR_REF),
+            P('ty'),
+        ]))
+    def ref_type(self, position, ty):
+        return ast.AstNode('type_ref', position, attrs={
+            'type': ty,
         })
-    )
 
-    yield (
-        ast.AstNode('expr', p.any('position'), children=[
-            p.predicate(lambda t: t.t == T.NUMERIC, 'n'),
-        ]),
-        lambda m: ast.AstNode('numeric', m['position'], attrs={
-            'value': parse_numeric(m['n'].text),
+    @pattern.match(
+        ast.AstNode('expr', P('position'), children=[token(T.NUMERIC, 'n')]))
+    def numeric(self, position, n):
+        if n.text.startswith('0x'):
+            value = int(n.text[2:], 16)
+        elif n.text.startswith('0o'):
+            value = int(n.text[2:], 8)
+        elif n.text.startswith('0b'):
+            value = int(n.text[2:], 2)
+        else:
+            value = int(n.text)
+
+        return ast.AstNode('numeric', position, attrs={'value': value})
+
+    @pattern.match(
+        ast.AstNode('expr', P('position'), children=[
+            token(T.IDENTIFIER, 'id'),
+        ]))
+    def identifier(self, position, id):
+        return ast.AstNode('identifier', position, attrs={
+            'name': id.text,
         })
-    )
 
-    yield (
-        ast.AstNode('expr', p.any('position'), children=[
-            p.predicate(lambda t: t.t == T.IDENTIFIER, 'id'),
-        ]),
-        lambda m: ast.AstNode('identifier', m['position'], attrs={
-            'name': m['id'].text,
-        })
-    )
+    @pattern.match(
+        ast.AstNode('expr', P.any(), children=[
+            token(T.PAREN_OPEN), P('inner'), token(T.PAREN_CLOSE),
+        ]))
+    def drop_expr_parens(self, inner):
+        return inner
 
-    yield (
-        ast.AstNode('expr', p.any(), children=[
-            p.predicate(lambda t: t.t == T.PAREN_OPEN),
-            p.any('inner'),
-            p.predicate(lambda t: t.t == T.PAREN_CLOSE),
-        ]),
-        lambda m: m['inner'],
-    )
+    name_negate = unop(T.OPERATOR_MINUS, 'negate')
+    name_deref = unop(T.OPERATOR_DEREF, 'deref')
+    name_add = binop(T.OPERATOR_PLUS, 'add')
+    name_sub = binop(T.OPERATOR_MINUS, 'sub')
+    name_mul = binop(T.OPERATOR_TIMES, 'mul')
+    name_div = binop(T.OPERATOR_DIVIDE, 'div')
 
-    yield from unop(p, T.OPERATOR_MINUS, 'negate')
-    yield from unop(p, T.OPERATOR_DEREF, 'deref')
-    yield from binop(p, T.OPERATOR_PLUS, 'add')
-    yield from binop(p, T.OPERATOR_MINUS, 'sub')
-    yield from binop(p, T.OPERATOR_TIMES, 'mul')
-    yield from binop(p, T.OPERATOR_DIVIDE, 'div')
-
-    yield (
-        ast.AstNode('expr', p.any('position'), children=[
-            p.any('namespace'),
-            p.predicate(lambda t: t.t == T.OPERATOR_DOT),
-            ast.AstNode('member', p.any(), children=[
-                p.any('member'),
+    @pattern.match(
+        ast.AstNode('expr', P('position'), children=[
+            P('namespace'),
+            token(T.OPERATOR_DOT),
+            ast.AstNode('member', P.any(), children=[
+                P('member'),
             ]),
-        ]),
-        lambda m: ast.AstNode('member_access', m['position'], attrs={
-            'member': m['member'].text,
-        }, children=[
-            m['namespace'],
-        ])
-    )
+        ]))
+    def name_member_access(self, position, namespace, member):
+        return ast.AstNode('member_access', position, attrs={
+            'member': member.text,
+        }, children=[namespace])
 
-    yield (
-        ast.AstNode('expr', p.any('position'), children=[
-            p.any('function'),
-            p.predicate(lambda t: t.t == T.PAREN_OPEN),
-            ast.AstNode('alist', p.any(), children=[
-                p.zero_or_more_nodes('args'),
+    @pattern.match(
+        ast.AstNode('expr', P('position'), children=[
+            P('function'),
+            token(T.PAREN_OPEN),
+            ast.AstNode('alist', P.any(), children=[
+                P.zero_or_more_nodes('args'),
             ]),
-            p.predicate(lambda t: t.t == T.PAREN_CLOSE),
-        ]),
-        lambda m: ast.AstNode('call', m['position'], attrs={
-            'target': m['function'],
-        }, children=m['args'])
-    )
+            token(T.PAREN_CLOSE),
+        ]))
+    def name_call(self, position, function, args):
+        return ast.AstNode('call', position, attrs={
+            'target': function,
+        }, children=args)
 
     # Collapse left-recursion on strings. Note that the list we use to build
     # the string is wrapped in another list to protect it from being spliced
     # directly into the node children.
-    yield (
-        ast.AstNode('string_inner', p.any(), children=[]),
-        lambda m: [[]]
-    )
-    yield (
-        ast.AstNode('string_inner', p.any(), children=[
-            p.any('string0'),
-            token(p, T.STRING, 'string1'),
-        ]),
-        lambda m: [append_ret(m['string0'], m['string1'].text)]
-    )
-    yield (
-        ast.AstNode('string_inner', p.any(), children=[
-            p.any('string0'),
-            token(p, T.STRING_ESCAPE, 'string1'),
-        ]),
-        lambda m: [append_ret(m['string0'], m['string1'].text[1])]
-    )
-    yield (
-        ast.AstNode('string', p.any('position'), children=[
-            token(p, T.STRING_DELIM),
-            p.any('value'),
-            token(p, T.STRING_DELIM),
-        ]),
-        lambda m: ast.AstNode('string', m['position'], attrs={
-            'value': "".join(m['value']),
+    @pattern.match(ast.AstNode('string_inner', P.any(), children=[]))
+    def string_inner_empty(self):
+        return [[]]
+
+    @pattern.match(
+        ast.AstNode('string_inner', P.any(), children=[
+            P('string0'),
+            token(T.STRING, 'string1'),
+        ]))
+    def string_inner_segment(self, string0, string1):
+        string0.append(string1.text)
+        return [string0]
+
+    @pattern.match(
+        ast.AstNode('string_inner', P.any(), children=[
+            P('string0'),
+            token(T.STRING_ESCAPE, 'string1'),
+        ]))
+    def string_inner_escape(self, string0, string1):
+        string0.append(string1.text[1])
+        return [string0]
+
+    @pattern.match(
+        ast.AstNode('string', P('position'), children=[
+            require_token(T.STRING_DELIM),
+            P('value'),
+            require_token(T.STRING_DELIM),
+        ]))
+    def collapse_string(self, position, value):
+        return ast.AstNode('string', position, attrs={
+            'value': "".join(value),
         })
-    )

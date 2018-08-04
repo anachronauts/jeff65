@@ -17,27 +17,30 @@
 from . import binding
 from .. import ast, mem, pattern
 from ..storage import AbsoluteStorage, ImmediateStorage
+from ..pattern import Predicate as P
 
 
 @pattern.transform(pattern.Order.Descending)
-def ResolveStorage(p):
-    yield (
-        ast.AstNode('deref', p.any(), attrs={
-            'type': p.any('type'),
-        }, children=[
-            ast.AstNode(p.require('numeric'), p.any(), attrs={
-                'value': p.any('address'),
-            })
-        ]),
-        lambda m: AbsoluteStorage(m['address'], m['type'].width)
-    )
+class ResolveStorage:
+    transform_attrs = False
 
-    yield (
-        ast.AstNode('numeric', p.any(), attrs={
-            'value': p.lt(256, 'value', require=True)
-        }),
-        lambda m: ImmediateStorage(m['value'], 1)
-    )
+    @pattern.match(
+        ast.AstNode('deref', P.any(), attrs={
+            'type': P('ty'),
+        }, children=[
+            ast.AstNode(P.require('numeric'), P.any(), attrs={
+                'value': P('address'),
+            })
+        ]))
+    def deref_to_absolute(self, ty, address):
+        return AbsoluteStorage(address, ty.width)
+
+    @pattern.match(
+        ast.AstNode('numeric', P.any(), attrs={
+            'value': P.lt(256, 'value', require=True),
+        }))
+    def numeric_to_immediate(self, value):
+        return ImmediateStorage(value, 1)
 
 
 class ResolveUnits(binding.ScopedPass):

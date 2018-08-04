@@ -16,6 +16,7 @@
 
 import struct
 from .. import ast, pattern, storage
+from ..pattern import Predicate as P
 
 
 class AssemblyError(Exception):
@@ -32,31 +33,35 @@ class AsmRun:
 
 
 @pattern.transform(pattern.Order.Any)
-def AssembleWithRelocations(p):
-    yield (
-        ast.AstNode('lda', p.any(), attrs={
-            'storage': storage.ImmediateStorage(p.any('value'),
-                                                p.require(1, AssemblyError)),
-        }),
-        lambda m: AsmRun(struct.pack('<BB', 0xa9, m['value']))
-    )
+class AssembleWithRelocations:
+    transform_attrs = False
 
-    yield (
-        ast.AstNode('sta', p.any(), attrs={
-            'storage': storage.AbsoluteStorage(p.any('address'),
-                                               p.require(1, AssemblyError)),
-        }),
-        lambda m: AsmRun(struct.pack('<BH', 0x8d, m['address']))
-    )
+    @pattern.match(
+        ast.AstNode('lda', P.any(), attrs={
+            'storage': storage.ImmediateStorage(
+                P('value'), P.require(1, AssemblyError)),
+        }))
+    def lda_imm(self, value):
+        return AsmRun(struct.pack('<BB', 0xa9, value))
 
-    yield (
-        ast.AstNode('jmp', p.any(), attrs={
-            'storage': storage.AbsoluteStorage(p.any('address'), p.any()),
-        }),
-        lambda m: AsmRun(struct.pack('<BH', 0x4c, m['address']))
-    )
+    @pattern.match(
+        ast.AstNode('sta', P.any(), attrs={
+            'storage': storage.AbsoluteStorage(
+                P('address'), P.require(1, AssemblyError)),
+        }))
+    def sta_abs(self, address):
+        return AsmRun(struct.pack('<BH', 0x8d, address))
 
-    yield (ast.AstNode('rts', p.any()), lambda m: AsmRun(bytes([0x60])))
+    @pattern.match(
+        ast.AstNode('jmp', P.any(), attrs={
+            'storage': storage.AbsoluteStorage(P('address'), P.any()),
+        }))
+    def jmp(self, address):
+        return AsmRun(struct.pack('<BH', 0x4c, address))
+
+    @pattern.match(ast.AstNode('rts', P.any()))
+    def rts(self):
+        return AsmRun(b'\x60')
 
 
 class FlattenSymbol(ast.TranslationPass):

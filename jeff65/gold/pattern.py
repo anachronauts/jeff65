@@ -21,7 +21,7 @@ procedural DFS transform system.
 """
 
 import enum
-import functools
+import inspect
 from collections import deque
 from . import ast
 
@@ -43,32 +43,48 @@ class Order(enum.Enum):
     Any = Descending
 
 
-def transform(order):
-    """Converts the decorated generator function into a transform.
+_marker = object()
 
-    The decorated generator function will be passed a single argument of type
-    PatternFactory. It should yield one or more pairs of (pattern, template),
-    where pattern is some mixture of AstNode, Predicate, and SequencePredicate
-    instances, and template is a function which, when called with a
-    dictionary-like of captures, returns an object to replace the matched node.
-    """
-    def _decorate_transform(f):
-        def _make_transform():
-            transform = PatternPass(f.__name__, order)
-            pf = PredicateFactory(transform.captures)
-            analyser = PatternAnalyser(pf)
-            for pattern, template in f(pf):
-                # Convert the pattern into a predicate
+
+def match(pattern):
+    """Marks a method as a pattern transformer."""
+
+    return lambda method: (_marker, pattern, method)
+
+
+def transform(order):
+    """Converts the decorated class into a transform."""
+
+    def _decorate_transform(cls):
+        analyser = PatternAnalyser()
+        ptpairs = []
+        m_dict = {'ptpairs': ptpairs}
+
+        if order == Order.Descending:
+            m_dict['transform_enter'] = TransformHandler()
+            m_dict['transform_exit'] = DummyHandler()
+        else:
+            m_dict['transform_enter'] = DummyHandler()
+            m_dict['transform_exit'] = TransformHandler()
+
+        for member, value in vars(cls).items():
+            if not (isinstance(value, tuple)
+                    and len(value) == 3
+                    and value[0] == _marker):
+                # copy across non-pattern stuff unchanged
+                m_dict[member] = value
+            else:
+                _, pattern, template = value
                 if isinstance(pattern, ast.AstNode):
                     predicates = pattern.transform(analyser, always_list=True)
                 else:
                     # do the non-recursive transform
                     predicates = [analyser.make_predicate(pattern)]
                 assert 1 == len(predicates)
-                transform.ptpairs.append((predicates[0], template))
-            return transform
-        functools.update_wrapper(_make_transform, f)
-        return _make_transform
+                m_dict[member] = template
+                ptpairs.append((predicates[0], template))
+        return type(cls.__name__, cls.__bases__, m_dict)
+
     return _decorate_transform
 
 
@@ -76,42 +92,21 @@ class MatchError(Exception):
     pass
 
 
-class PatternPass:
-    """A pattern based-translation pass.
+class DummyHandler:
+    def __get__(self, obj, type=None):
+        return lambda t, n: n
 
-    Use the pattern.transform function to define instances of this. Instances
-    store pairs of patterns and templates. If the transform finds a node which
-    matches the pattern, the node is replaced with the result of calling the
-    corresponding template function with a dictionary-like of values captured
-    by the match.
-    """
 
-    transform_attrs = False
-
-    def __init__(self, name, order):
-        self.__name__ = name
-        self.order = order
-        self.ptpairs = []
-        self.captures = {}
-
-    def __getitem__(self, key):
-        return self.captures[key]
-
-    def transform_enter(self, t, node):
-        if self.order == Order.Descending:
-            for predicate, template in self.ptpairs:
-                self.captures.clear()
-                if predicate._match(node):
-                    return template(self)
-        return node
-
-    def transform_exit(self, t, node):
-        if self.order == Order.Ascending:
-            for predicate, template in self.ptpairs:
-                self.captures.clear()
-                if predicate._match(node):
-                    return template(self)
-        return [node]
+class TransformHandler:
+    def __get__(self, obj, type=None):
+        def transform(t, node):
+            for predicate, template in obj.ptpairs:
+                captures = {}
+                if predicate._match(node, captures):
+                    f = template.__get__(obj, type)
+                    return f(**captures)
+            return node
+        return transform
 
 
 class PatternAnalyser:
@@ -119,18 +114,15 @@ class PatternAnalyser:
 
     transform_attrs = False
 
-    def __init__(self, pf):
-        self.pf = pf
-
     def make_predicate(self, obj):
         if isinstance(obj, Predicate):
             # objects which are already predicates are just passed on
             return obj
         elif hasattr(obj, '_to_predicate'):
             # some objects know how to turn themselves into predicates
-            return obj._to_predicate(self, self.pf)
+            return obj._to_predicate(self)
         # fallback case: check for equality without capturing.
-        return self.pf.eq(obj)
+        return Predicate.eq(obj)
 
     def make_attrs_predicate(self, attrs):
         if isinstance(attrs, Predicate):
@@ -140,39 +132,53 @@ class PatternAnalyser:
         for k, v in attrs.items():
             pas[k] = self.make_predicate(v)
 
-        def _attrs_predicate(attrs):
+        def _attrs_predicate(attrs, captures):
             for k, v in pas.items():
-                if not v._match(attrs[k]):
+                if not v._match(attrs[k], captures):
                     return False
             return True
-        return self.pf.predicate(_attrs_predicate)
+        return Predicate(None, _attrs_predicate)
 
     def transform_enter(self, t, node):
         return node
 
     def transform_exit(self, t, node):
-        return self.pf.node(
+        return Predicate.node(
             self.make_predicate(node.t),
             self.make_predicate(node.position),
             self.make_attrs_predicate(node.attrs),
             node.children)
 
 
-class PredicateFactory:
-    def __init__(self, context):
-        self.context = context
-
-    def predicate(self, predicate, key=None):
-        return Predicate(self.context, key, predicate)
-
-    def any(self, key=None):
-        return Predicate(self.context, key, lambda _: True)
-
-    def any_node(self, with_children=None, key=None):
-        if with_children is None:
-            children = [self.zero_or_more_nodes()]
+class Predicate:
+    def __init__(self, key, predicate=True):
+        self.key = key
+        if not callable(predicate):
+            self.predicate = lambda _1, _2: predicate
         else:
-            analyser = PatternAnalyser(self)
+            self.predicate = predicate
+
+    def _seq_match(self, vq: deque, captures) -> bool:
+        return (len(vq) > 0
+                and self._match(vq.popleft(), captures))
+
+    def _match(self, value, captures):
+        if not self.predicate(value, captures):
+            return False
+        if self.key is not None and not self.key.startswith('!'):
+            captures[self.key] = value
+        return True
+
+    @classmethod
+    def any(cls):
+        return cls(None)
+
+    @classmethod
+    def any_node(cls, key=None, with_children=None):
+        if with_children is None:
+            children = [cls.zero_or_more_nodes()]
+        else:
+            analyser = PatternAnalyser()
             # this is goofy but the children have to be transformed now or it's
             # not happening...
             children = []
@@ -182,90 +188,87 @@ class PredicateFactory:
                 else:
                     children.append(c)
 
-        return self.node(
-            self.any(),
-            self.any(),
-            self.any(),
+        return cls.node(
+            cls.any(),
+            cls.any(),
+            cls.any(),
             children,
             key=key)
 
-    def node(self, pt, pp, pa, pcs, key=None):
-        def _node_predicate(node):
-            if not pt._match(node.t):
+    @classmethod
+    def node(cls, pt, pp, pa, pcs, key=None):
+        def _node_predicate(node, captures):
+            if not pt._match(node.t, captures):
                 return False
-            if not pp._match(node.position):
+            if not pp._match(node.position, captures):
                 return False
-            if not pa._match(node.attrs):
+            if not pa._match(node.attrs, captures):
                 return False
             cq = deque(node.children)
             pcq = deque(pcs)
             while len(pcq) > 0:
                 pc = pcq.popleft()
-                if not pc._seq_match(cq):
+                if not pc._seq_match(cq, captures):
                     return False
             # we expect all items to have been consumed
             return len(cq) == 0
-        return Predicate(self.context, key, _node_predicate)
+        return cls(key, _node_predicate)
 
-    def require(self, value, exc=None):
+    @classmethod
+    def require(cls, value_or_predicate, exc=None):
         exc = exc or MatchError
 
-        def _p_require(v):
-            if value != v:
+        if callable(value_or_predicate):
+            predicate = value_or_predicate
+            try:
+                value = inspect.getsource(value_or_predicate)
+            except OSError:
+                value = '<predicate>'
+        else:
+            def predicate(v, c):
+                return v == value_or_predicate
+            value = value_or_predicate
+
+        def _p_require(v, captures):
+            if not predicate(v, captures):
                 raise exc(f"Expected {value} got {v}")
             return True
-        return Predicate(self.context, None, _p_require)
+        return cls(None, _p_require)
 
-    def eq(self, value, key=None, require=False):
-        def _p_eq(v):
+    @classmethod
+    def eq(cls, value, key=None, require=False):
+        def _p_eq(v, captures):
             if v == value:
                 return True
             if require:
                 raise MatchError(f"Expected {value}, got {v}")
             return False
-        return Predicate(self.context, key, _p_eq)
+        return cls(key, _p_eq)
 
-    def lt(self, value, key=None, require=False):
-        def _p_lt(v):
+    @classmethod
+    def lt(cls, value, key=None, require=False):
+        def _p_lt(v, captures):
             if v < value:
                 return True
             if require:
                 raise MatchError(f"Expected value <{value}, got {v}")
             return False
-        return Predicate(self.context, key, _p_lt)
+        return cls(key, _p_lt)
 
-    def zero_or_more_nodes(self, key=None, allow=None, exclude=None):
+    @staticmethod
+    def zero_or_more_nodes(key=None, allow=None, exclude=None):
         return SequencePredicate(
-            self.context, key,
-            lambda v: ((allow is None or v.t in allow)
-                       and (exclude is None or v.t not in exclude)))
-
-
-class Predicate:
-    def __init__(self, context, key, predicate):
-        self.context = context
-        self.key = key
-        self.predicate = predicate
-
-    def _seq_match(self, vq: deque) -> bool:
-        return (len(vq) > 0
-                and self._match(vq.popleft()))
-
-    def _match(self, value):
-        if not self.predicate(value):
-            return False
-        if self.key is not None and not self.key.startswith('!'):
-            self.context[self.key] = value
-        return True
+            key, lambda v, c: ((allow is None or v.t in allow)
+                               and (exclude is None or v.t not in exclude)))
 
 
 class SequencePredicate(Predicate):
-    def __init__(self, context, key, predicate, min_count=0, max_count=None):
-        super().__init__(context, key, predicate)
+    def __init__(self, key, predicate, min_count=0, max_count=None):
+        super().__init__(key, predicate)
         self.min_count = min_count
         self.max_count = max_count
 
-    def _seq_match(self, vq: deque) -> bool:
+    def _seq_match(self, vq: deque, captures) -> bool:
         # we get passed a queue, and we're expected to consume items (from the
         # left) from it as long as our predicates are satisfied. If we stop
         # matching and we haven't reached min_count, we return false to fail
@@ -274,13 +277,13 @@ class SequencePredicate(Predicate):
 
         matched = []
         if self.key is not None:
-            self.context[self.key] = matched
+            captures[self.key] = matched
 
         while self.max_count is None or len(matched) < self.max_count:
             if len(vq) == 0:
                 break
             v = vq.popleft()
-            if not self.predicate(v):
+            if not self.predicate(v, captures):
                 # backtrack
                 vq.appendleft(v)
                 break
@@ -288,5 +291,5 @@ class SequencePredicate(Predicate):
 
         return len(matched) >= self.min_count
 
-    def _match(self, value):
+    def _match(self, value, captures):
         raise ValueError("Cannot single-match a sequence")
