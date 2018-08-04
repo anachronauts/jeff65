@@ -91,6 +91,8 @@ class AstNode:
         return nodes
 
     def __repr__(self):
+        if self.position is None:
+            return f"<ast {self.t} at ???>"
         return "<ast {} at {}:{}>".format(self.t, *self.position)
 
     def pretty(self, indent=0, no_position=False):

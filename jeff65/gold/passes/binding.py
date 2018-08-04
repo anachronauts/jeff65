@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .. import ast, pattern
+from ..pattern import Predicate as P
 
 
 class ScopedPass(ast.TranslationPass):
@@ -76,7 +77,7 @@ class ScopedPass(ast.TranslationPass):
 
 
 @pattern.transform(pattern.Order.Descending)
-def ExplicitScopes(p):
+class ExplicitScopes:
     """Translation pass to make lexical scopes explicit.
     Introducing a binding inside a function results in a new implicit scope
     being introduced, which continues to the end of the explicit scope, i.e.
@@ -112,6 +113,8 @@ def ExplicitScopes(p):
     in scope throughout the unit.
     """
 
+    transform_attrs = False
+
     # the reason this has to be a descending transformation is because when we
     # match the node containing the 'let' nodes, only the first 'let' node is
     # transformed; subsequent ones are collected by the
@@ -120,22 +123,23 @@ def ExplicitScopes(p):
     # that the new 'let_scoped' will be the subject of a match if it contains
     # any more 'let' nodes. See test_explicit_scopes_multiple in
     # test_binding.py for a demonstration.
-    yield (
-        p.any_node(key='root', with_children=[
-            p.zero_or_more_nodes('before', exclude=['let']),
-            ast.AstNode('let', p.any('let.p'), children=[
-                p.zero_or_more_nodes('let.c'),
+
+    @pattern.match(
+        P.any_node('root', with_children=[
+            P.zero_or_more_nodes('before', exclude=['let']),
+            ast.AstNode('let', P('let_p'), children=[
+                P.zero_or_more_nodes('inner'),
             ]),
-            p.zero_or_more_nodes('after'),
-        ]),
-        lambda m: m['root'].clone(with_children=[
-            *m['before'],
-            ast.AstNode('let_scoped', m['let.p'], children=[
-                *m['let.c'],
-                *m['after'],
-            ]),
+            P.zero_or_more_nodes('after'),
+        ]))
+    def extend_scope(self, root, before, after, inner, let_p):
+        return root.clone(with_children=[
+            *before,
+            ast.AstNode('let_scoped', let_p, children=[
+                *inner,
+                *after,
+            ])
         ])
-    )
 
 
 class ShadowNames(ScopedPass):
