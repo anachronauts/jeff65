@@ -61,11 +61,11 @@ def transform(order):
         m_dict = {'ptpairs': ptpairs}
 
         if order == Order.Descending:
-            m_dict['transform_enter'] = TransformHandler()
-            m_dict['transform_exit'] = DummyHandler()
+            m_dict['transform_enter'] = transform_handler
+            m_dict['transform_exit'] = dummy_handler
         else:
-            m_dict['transform_enter'] = DummyHandler()
-            m_dict['transform_exit'] = TransformHandler()
+            m_dict['transform_enter'] = dummy_handler
+            m_dict['transform_exit'] = transform_handler
 
         for member, value in vars(cls).items():
             if not (isinstance(value, tuple)
@@ -92,21 +92,17 @@ class MatchError(Exception):
     pass
 
 
-class DummyHandler:
-    def __get__(self, obj, type=None):
-        return lambda t, n: n
+def dummy_handler(self, t, node):
+    return node
 
 
-class TransformHandler:
-    def __get__(self, obj, type=None):
-        def transform(t, node):
-            for predicate, template in obj.ptpairs:
-                captures = {}
-                if predicate._match(node, captures):
-                    f = template.__get__(obj, type)
-                    return f(**captures)
-            return node
-        return transform
+def transform_handler(self, t, node):
+    for predicate, template in self.ptpairs:
+        captures = {}
+        if predicate._match(node, captures):
+            f = template.__get__(self, type)
+            return f(**captures)
+    return node
 
 
 class PatternAnalyser:
