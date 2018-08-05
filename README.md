@@ -1,6 +1,7 @@
 # jeff65
 
 [![Build Status](https://img.shields.io/travis/jdpage/jeff65.svg?style=flat-square)](https://travis-ci.org/jdpage/jeff65)
+[![AppVeyor](https://img.shields.io/appveyor/ci/jdpage/jeff65.svg?style=flat-square)](https://ci.appveyor.com/project/jdpage/jeff65)
 [![Coverage Status](https://img.shields.io/coveralls/github/jdpage/jeff65.svg?style=flat-square)](https://coveralls.io/github/jdpage/jeff65?branch=master)
 [![Requirements Status](https://img.shields.io/requires/github/jdpage/jeff65.svg?branch=master&style=flat-square)](https://requires.io/github/jdpage/jeff65/requirements/?branch=master)
 
