@@ -3,4 +3,4 @@ flake8==3.5.0
 coverage==4.5.1
 antlr4-python3-runtime==4.7.1
 coveralls==1.3.0
-hypothesis==3.66.28
+hypothesis==3.66.29
