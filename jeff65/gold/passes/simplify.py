@@ -68,22 +68,6 @@ def left_recursion(sym):
 class Simplify:
     transform_attrs = False
 
-    # remove dummy node unit_stmt
-    @pattern.match(
-        ast.AstNode('unit_stmt', P.any(), children=[
-            P.any_node('node'),
-        ]))
-    def remove_unit_stmt(self, node):
-        return node
-
-    # remove dummy node block_stmt
-    @pattern.match(
-        ast.AstNode('block_stmt', P.any(), children=[
-            P.any_node('node'),
-        ]))
-    def remove_block_stmt(self, node):
-        return node
-
     @pattern.match(
         ast.AstNode('expr', P.any(), children=[
             P.any_node('node'),
@@ -145,7 +129,9 @@ class Simplify:
     @pattern.match(
         ast.AstNode('stmt_let', P('position'), children=[
             require_token(T.STMT_LET),
-            P.zero_or_more_nodes('storage', allow={'storage'}),
+            ast.AstNode('storage', P.any(), children=[
+                P.zero_or_more_nodes('storage'),
+            ]),
             ast.AstNode('declaration', P.any(), children=[
                 P('name'),
                 require_token(T.PUNCT_COLON),
@@ -154,11 +140,11 @@ class Simplify:
             require_token(T.OPERATOR_ASSIGN),
             P('rhs'),
         ]))
-    def collapse_stmt_lst(self, position, storage, name, ty, rhs):
+    def collapse_stmt_let(self, position, storage, name, ty, rhs):
         return ast.AstNode('let', position, attrs={
             'name': name.text,
             'type': ty,
-            **{'storage': s.children[0].text for s in storage},
+            **{'storage': s.text for s in storage},
         }, children=[rhs])
 
     @pattern.match(
@@ -176,6 +162,7 @@ class Simplify:
             require_token(T.STMT_FUN),
             P('name'),
             require_token(T.PAREN_OPEN),
+            P.any(),  # plist
             require_token(T.PAREN_CLOSE),
             ast.AstNode('block', P.any(), children=[
                 P.zero_or_more_nodes('body'),
@@ -196,11 +183,15 @@ class Simplify:
     @pattern.match(
         ast.AstNode('type_id', P('position'), children=[
             token(T.OPERATOR_REF),
+            ast.AstNode('storage', P.any(), children=[
+                P.zero_or_more_nodes('storage'),
+            ]),
             P('ty'),
         ]))
-    def ref_type(self, position, ty):
+    def ref_type(self, position, storage, ty):
         return ast.AstNode('type_ref', position, attrs={
             'type': ty,
+            **{'storage': s.text for s in storage},
         })
 
     @pattern.match(
