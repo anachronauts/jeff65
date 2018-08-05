@@ -17,6 +17,7 @@
 from .. import ast, pattern
 from ..grammar import T
 from ..pattern import Predicate as P
+from ... import parsing
 
 
 def require_token(t):
@@ -83,9 +84,27 @@ class Simplify:
     def remove_block_stmt(self, node):
         return node
 
+    @pattern.match(
+        ast.AstNode('expr', P.any(), children=[
+            P.any_node('node'),
+        ]))
+    def remove_single_expr(self, node):
+        return node
+
     collapse_unit = left_recursion('unit')
     collapse_block = left_recursion('block')
-    collapse_alist_inner = left_recursion('alist_inner')
+
+    @pattern.match(
+        ast.AstNode('alist_inner', P('position'), children=[
+            ast.AstNode('alist_inner', P.any(), children=[
+                P.zero_or_more_nodes('children0')
+            ]),
+            require_token(T.PUNCT_COMMA),
+            P.zero_or_more_nodes('children1'),
+        ]))
+    def collapse_alist_inner(self, position, children0, children1):
+        return ast.AstNode('alist_inner', position,
+                           children=children0+children1)
 
     @pattern.match(
         ast.AstNode('alist', P('position'), children=[
@@ -187,14 +206,17 @@ class Simplify:
     @pattern.match(
         ast.AstNode('expr', P('position'), children=[token(T.NUMERIC, 'n')]))
     def numeric(self, position, n):
-        if n.text.startswith('0x'):
-            value = int(n.text[2:], 16)
-        elif n.text.startswith('0o'):
-            value = int(n.text[2:], 8)
-        elif n.text.startswith('0b'):
-            value = int(n.text[2:], 2)
-        else:
-            value = int(n.text)
+        try:
+            if n.text.startswith('0x'):
+                value = int(n.text[2:], 16)
+            elif n.text.startswith('0o'):
+                value = int(n.text[2:], 8)
+            elif n.text.startswith('0b'):
+                value = int(n.text[2:], 2)
+            else:
+                value = int(n.text)
+        except ValueError as e:
+            raise parsing.ParseError(str(e))
 
         return ast.AstNode('numeric', position, attrs={'value': value})
 

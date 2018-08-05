@@ -194,11 +194,10 @@ class Predicate:
     @classmethod
     def node(cls, pt, pp, pa, pcs, key=None):
         def _node_predicate(node, captures):
-            if not pt._match(node.t, captures):
-                return False
-            if not pp._match(node.position, captures):
-                return False
-            if not pa._match(node.attrs, captures):
+            if not (isinstance(node, ast.AstNode)
+                    and pt._match(node.t, captures)
+                    and pp._match(node.position, captures)
+                    and pa._match(node.attrs, captures)):
                 return False
             cq = deque(node.children)
             pcq = deque(pcs)

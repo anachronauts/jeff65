@@ -223,10 +223,11 @@ grammar = Grammar('start', [T.EOF], [
     Rule('expr', ['expr', T.OPERATOR_GT, 'expr'], prec=10),
     Rule('expr', [T.NUMERIC], prec=9),
     Rule('expr', [T.IDENTIFIER], prec=9),
+    Rule('expr', ['string']),
 
     Rule('array', [T.BRACKET_OPEN, 'alist', T.BRACKET_CLOSE]),
 
-    Rule('string', [T.STRING_DELIM, 'string_inner', T.STRING_DELIM]),
+    Rule('string', [T.STRING_DELIM, 'string_inner', T.STRING_DELIM], prec=9),
     Rule('string_inner', [], mode=Mode.STRING),
     Rule('string_inner', ['string_inner', T.STRING], mode=Mode.STRING),
     Rule('string_inner', ['string_inner', T.STRING_ESCAPE], mode=Mode.STRING),
@@ -265,13 +266,10 @@ grammar = Grammar('start', [T.EOF], [
     Rule('stmt_let', [T.STMT_LET, 'declaration', T.OPERATOR_ASSIGN, 'expr'],
          prec=0),
     Rule('stmt_let', [T.STMT_LET, 'declaration', T.OPERATOR_ASSIGN, 'array']),
-    Rule('stmt_let', [T.STMT_LET, 'declaration', T.OPERATOR_ASSIGN, 'string']),
     Rule('stmt_let', [T.STMT_LET, 'storage', 'declaration',
                       T.OPERATOR_ASSIGN, 'expr'], prec=0),
     Rule('stmt_let', [T.STMT_LET, 'storage', 'declaration',
                       T.OPERATOR_ASSIGN, 'array']),
-    Rule('stmt_let', [T.STMT_LET, 'storage', 'declaration',
-                      T.OPERATOR_ASSIGN, 'string']),
 
     Rule('do_block', [T.PUNCT_DO, 'block', T.PUNCT_END]),
 
