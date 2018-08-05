@@ -411,7 +411,7 @@ class ArchiveReader:
         with self.mmap[off:end] as bview:
             if compressed:
                 dc = zlib.decompressobj()
-                bdata = dc.decompress(bview, max_length=(1 << 31))
+                bdata = dc.decompress(bview, max_length=MAX_STRING_SIZE)
                 if len(dc.unconsumed_tail) > 0:
                     warnings.warn("Truncated large (>2 GiB) string in archive")
             else:
