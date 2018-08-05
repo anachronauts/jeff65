@@ -12,7 +12,7 @@ develop: all
 
 check: all
 	flake8 jeff65 tests
-	nosetests --with-coverage --cover-package jeff65 --cover-erase
+	python setup.py nosetests
 
 demo: examples/heart.prg
 	x64 $<
