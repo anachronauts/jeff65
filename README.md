@@ -17,15 +17,16 @@ are largely the product of wishful thinking and may change at any time.
 intermediate files. *gold* syntax provides an imperative systems language for
 6502-series processors.
 
-Invocation:
+Primary invocation:
 
-    usage: jeff65 [-h] input_file
+    usage: jeff65 compile [-h] [-v] file
 
     positional arguments:
-      input_file  the file to compile
+      file           the file to compile
 
     optional arguments:
-      -h, --help  show this help message and exit
+      -h, --help     show this help message and exit
+      -v, --verbose  show the output of each pass
 
 
 ## Licensing
