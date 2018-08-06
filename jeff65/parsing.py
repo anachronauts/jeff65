@@ -196,23 +196,59 @@ class Lexer:
         assert False, "no match!"  # TODO: proper exception
 
 
+def _convert_lhs(lhs):
+    if not isinstance(lhs, Symbol):
+        return Symbol(lhs)
+    return lhs
+
+
 def _convert_rhs(rhs):
     result = []
     for sym in rhs:
-        if not isinstance(sym, str):
-            try:
-                sym = frozenset(sym)
-            except TypeError:
-                sym = frozenset({sym})
+        if isinstance(sym, tuple):
+            # alternations are tuples
+            sym = frozenset(_convert_lhs(s) for s in sym)
+        elif isinstance(sym, frozenset):
+            # already converted
+            pass
         else:
-            sym = frozenset({sym})
+            sym = frozenset({_convert_lhs(sym)})
         result.append(sym)
     return tuple(result)
 
 
 @attr.s(slots=True, frozen=True, repr=False)
+class Symbol:
+    value = attr.ib()
+
+    @property
+    def is_terminal(self):
+        # we represent bare nonterminals as strings
+        return not isinstance(self.value, str)
+
+    def __repr__(self):
+        return f"`{self.value}"
+
+    def extend(self, start, end):
+        return ExtendedSymbol(self.value, start, end)
+
+    @property
+    def parent(self):
+        return Symbol(self.value)
+
+
+@attr.s(slots=True, frozen=True, repr=False)
+class ExtendedSymbol(Symbol):
+    start = attr.ib()
+    end = attr.ib()
+
+    def __repr__(self):
+        return f"`{self.start}_{self.value!r}_{self.end}"
+
+
+@attr.s(slots=True, frozen=True, repr=False)
 class Rule:
-    lhs = attr.ib()
+    lhs = attr.ib(converter=_convert_lhs)
     rhs = attr.ib(converter=_convert_rhs)
     prec = attr.ib(default=None)
     rassoc = attr.ib(default=False)
@@ -267,7 +303,7 @@ class ItemSet:
             nexts = set(
                 s for s in chain.from_iterable(
                     r.next_symbols for r in self.items)
-                if not grammar.is_terminal(s))
+                if not s.is_terminal)
             self.items.update(
                 grammar.rules[r].with_pointer(0)
                 for r in grammar.find_rule_indices(nexts))
@@ -360,13 +396,13 @@ class ItemSet:
 
 
 class Grammar:
-    EMPTY = object()
+    EMPTY = Symbol(object())
     END = object()
 
     def __init__(self, start_symbol, end_symbols, rules):
         self.rules = rules
-        self.start_symbol = start_symbol
-        self.end_symbols = end_symbols
+        self.start_symbol = _convert_lhs(start_symbol)
+        self.end_symbols = frozenset(_convert_lhs(s) for s in end_symbols)
 
     @property
     def symbols(self):
@@ -376,21 +412,6 @@ class Grammar:
             for syms in rule.rhs:
                 ts.update(syms)
         return ts
-
-    def is_terminal(self, t):
-        if isinstance(t, str):
-            # we represent bare nonterminals as strings
-            return False
-
-        try:
-            # try to unpack as a tuple (in case it's an extended symbol)
-            _, t, _ = t
-        except TypeError:
-            # must be a terminal
-            return True
-
-        # try again now that it's unpacked
-        return self.is_terminal(t)
 
     def find_rule_indices(self, symbols):
         """Returns a list of rule indices which produce the given symbols."""
@@ -408,10 +429,6 @@ class Grammar:
         else:
             return starts[0]
 
-    def find_rules(self, symbols):
-        """Returns a list of rules which produce the given symbols."""
-        return [r for r in self.rules if r.lhs in symbols]
-
     def build_firstsets(self):
         """Builds the First sets for every extended symbol.
 
@@ -425,11 +442,8 @@ class Grammar:
         # pre-populate with empty firstsets (for nonterminals) and identity
         # firstsets (for terminals)
         for sym in self.symbols:
-            if self.is_terminal(sym):
-                try:
-                    firstsets[sym] = {sym[1]}
-                except TypeError:
-                    firstsets[sym] = {sym}
+            if sym.is_terminal:
+                firstsets[sym] = {sym.parent}
             else:
                 firstsets[sym] = set()
 
@@ -441,7 +455,7 @@ class Grammar:
                 firstsets[rule.lhs].add(self.EMPTY)
                 continue
             for sym in rule.rhs[0]:
-                if self.is_terminal(sym):
+                if sym.is_terminal:
                     firstsets[rule.lhs].update(firstsets[sym])
                 else:
                     # cache rules that rule 3 applies to in advance
@@ -494,10 +508,7 @@ class Grammar:
         # pre-populate with empty followsets
         for sym in self.symbols:
             if sym == self.start_symbol:
-                try:
-                    followsets[sym] = {s[1] for s in self.end_symbols}
-                except TypeError:
-                    followsets[sym] = set(self.end_symbols)
+                followsets[sym] = {s.parent for s in self.end_symbols}
             else:
                 followsets[sym] = set()
 
@@ -505,7 +516,7 @@ class Grammar:
         for rule in self.rules:
             for k in range(len(rule.rhs) - 1):
                 for s in rule.rhs[k]:
-                    if not self.is_terminal(s):
+                    if not s.is_terminal:
                         for t in rule.rhs[k+1]:
                             followsets[s].update(firstsets[t])
 
@@ -525,7 +536,7 @@ class Grammar:
                     continue
 
                 for s in rule.rhs[-1]:
-                    if not self.is_terminal(s[1]):
+                    if not s.is_terminal:
                         old_len = len(followsets[s])
                         followsets[s].update(
                             followsets[rule.lhs])
@@ -558,10 +569,10 @@ class Grammar:
         # copy the nonterminal entries in the translation table over as gotos
         # and the terminal entries as shifts.
         for (f, s), t in translation_table.items():
-            if self.is_terminal(s):
-                agtable[(f, s)] = ('shift', None, t)
+            if s.is_terminal:
+                agtable[(f, s.value)] = ('shift', None, t)
             else:
-                agtable[(f, s)] = t  # goto
+                agtable[(f, s.value)] = t  # goto
 
         # construct the final sets by merging extended rules which are based on
         # the same rule and have the same end point.
@@ -571,9 +582,9 @@ class Grammar:
             if len(rule.rhs) == 0:
                 # if the rule has no rhs, then the starting point is the same
                 # as the ending point.
-                final = rule.lhs[0]
+                final = rule.lhs.start
             else:
-                finals = {s[2] for s in rule.rhs[-1]}
+                finals = {s.end for s in rule.rhs[-1]}
                 assert len(finals) == 1
                 final = finals.pop()
             if finalset_rules[final] is not None:
@@ -587,7 +598,7 @@ class Grammar:
         # add the merged reductions to the table
         for k, followset in enumerate(finalset_followsets):
             for symbol in followset:
-                if (k, symbol) in agtable:
+                if (k, symbol.value) in agtable:
                     # This is a shift/reduce conflict. We decide how to resolve
                     # this based on the precedence of the rules involved.
 
@@ -595,7 +606,7 @@ class Grammar:
                     # number. State numbers correspond to item sets. In
                     # particular, we're looking for the rule that has already
                     # been partially applied.
-                    _, _, shift_index = agtable[(k, symbol)]
+                    _, _, shift_index = agtable[(k, symbol.value)]
                     partials = [
                         i for i
                         in translation_table.itemsets[shift_index].items
@@ -623,11 +634,11 @@ class Grammar:
                 # Check to see if this is actually the accept state
                 if finalset_rules[k].lhs == self.start_symbol \
                    and symbol in self.end_symbols:
-                    agtable[(k, symbol)] = ('accept', None, None)
+                    agtable[(k, symbol.value)] = ('accept', None, None)
                 else:
-                    agtable[(k, symbol)] = (
+                    agtable[(k, symbol.value)] = (
                         'reduce',
-                        finalset_rules[k].lhs,
+                        finalset_rules[k].lhs.value,
                         len(finalset_rules[k].rhs))
 
         # build the hidden-channel parsers
@@ -719,7 +730,8 @@ class TranslationTable:
                               for s in symbols}
                     if len(states) == 1:
                         state = states.pop()
-                        rhs.append([(prev, s, state) for s in symbols])
+                        rhs.append(tuple(
+                            s.extend(prev, state) for s in symbols))
                         continue
 
                     # our alternation goes to different places, so split
@@ -734,10 +746,10 @@ class TranslationTable:
                 if abort:
                     continue
                 try:
-                    lhs = (current, rule.lhs,
-                           self.translation_table[(current, rule.lhs)])
+                    lhs = rule.lhs.extend(
+                        current, self.translation_table[(current, rule.lhs)])
                 except KeyError:
-                    lhs = (current, rule.lhs, Grammar.END)
+                    lhs = rule.lhs.extend(current, Grammar.END)
                     start_symbol = lhs
                 extended_rules.add(
                     attr.evolve(rule, lhs=lhs, rhs=rhs, pointer=None,
@@ -745,7 +757,7 @@ class TranslationTable:
 
         extended_grammar = Grammar(
             start_symbol,
-            [(None, s, None) for s in self.end_symbols],
+            [s.extend(None, None) for s in self.end_symbols],
             extended_rules)
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
@@ -822,15 +834,13 @@ class Parser:
             try:
                 action, sym, arg = self.agtable[(set_stack[-1], lookahead.t)]
             except KeyError:
-                msg = [f"Got {lookahead} but expected one of:"]
+                msg = [f"Got {lookahead.t} but expected one of:"]
                 for state, token in self.agtable:
                     if state == set_stack[-1]:
                         msg.append(f"  {token}")
                 raise ParseError("\n".join(msg))
 
-            if action == 'accept':
-                break
-            elif action == 'shift':
+            if action == 'shift':
                 output.append((lookahead, lookahead.span))
                 set_stack.append(arg)
                 lookahead = self.next_token_skip_hidden(
@@ -860,6 +870,9 @@ class Parser:
                 output.append((make_node(sym, span, children,
                                          self.modes[set_stack[-1]]),
                                span))
+            else:
+                assert action == 'accept'
+                break
 
         assert len(output) == 1
 
