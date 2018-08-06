@@ -247,7 +247,8 @@ def type_infos(draw):
 
     return draw(hs.recursive(
         hs.sampled_from([types.phantom, types.void]) | integral_types(),
-        lambda children: ref_types(children) | fun_types(children)))
+        lambda children: ref_types(children) | fun_types(children),
+        max_leaves=20))
 
 
 @given(type_infos())
