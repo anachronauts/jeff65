@@ -75,6 +75,35 @@ T = enum.Enum('T', [
 ])
 
 
+# precedences. Note that these are in order of lowest precedence to highest
+# precedence. Has to be an IntEnum for comparisons to work.
+P = enum.IntEnum('P', [
+    # Statements
+    'STATEMENTS',
+    'RETURN_VALUE',
+    'ASSIGNMENTS',
+
+    # Statement elements
+    'TYPES',
+    'STORAGE',
+
+    # Expressions
+    'LITERALS',
+    'COMPARISONS',
+    'SUMS',
+    'PRODUCTS',
+    'BITSHIFTS',
+    'BITXOR',
+    'BITOR',
+    'BITAND',
+    'PREFIX_UNARY',
+    'CALLS',
+    'SUBSCRIPTS',
+    'MEMBERS',
+    'PARENTHESES',
+])
+
+
 # non-whitespace characters which can end tokens
 specials = re.escape(r'()[]{}:;.,"\@&')
 
@@ -199,34 +228,40 @@ grammar = Grammar('start', [T.EOF], [
 
     Rule('member', [T.IDENTIFIER]),
 
-    Rule('expr', [T.PAREN_OPEN, 'expr', T.PAREN_CLOSE], prec=120),
-    Rule('expr', ['expr', T.OPERATOR_DOT, 'member'], prec=110),
-    Rule('expr', ['expr', T.BRACKET_OPEN, 'expr', T.BRACKET_CLOSE], prec=100),
-    Rule('expr', ['expr', T.PAREN_OPEN, 'alist', T.PAREN_CLOSE], prec=90),
-    Rule('expr', [T.OPERATOR_DEREF, 'expr'], prec=80, rassoc=True),
-    Rule('expr', [T.OPERATOR_MINUS, 'expr'], prec=70, rassoc=True),
-    Rule('expr', [T.OPERATOR_BITNOT, 'expr'], prec=65, rassoc=True),
-    Rule('expr', ['expr', T.OPERATOR_BITAND, 'expr'], prec=60),
-    Rule('expr', ['expr', T.OPERATOR_BITOR, 'expr'], prec=55),
-    Rule('expr', ['expr', T.OPERATOR_BITXOR, 'expr'], prec=50),
-    Rule('expr', ['expr', (T.OPERATOR_SHL, T.OPERATOR_SHR), 'expr'], prec=40),
+    Rule('expr', [T.PAREN_OPEN, 'expr', T.PAREN_CLOSE], prec=P.PARENTHESES),
+    Rule('expr', ['expr', T.OPERATOR_DOT, 'member'], prec=P.MEMBERS),
+    Rule('expr', ['expr', T.BRACKET_OPEN, 'expr', T.BRACKET_CLOSE],
+         prec=P.SUBSCRIPTS),
+    Rule('expr', ['expr', T.PAREN_OPEN, 'alist', T.PAREN_CLOSE], prec=P.CALLS),
+    Rule('expr', [(T.OPERATOR_DEREF,
+                   T.OPERATOR_MINUS,
+                   T.OPERATOR_BITNOT), 'expr'],
+         prec=P.PREFIX_UNARY,
+         rassoc=True),
+    Rule('expr', ['expr', T.OPERATOR_BITAND, 'expr'], prec=P.BITAND),
+    Rule('expr', ['expr', T.OPERATOR_BITOR, 'expr'], prec=P.BITOR),
+    Rule('expr', ['expr', T.OPERATOR_BITXOR, 'expr'], prec=P.BITXOR),
+    Rule('expr', ['expr', (T.OPERATOR_SHL,
+                           T.OPERATOR_SHR), 'expr'], prec=P.BITSHIFTS),
     Rule('expr', ['expr', (T.OPERATOR_TIMES,
-                           T.OPERATOR_DIVIDE), 'expr'], prec=30),
+                           T.OPERATOR_DIVIDE), 'expr'], prec=P.PRODUCTS),
     Rule('expr', ['expr', (T.OPERATOR_PLUS,
-                           T.OPERATOR_MINUS), 'expr'], prec=20),
+                           T.OPERATOR_MINUS), 'expr'], prec=P.SUMS),
     Rule('expr', ['expr', (T.OPERATOR_EQ, T.OPERATOR_NE,
                            T.OPERATOR_LE, T.OPERATOR_GE,
-                           T.OPERATOR_LT, T.OPERATOR_GT), 'expr'], prec=10),
-    Rule('expr', [(T.NUMERIC, T.IDENTIFIER, 'string')], prec=9),
+                           T.OPERATOR_LT, T.OPERATOR_GT), 'expr'],
+         prec=P.COMPARISONS),
+    Rule('expr', [(T.NUMERIC, T.IDENTIFIER, 'string')], prec=P.LITERALS),
 
     Rule('array', [T.BRACKET_OPEN, 'alist', T.BRACKET_CLOSE]),
 
-    Rule('string', [T.STRING_DELIM, 'string_inner', T.STRING_DELIM], prec=9),
+    Rule('string', [T.STRING_DELIM, 'string_inner', T.STRING_DELIM],
+         prec=P.LITERALS),
     Rule('string_inner', [], mode=Mode.STRING),
     Rule('string_inner', ['string_inner', (T.STRING, T.STRING_ESCAPE)],
          mode=Mode.STRING),
 
-    Rule('storage', [], prec=8),
+    Rule('storage', [], prec=P.STORAGE),
     Rule('storage', [(T.STORAGE_MUT, T.STORAGE_STASH)]),
 
     Rule('range_to', ['expr', T.PUNCT_TO, 'expr']),
@@ -234,7 +269,7 @@ grammar = Grammar('start', [T.EOF], [
     Rule('type_id', [T.IDENTIFIER]),
     Rule('type_id', [
         T.OPERATOR_REF, T.BRACKET_OPEN,
-        'storage', 'type_id', T.BRACKET_CLOSE], prec=5),
+        'storage', 'type_id', T.BRACKET_CLOSE], prec=P.TYPES),
     Rule('type_id', [T.OPERATOR_REF, 'storage', 'type_id']),
     Rule('type_id', [T.BRACKET_OPEN, 'storage', 'type_id', T.PUNCT_SEMICOLON,
                      ('expr', 'range_to'), T.BRACKET_CLOSE]),
@@ -242,12 +277,14 @@ grammar = Grammar('start', [T.EOF], [
     Rule('declaration', [T.IDENTIFIER, T.PUNCT_COLON, 'type_id']),
 
     Rule('stmt_constant', [T.STMT_CONSTANT, 'declaration',
-                           T.OPERATOR_ASSIGN, ('expr', 'array')], prec=0),
+                           T.OPERATOR_ASSIGN, ('expr', 'array')],
+         prec=P.STATEMENTS),
 
     Rule('stmt_use', [T.STMT_USE, T.IDENTIFIER]),
 
     Rule('stmt_let', [T.STMT_LET, 'storage', 'declaration',
-                      T.OPERATOR_ASSIGN, ('expr', 'array')], prec=0),
+                      T.OPERATOR_ASSIGN, ('expr', 'array')],
+         prec=P.STATEMENTS),
 
     Rule('do_block', [T.PUNCT_DO, 'block', T.PUNCT_END]),
 
@@ -280,12 +317,13 @@ grammar = Grammar('start', [T.EOF], [
                       T.PUNCT_ARROWR, 'type_id',
                       'block', T.PUNCT_ENDFUN]),
 
-    Rule('stmt_return', [T.STMT_RETURN], prec=0),
-    Rule('stmt_return', [T.STMT_RETURN, 'expr'], prec=1),
+    Rule('stmt_return', [T.STMT_RETURN], prec=P.STATEMENTS),
+    Rule('stmt_return', [T.STMT_RETURN, 'expr'], prec=P.RETURN_VALUE),
 
     Rule('stmt_assign', ['expr', (T.OPERATOR_ASSIGN,
                                   T.OPERATOR_ASSIGN_INC,
-                                  T.OPERATOR_ASSIGN_DEC), 'expr'], prec=5),
+                                  T.OPERATOR_ASSIGN_DEC), 'expr'],
+         prec=P.ASSIGNMENTS),
 
     Rule('block', []),
     Rule('block', ['block', ('stmt_constant',
@@ -295,7 +333,7 @@ grammar = Grammar('start', [T.EOF], [
                              'stmt_return',
                              'stmt_while',
                              'stmt_assign',
-                             'expr')], prec=0),
+                             'expr')], prec=P.STATEMENTS),
 
     Rule('unit', []),
     Rule('unit', ['unit', ('stmt_constant',
