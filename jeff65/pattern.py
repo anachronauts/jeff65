@@ -1,4 +1,4 @@
-# jeff65 gold-syntax pattern-based AST transformation
+# jeff65 pattern-based AST transformation
 # Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify

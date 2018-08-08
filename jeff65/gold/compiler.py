@@ -15,8 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
-from . import ast, grammar
-from .. import blum, parsing
+from . import grammar
+from .. import ast, blum, parsing
 from .passes import asm, binding, lower, resolve, simplify, typepasses
 
 

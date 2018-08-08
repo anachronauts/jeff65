@@ -14,10 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .. import ast, pattern
 from ..grammar import T
-from ..pattern import Predicate as P
-from ... import parsing
+from ... import ast, parsing, pattern
+from ...pattern import Predicate as P
 
 
 def require_token(t):

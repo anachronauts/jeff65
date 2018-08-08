@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import struct
-from .. import ast, pattern, storage
-from ..pattern import Predicate as P
+from .. import storage
+from ... import ast, pattern
+from ...pattern import Predicate as P
 
 
 class AssemblyError(Exception):

@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import binding
-from .. import ast
+from ... import ast
 from ...blum import types
 
 

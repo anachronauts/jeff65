@@ -15,9 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import binding
-from .. import ast, mem, pattern
+from .. import mem
 from ..storage import AbsoluteStorage, ImmediateStorage
-from ..pattern import Predicate as P
+from ... import ast, pattern
+from ...pattern import Predicate as P
 
 
 @pattern.transform(pattern.Order.Descending)
