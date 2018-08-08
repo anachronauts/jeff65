@@ -21,6 +21,7 @@ procedural DFS transform system.
 """
 
 import enum
+import inspect
 from collections import deque
 from . import ast
 
@@ -75,7 +76,7 @@ def transform(order):
             else:
                 _, pattern, template = value
                 if isinstance(pattern, ast.AstNode):
-                    predicates = pattern.transform(analyser)
+                    predicates = pattern.transform(analyser, always_list=True)
                 else:
                     # do the non-recursive transform
                     predicates = [analyser.make_predicate(pattern)]
@@ -193,11 +194,10 @@ class Predicate:
     @classmethod
     def node(cls, pt, pp, pa, pcs, key=None):
         def _node_predicate(node, captures):
-            if not pt._match(node.t, captures):
-                return False
-            if not pp._match(node.position, captures):
-                return False
-            if not pa._match(node.attrs, captures):
+            if not (isinstance(node, ast.AstNode)
+                    and pt._match(node.t, captures)
+                    and pp._match(node.position, captures)
+                    and pa._match(node.attrs, captures)):
                 return False
             cq = deque(node.children)
             pcq = deque(pcs)
@@ -210,11 +210,22 @@ class Predicate:
         return cls(key, _node_predicate)
 
     @classmethod
-    def require(cls, value, exc=None):
+    def require(cls, value_or_predicate, exc=None):
         exc = exc or MatchError
 
+        if callable(value_or_predicate):
+            predicate = value_or_predicate
+            try:
+                value = inspect.getsource(value_or_predicate)
+            except OSError:
+                value = '<predicate>'
+        else:
+            def predicate(v, c):
+                return v == value_or_predicate
+            value = value_or_predicate
+
         def _p_require(v, captures):
-            if value != v:
+            if not predicate(v, captures):
                 raise exc(f"Expected {value} got {v}")
             return True
         return cls(None, _p_require)

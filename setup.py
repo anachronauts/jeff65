@@ -5,7 +5,7 @@ setup(
     version='0.1',
     packages=find_packages(),
     install_requires=[
-        'antlr4-python3-runtime>=4.5.2',
+        'attrs>=18.1.0',
     ],
     entry_points={
         'console_scripts': [
