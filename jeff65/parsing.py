@@ -33,13 +33,7 @@ class TextSpan:
     end_column = attr.ib()
 
     def __attrs_post_init__(self):
-        if self.start > self.end:
-            t = self.start_line
-            object.__setattr__(self, 'start_line', self.end_line)
-            object.__setattr__(self, 'end_line', t)
-            t = self.start_column
-            object.__setattr__(self, 'start_column', self.end_column)
-            object.__setattr__(self, 'end_column', t)
+        assert self.end >= self.start
 
     @property
     def start(self):
@@ -84,8 +78,9 @@ class Token:
     channel = attr.ib(default=0, cmp=False)
     span = attr.ib(default=None, cmp=False)
 
-    def _pretty(self, indent):
-        yield (indent, f'{self.t}={self.text!r} {self.span}')
+    def _pretty(self, indent, no_position):
+        i = " " * indent
+        return f'{i}{self.t}={self.text!r} {self.span}'
 
 
 class ReStream:

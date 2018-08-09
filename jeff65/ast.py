@@ -14,62 +14,72 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import attr
+from .immutable import FrozenDict
 
+
+@attr.s(slots=True, frozen=True, repr=False)
 class AstNode:
-    def __init__(self, t, position, attrs=None, children=None):
-        self.t = t
-        self.position = position
-        self.attrs = attrs or {}
-        self.children = children or []
+    t = attr.ib()
+    attrs = attr.ib(factory=FrozenDict.empty, converter=FrozenDict.create)
+    children = attr.ib(factory=tuple, converter=tuple)
+    span = attr.ib(default=None, cmp=False)
 
-    def clone(self, with_attrs=None, with_children=None):
-        node = AstNode(self.t, self.position, dict(self.attrs),
-                       list(with_children or self.children))
-        if with_attrs:
-            node.attrs.update(with_attrs)
-        return node
+    def evolve(self, update_attrs=None, with_attrs=None, with_children=None):
+        if update_attrs is not None and with_attrs is not None:
+            raise ValueError("both update_attrs and with_attrs were provided")
 
-    def get_attr_default(self, attr, default_value):
-        if attr not in self.attrs:
-            self.attrs[attr] = default_value
-        return self.attrs[attr]
+        attrs = self.attrs
+        if update_attrs is not None:
+            attrs = attrs.update(update_attrs)
+        elif with_attrs is not None:
+            attrs = FrozenDict.create(with_attrs)
 
-    def __eq__(self, other):
-        return (
-            type(other) is AstNode
-            and self.t == other.t
-            and self.attrs == other.attrs
-            and self.children == other.children)
+        children = self.children
+        if with_children is not None:
+            children = with_children
+
+        return attr.evolve(self, attrs=attrs, children=children)
 
     def transform(self, transformer, always_list=False):
         node = transformer.transform_enter(self.t, self)
 
-        if transformer.transform_attrs and type(node) is AstNode:
-            attrs = {}
+        if transformer.transform_attrs and isinstance(node, AstNode):
+            attrs = FrozenDict.Builder.empty()
+
+            # because we're iterating over a FrozenDict, we'll get the
+            # attributes in sorted order. Therefore, we can use the faster
+            # unsafeset to put them into the builder.
+            dirty = False
             for n, v in node.attrs.items():
                 if type(v) is AstNode:
                     tv = v.transform(transformer)
-                    if tv:
-                        assert len(tv) == 1
-                        attrs[n] = tv[0]
+                    if not tv:
+                        dirty = True
+                        continue
+                    assert len(tv) == 1
+                    attrs.unsafeset(n, tv[0])
+                    if v is not tv[0]:
+                        dirty = True
                 else:
-                    attrs[n] = v
-            if attrs != node.attrs:
-                if node is self:
-                    node = node.clone()
-                node.attrs = attrs
+                    attrs.unsafeset(n, v)
+
+            if dirty:
+                node = attr.evolve(node, attrs=attrs)
 
         if type(node) is AstNode:
+            dirty = False
             children = []
             for child in node.children:
-                if type(child) is AstNode:
-                    children.extend(child.transform(transformer, always_list))
-                else:
+                if not hasattr(child, "transform"):
                     children.append(child)
-            if children != node.children:
-                if node is self:
-                    node = node.clone()
-                node.children = children
+                    continue
+                transformed = child.transform(transformer, always_list)
+                children.extend(transformed)
+                if len(transformed) != 1 or transformed[0] is not child:
+                    dirty = True
+            if dirty:
+                node = attr.evolve(node, children=children)
 
         nodes = transformer.transform_exit(self.t, node)
 
@@ -84,9 +94,7 @@ class AstNode:
         return nodes
 
     def __repr__(self):
-        if self.position is None:
-            return f"<ast {self.t} at ???>"
-        return "<ast {} at {}:{}>".format(self.t, *self.position)
+        return f"<ast {self.t} at {self.span}>"
 
     def pretty(self, indent=0, no_position=False):
         return self._pretty(indent, no_position).strip()
@@ -100,20 +108,20 @@ class AstNode:
         if no_position:
             pp.append("{}{}\n".format(i(), self.t))
         else:
-            pp.append("{}{:<{}} {}:{}\n".format(i(), self.t, 70 - indent,
-                                                *self.position))
-        for attr, value in self.attrs.items():
-            if type(value) is AstNode:
-                pp.append("{}:{} ".format(i(2), attr))
-                pp.append(value._pretty(indent + 4 + len(attr),
+            pp.append("{}{:<{}} {}\n".format(i(), self.t, 70 - indent,
+                                             self.span))
+        for name, value in self.attrs.items():
+            if hasattr(value, "_pretty"):
+                pp.append("{}:{} ".format(i(2), name))
+                pp.append(value._pretty(indent + 4 + len(name),
                                         no_position).lstrip())
             else:
-                pp.append("{}:{} {}\n".format(i(2), attr, repr(value)))
+                pp.append("{}:{} {!r}\n".format(i(2), name, value))
         for child in self.children:
-            if type(child) is AstNode:
+            if hasattr(child, "_pretty"):
                 pp.append(child._pretty(indent + 2, no_position))
             else:
-                pp.append("{}{}\n".format(i(2), repr(child)))
+                pp.append("{}{!r}\n".format(i(2), child))
         return "".join(pp)
 
 

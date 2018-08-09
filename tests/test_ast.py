@@ -135,14 +135,14 @@ def test_member_access():
     a = parse("let a: u8 = foo.bar")
     print(a.pretty())
     assert_equal(
-        ast.AstNode('let', None, attrs={
+        ast.AstNode('let', attrs={
             'name': 'a',
             'type': 'u8',
         }, children=[
-            ast.AstNode('member_access', None, attrs={
+            ast.AstNode('member_access', attrs={
                 'member': 'bar',
             }, children=[
-                ast.AstNode('identifier', None, attrs={
+                ast.AstNode('identifier', attrs={
                     'name': 'foo',
                 }),
             ]),
@@ -198,13 +198,13 @@ def test_complex_type():
     a = parse("let a: &u8 = 0")
     print(a.pretty())
     assert_equal(
-        ast.AstNode('let', None, attrs={
+        ast.AstNode('let', attrs={
             'name': 'a',
-            'type': ast.AstNode('type_ref', None, attrs={
+            'type': ast.AstNode('type_ref', attrs={
                 'type': 'u8',
             }),
         }, children=[
-            ast.AstNode('numeric', None, attrs={
+            ast.AstNode('numeric', attrs={
                 'value': 0,
             }),
         ]),
@@ -218,11 +218,11 @@ def test_identifiers(name0, name):
     name = name0 + name
     a = parse(f"let a: u8 = {name}")
     print(a.pretty())
-    assert_equal(ast.AstNode('let', None, attrs={
+    assert_equal(ast.AstNode('let', attrs={
         'name': 'a',
         'type': 'u8',
     }, children=[
-        ast.AstNode('identifier', None, attrs={
+        ast.AstNode('identifier', attrs={
             'name': name,
         })
     ]), a.children[0])
@@ -232,11 +232,11 @@ def test_identifiers(name0, name):
 def test_numeric_hex_valid(n):
     a = parse(f"let a: u8 = 0x{n:x}")
     print(a.pretty())
-    assert_equal(ast.AstNode('let', None, attrs={
+    assert_equal(ast.AstNode('let', attrs={
         'name': 'a',
         'type': 'u8',
     }, children=[
-        ast.AstNode('numeric', None, attrs={
+        ast.AstNode('numeric', attrs={
             'value': n,
         })
     ]), a.children[0])
@@ -250,11 +250,11 @@ def test_numeric_hex_invalid():
 def test_numeric_oct_valid(n):
     a = parse(f"let a: u8 = 0o{n:o}")
     print(a.pretty())
-    assert_equal(ast.AstNode('let', None, attrs={
+    assert_equal(ast.AstNode('let', attrs={
         'name': 'a',
         'type': 'u8',
     }, children=[
-        ast.AstNode('numeric', None, attrs={
+        ast.AstNode('numeric', attrs={
             'value': n,
         })
     ]), a.children[0])
@@ -268,11 +268,11 @@ def test_numeric_oct_invalid():
 def test_numeric_bin_valid(n):
     a = parse(f"let a: u8 = 0b{n:b}")
     print(a.pretty())
-    assert_equal(ast.AstNode('let', None, attrs={
+    assert_equal(ast.AstNode('let', attrs={
         'name': 'a',
         'type': 'u8',
     }, children=[
-        ast.AstNode('numeric', None, attrs={
+        ast.AstNode('numeric', attrs={
             'value': n,
         })
     ]), a.children[0])
@@ -436,12 +436,12 @@ def test_fun_call_empty():
     a = parse("let a: u8 = foo()")
     print(a.pretty())
     assert_equal(
-        ast.AstNode('let', None, attrs={
+        ast.AstNode('let', attrs={
             'name': 'a',
             'type': 'u8',
         }, children=[
-            ast.AstNode('call', None, attrs={
-                'target': ast.AstNode('identifier', None, attrs={
+            ast.AstNode('call', attrs={
+                'target': ast.AstNode('identifier', attrs={
                     'name': 'foo',
                 }),
             }, children=[]),
@@ -453,16 +453,16 @@ def test_fun_call_one():
     a = parse("let a: u8 = foo(7)")
     print(a.pretty())
     assert_equal(
-        ast.AstNode('let', None, attrs={
+        ast.AstNode('let', attrs={
             'name': 'a',
             'type': 'u8',
         }, children=[
-            ast.AstNode('call', None, attrs={
-                'target': ast.AstNode('identifier', None, attrs={
+            ast.AstNode('call', attrs={
+                'target': ast.AstNode('identifier', attrs={
                     'name': 'foo',
                 }),
             }, children=[
-                ast.AstNode('numeric', None, attrs={
+                ast.AstNode('numeric', attrs={
                     'value': 7,
                 }),
             ]),
@@ -474,19 +474,19 @@ def test_fun_call_many():
     a = parse('let a: u8 = foo(7, "hello")')
     print(a.pretty())
     assert_equal(
-        ast.AstNode('let', None, attrs={
+        ast.AstNode('let', attrs={
             'name': 'a',
             'type': 'u8',
         }, children=[
-            ast.AstNode('call', None, attrs={
-                'target': ast.AstNode('identifier', None, attrs={
+            ast.AstNode('call', attrs={
+                'target': ast.AstNode('identifier', attrs={
                     'name': 'foo',
                 }),
             }, children=[
-                ast.AstNode('numeric', None, attrs={
+                ast.AstNode('numeric', attrs={
                     'value': 7,
                 }),
-                ast.AstNode('string', None, attrs={
+                ast.AstNode('string', attrs={
                     'value': "hello",
                 }),
             ]),
@@ -627,8 +627,8 @@ def test_assign():
     a = parse("fun foo() a = 7 endfun")
     print(a.pretty())
     assert_equal(
-        ast.AstNode('set', None, children=[
-            ast.AstNode('identifier', None, attrs={'name': 'a'}),
-            ast.AstNode('numeric', None, attrs={'value': 7}),
+        ast.AstNode('set', children=[
+            ast.AstNode('identifier', attrs={'name': 'a'}),
+            ast.AstNode('numeric', attrs={'value': 7}),
         ]),
         a.children[0].children[0])

@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from ... import ast, pattern
+from ...immutable import FrozenDict
 from ...pattern import Predicate as P
 
 
@@ -27,24 +28,21 @@ class ScopedPass(ast.TranslationPass):
         self.scopes = []
 
     def bind_name(self, name, value):
-        known_names = self.scopes[-1].get_attr_default('known_names', {})
-        known_names[name] = value
+        self.scopes[-1]['known_names'][name] = value
 
     def look_up_name(self, name):
         for scope in reversed(self.scopes):
-            known_names = scope.get_attr_default('known_names', {})
+            known_names = scope['known_names']
             if name in known_names:
                 return known_names[name]
         return None
 
     def bind_constant(self, name, value):
-        known_constants = self.scopes[-1].get_attr_default('known_constants',
-                                                           {})
-        known_constants[name] = value
+        self.scopes[-1]['known_constants'][name] = value
 
     def look_up_constant(self, name):
         for scope in reversed(self.scopes):
-            known_constants = scope.get_attr_default('known_constants', {})
+            known_constants = scope['known_constants']
             if name in known_constants:
                 return known_constants[name]
         return None
@@ -52,21 +50,27 @@ class ScopedPass(ast.TranslationPass):
     def transform_enter(self, t, node):
         node = super().transform_enter(t, node)
         if t in self.scoped_types:
-            # we MUST clone the node here in order to deal with the fact that
-            # the children could be altered either by the transform function or
-            # by the pass itself. By cloning once, we assure that changes made
-            # will be to the same object.
-            node = node.clone()
-            self.scopes.append(node)
+            self.scopes.append(node.attrs.asbuilder())
+            known_names = self.scopes[-1].get('known_names',
+                                              FrozenDict.empty())
+            self.scopes[-1]['known_names'] = known_names.asbuilder()
+            known_constants = self.scopes[-1].get('known_constants',
+                                                  FrozenDict.empty())
+            self.scopes[-1]['known_constants'] = known_constants.asbuilder()
             node = self.enter__scope(node)
         return node
 
     def transform_exit(self, t, node):
         if t in self.scoped_types:
             node = self.exit__scope(node)
-        nodes = super().transform_exit(t, node)
         if t in self.scoped_types:
-            self.scopes.pop()
+            attrs = self.scopes.pop()
+            attrs['known_names'] = FrozenDict.create(
+                attrs['known_names'])
+            attrs['known_constants'] = FrozenDict.create(
+                attrs['known_constants'])
+            node = node.evolve(update_attrs=attrs)
+        nodes = super().transform_exit(t, node)
         return nodes
 
     def enter__scope(self, node):
@@ -127,15 +131,15 @@ class ExplicitScopes:
     @pattern.match(
         P.any_node('root', with_children=[
             P.zero_or_more_nodes('before', exclude=['let']),
-            ast.AstNode('let', P('let_p'), children=[
+            ast.AstNode('let', span=P('let_p'), children=[
                 P.zero_or_more_nodes('inner'),
             ]),
             P.zero_or_more_nodes('after'),
         ]))
     def extend_scope(self, root, before, after, inner, let_p):
-        return root.clone(with_children=[
+        return root.evolve(with_children=[
             *before,
-            ast.AstNode('let_scoped', let_p, children=[
+            ast.AstNode('let_scoped', span=let_p, children=[
                 *inner,
                 *after,
             ])
@@ -187,9 +191,3 @@ class ResolveConstants(ScopedPass):
         if not value:
             return node
         return value
-
-    def exit__scope(self, node):
-        node = node.clone()
-        if 'known_constants' in node.attrs:
-            del node.attrs['known_constants']
-        return node

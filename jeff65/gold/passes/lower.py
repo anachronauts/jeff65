@@ -26,13 +26,13 @@ class LowerAssignment(ast.TranslationPass):
         assert node.attrs['type'].width == rhs.width
 
         return [
-            asm.lda(node.position, rhs),
-            asm.sta(node.position, lhs),
+            asm.lda(rhs, node.span),
+            asm.sta(lhs, node.span),
         ]
 
 
 class LowerFunctions(ast.TranslationPass):
     def exit_fun(self, node):
-        node = node.clone()
-        node.children.append(asm.rts(node.position))
-        return node
+        children = list(node.children)
+        children.append(asm.rts(node.span))
+        return node.evolve(with_children=children)

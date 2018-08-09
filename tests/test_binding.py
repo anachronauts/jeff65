@@ -1,6 +1,6 @@
+import attr
 import string
 import hypothesis.strategies as st
-from collections import namedtuple
 from hypothesis import assume
 from hypothesis.stateful import (
     Bundle,
@@ -8,20 +8,27 @@ from hypothesis.stateful import (
     rule,
     precondition)
 from nose.tools import (
-    assert_equal)
+    assert_equal,
+    assert_not_in)
 from jeff65 import ast
 from jeff65.blum import types
 from jeff65.gold.passes import binding
 
 
 def transform(node, xform):
-    backup = node.clone()
+    backup = node.pretty()
     result = node.transform(xform)
-    assert_equal(backup, node)  # check that the previous AST wasn't mutated
+    # check that the previous AST wasn't mutated
+    assert_equal(backup, node.pretty())
     return result
 
 
-Frame = namedtuple('Frame', ['t', 'node', 'orig', 'names'])
+@attr.s
+class Frame:
+    t = attr.ib()
+    node = attr.ib()
+    orig = attr.ib()
+    names = attr.ib()
 
 
 class ScopedTransform(RuleBasedStateMachine):
@@ -45,7 +52,7 @@ class ScopedTransform(RuleBasedStateMachine):
 
     @rule(t=st.sampled_from(binding.ScopedPass.scoped_types))
     def enter_scoped_node(self, t):
-        orig = ast.AstNode(t, None)
+        orig = ast.AstNode(t)
         node = self.transform.transform_enter(t, orig)
         self.frames.append(Frame(t, node, orig, {}))
 
@@ -57,14 +64,14 @@ class ScopedTransform(RuleBasedStateMachine):
         assume(self.frames[-1].t == t)
         frame = self.frames.pop()
         node, *nodes = self.transform.transform_exit(t, frame.node)
-        assert len(nodes) == 0
-        assert frame.orig == ast.AstNode(t, None)
-        assert frame.names == node.get_attr_default('known_names', {})
+        assert_equal(0, len(nodes))
+        assert_equal(ast.AstNode(t), frame.orig)
+        assert_equal(frame.names, node.attrs['known_names'])
 
     @precondition(lambda self: len(self.frames) > 0)
     @rule(t=unscoped_types)
     def enter_unscoped_node(self, t):
-        orig = ast.AstNode(t, None)
+        orig = ast.AstNode(t)
         node = self.transform.transform_enter(t, orig)
         self.frames.append(Frame(t, node, orig, None))
 
@@ -76,9 +83,9 @@ class ScopedTransform(RuleBasedStateMachine):
         assume(self.frames[-1].t == t)
         frame = self.frames.pop()
         node, *nodes = self.transform.transform_exit(t, frame.node)
-        assert len(nodes) == 0
-        assert frame.orig == ast.AstNode(t, None)
-        assert None is node.get_attr_default('known_names', None)
+        assert_equal(0, len(nodes))
+        assert_equal(ast.AstNode(t), frame.orig)
+        assert_not_in('known_names', node.attrs)
 
     @precondition(lambda self: len(self.frames) > 0)
     @rule(n=names, v=st.integers())
@@ -103,29 +110,29 @@ TestScopedPass = ScopedTransform.TestCase
 
 
 def test_explicit_scopes_single():
-    a = ast.AstNode('fun', None, children=[
-        ast.AstNode('call', None, attrs={'target': 'spam'}),
-        ast.AstNode('let', None, children=[
-            ast.AstNode('let_set!', None, attrs={
+    a = ast.AstNode('fun', children=[
+        ast.AstNode('call', attrs={'target': 'spam'}),
+        ast.AstNode('let', children=[
+            ast.AstNode('let_set!', attrs={
                 'name': 'foo',
                 'type': types.u8,
             }, children=[
-                ast.AstNode('numeric', None, attrs={'value': 42}),
+                ast.AstNode('numeric', attrs={'value': 42}),
             ]),
         ]),
-        ast.AstNode('call', None, attrs={'target': 'eggs'}),
+        ast.AstNode('call', attrs={'target': 'eggs'}),
     ])
     b = transform(a, binding.ExplicitScopes())
-    expected = ast.AstNode('fun', None, children=[
-        ast.AstNode('call', None, attrs={'target': 'spam'}),
-        ast.AstNode('let_scoped', None, children=[
-            ast.AstNode('let_set!', None, attrs={
+    expected = ast.AstNode('fun', children=[
+        ast.AstNode('call', attrs={'target': 'spam'}),
+        ast.AstNode('let_scoped', children=[
+            ast.AstNode('let_set!', attrs={
                 'name': 'foo',
                 'type': types.u8,
             }, children=[
-                ast.AstNode('numeric', None, attrs={'value': 42}),
+                ast.AstNode('numeric', attrs={'value': 42}),
             ]),
-            ast.AstNode('call', None, attrs={'target': 'eggs'}),
+            ast.AstNode('call', attrs={'target': 'eggs'}),
         ]),
     ])
     try:
@@ -138,46 +145,46 @@ def test_explicit_scopes_single():
 
 
 def test_explicit_scopes_multiple():
-    a = ast.AstNode('fun', None, children=[
-        ast.AstNode('call', None, attrs={'target': 'spam'}),
-        ast.AstNode('let', None, children=[
-            ast.AstNode('let_set!', None, attrs={
+    a = ast.AstNode('fun', children=[
+        ast.AstNode('call', attrs={'target': 'spam'}),
+        ast.AstNode('let', children=[
+            ast.AstNode('let_set!', attrs={
                 'name': 'foo',
                 'type': types.u8,
             }, children=[
-                ast.AstNode('numeric', None, attrs={'value': 42}),
+                ast.AstNode('numeric', attrs={'value': 42}),
             ]),
         ]),
-        ast.AstNode('call', None, attrs={'target': 'eggs'}),
-        ast.AstNode('let', None, children=[
-            ast.AstNode('let_set!', None, attrs={
+        ast.AstNode('call', attrs={'target': 'eggs'}),
+        ast.AstNode('let', children=[
+            ast.AstNode('let_set!', attrs={
                 'name': 'bar',
                 'type': types.u8,
             }, children=[
-                ast.AstNode('numeric', None, attrs={'value': 54}),
+                ast.AstNode('numeric', attrs={'value': 54}),
             ]),
         ]),
-        ast.AstNode('call', None, attrs={'target': 'beans'}),
+        ast.AstNode('call', attrs={'target': 'beans'}),
     ])
     b = transform(a, binding.ExplicitScopes())
-    expected = ast.AstNode('fun', None, children=[
-        ast.AstNode('call', None, attrs={'target': 'spam'}),
-        ast.AstNode('let_scoped', None, children=[
-            ast.AstNode('let_set!', None, attrs={
+    expected = ast.AstNode('fun', children=[
+        ast.AstNode('call', attrs={'target': 'spam'}),
+        ast.AstNode('let_scoped', children=[
+            ast.AstNode('let_set!', attrs={
                 'name': 'foo',
                 'type': types.u8,
             }, children=[
-                ast.AstNode('numeric', None, attrs={'value': 42}),
+                ast.AstNode('numeric', attrs={'value': 42}),
             ]),
-            ast.AstNode('call', None, attrs={'target': 'eggs'}),
-            ast.AstNode('let_scoped', None, children=[
-                ast.AstNode('let_set!', None, attrs={
+            ast.AstNode('call', attrs={'target': 'eggs'}),
+            ast.AstNode('let_scoped', children=[
+                ast.AstNode('let_set!', attrs={
                     'name': 'bar',
                     'type': types.u8,
                 }, children=[
-                    ast.AstNode('numeric', None, attrs={'value': 54}),
+                    ast.AstNode('numeric', attrs={'value': 54}),
                 ]),
-                ast.AstNode('call', None, attrs={'target': 'beans'}),
+                ast.AstNode('call', attrs={'target': 'beans'}),
             ]),
         ]),
     ])

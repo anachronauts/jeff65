@@ -38,7 +38,7 @@ class AssembleWithRelocations:
     transform_attrs = False
 
     @pattern.match(
-        ast.AstNode('lda', P.any(), attrs={
+        ast.AstNode('lda', attrs={
             'storage': storage.ImmediateStorage(
                 P('value'), P.require(1, AssemblyError)),
         }))
@@ -46,7 +46,7 @@ class AssembleWithRelocations:
         return AsmRun(struct.pack('<BB', 0xa9, value))
 
     @pattern.match(
-        ast.AstNode('sta', P.any(), attrs={
+        ast.AstNode('sta', attrs={
             'storage': storage.AbsoluteStorage(
                 P('address'), P.require(1, AssemblyError)),
         }))
@@ -54,66 +54,51 @@ class AssembleWithRelocations:
         return AsmRun(struct.pack('<BH', 0x8d, address))
 
     @pattern.match(
-        ast.AstNode('jmp', P.any(), attrs={
+        ast.AstNode('jmp', attrs={
             'storage': storage.AbsoluteStorage(P('address'), P.any()),
         }))
     def jmp(self, address):
         return AsmRun(struct.pack('<BH', 0x4c, address))
 
-    @pattern.match(ast.AstNode('rts', P.any()))
+    @pattern.match(ast.AstNode('rts'))
     def rts(self):
         return AsmRun(b'\x60')
 
 
 class FlattenSymbol(ast.TranslationPass):
     def exit_fun(self, node):
-        data = []
-        for c in node.children:
-            data.append(c.data)
-
-        sym = ast.AstNode('fun_symbol', node.position, {
+        return ast.AstNode('fun_symbol', span=node.span, attrs={
             'name': node.attrs['name'],
             'type': node.attrs['type'],
-            'text': b"".join(data),
+            'text': b"".join(c.data for c in node.children)
         })
 
-        if 'return_addr' in node.attrs:
-            sym.attrs['return_addr'] = node.attrs['return_addr']
 
-        return sym
-
-    def exit_unit(self, node):
-        node = node.clone()
-        if 'known_names' in node.attrs:
-            del node.attrs['known_names']
-        return node
-
-
-def lda(position, arg):
+def lda(arg, span):
     assert type(arg) is storage.ImmediateStorage
-    return ast.AstNode('lda', position, attrs={
+    return ast.AstNode('lda', span=span, attrs={
         'storage': arg,
         'size': 2,
     })
 
 
-def sta(position, arg):
+def sta(arg, span):
     assert type(arg) is storage.AbsoluteStorage
-    return ast.AstNode('sta', position, attrs={
+    return ast.AstNode('sta', span=span, attrs={
         'storage': arg,
         'size': 3,
     })
 
 
-def jmp(position, arg):
+def jmp(arg, span):
     assert type(arg) is storage.AbsoluteStorage
-    return ast.AstNode('jmp', position, attrs={
+    return ast.AstNode('jmp', span=span, attrs={
         'storage': arg,
         'size': 3,
     })
 
 
-def rts(position):
-    return ast.AstNode('rts', position, attrs={
+def rts(span):
+    return ast.AstNode('rts', span=span, attrs={
         'size': 1,
     })
