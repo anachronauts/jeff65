@@ -15,9 +15,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import binding
-from .. import ast, mem, pattern
+from .. import mem
 from ..storage import AbsoluteStorage, ImmediateStorage
-from ..pattern import Predicate as P
+from ... import ast, pattern
+from ...pattern import Predicate as P
 
 
 @pattern.transform(pattern.Order.Descending)
@@ -25,10 +26,10 @@ class ResolveStorage:
     transform_attrs = False
 
     @pattern.match(
-        ast.AstNode('deref', P.any(), attrs={
+        ast.AstNode('deref', attrs={
             'type': P('ty'),
         }, children=[
-            ast.AstNode(P.require('numeric'), P.any(), attrs={
+            ast.AstNode(P.require('numeric'), attrs={
                 'value': P('address'),
             })
         ]))
@@ -36,7 +37,7 @@ class ResolveStorage:
         return AbsoluteStorage(address, ty.width)
 
     @pattern.match(
-        ast.AstNode('numeric', P.any(), attrs={
+        ast.AstNode('numeric', attrs={
             'value': P.lt(256, 'value', require=True),
         }))
     def numeric_to_immediate(self, value):

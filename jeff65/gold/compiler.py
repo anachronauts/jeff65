@@ -15,8 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
-from . import ast, grammar
-from .. import blum, parsing
+from . import grammar
+from .. import ast, blum, parsing
 from .passes import asm, binding, lower, resolve, simplify, typepasses
 
 
@@ -48,7 +48,7 @@ def parse(fileobj, name):
     stream = parsing.ReStream(fileobj)
     tree = grammar.parse(
         stream, grammar.lex,
-        lambda t, s, c, m: ast.AstNode(t, s.start, children=c))
+        lambda t, s, c, m: ast.AstNode(t, span=s, children=c))
     # if parser._syntaxErrors > 0:
     #     raise ast.ParseError("Unit {} had errors; terminating".format(name))
     unit = tree.transform(simplify.Simplify(), always_list=True)

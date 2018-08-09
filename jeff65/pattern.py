@@ -1,4 +1,4 @@
-# jeff65 gold-syntax pattern-based AST transformation
+# jeff65 pattern-based AST transformation
 # Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,7 @@ This module provides something similar to Scheme R5RS syntax-rules, on top of
 procedural DFS transform system.
 """
 
+import attr
 import enum
 import inspect
 from collections import deque
@@ -101,7 +102,10 @@ def transform_handler(self, t, node):
         captures = {}
         if predicate._match(node, captures):
             f = template.__get__(self, type)
-            return f(**captures)
+            n = f(**captures)
+            if isinstance(n, ast.AstNode) and n.span is None:
+                return attr.evolve(n, span=node.span)
+            return n
     return node
 
 
@@ -119,6 +123,11 @@ class PatternAnalyser:
             return obj._to_predicate(self)
         # fallback case: check for equality without capturing.
         return Predicate.eq(obj)
+
+    def make_span_predicate(self, span):
+        if span is None:
+            return Predicate.any()
+        return self.make_predicate(span)
 
     def make_attrs_predicate(self, attrs):
         if isinstance(attrs, Predicate):
@@ -141,9 +150,9 @@ class PatternAnalyser:
     def transform_exit(self, t, node):
         return Predicate.node(
             self.make_predicate(node.t),
-            self.make_predicate(node.position),
             self.make_attrs_predicate(node.attrs),
-            node.children)
+            node.children,
+            self.make_span_predicate(node.span))
 
 
 class Predicate:
@@ -187,17 +196,17 @@ class Predicate:
         return cls.node(
             cls.any(),
             cls.any(),
-            cls.any(),
             children,
+            cls.any(),
             key=key)
 
     @classmethod
-    def node(cls, pt, pp, pa, pcs, key=None):
+    def node(cls, pt, pa, pcs, pn, key=None):
         def _node_predicate(node, captures):
             if not (isinstance(node, ast.AstNode)
                     and pt._match(node.t, captures)
-                    and pp._match(node.position, captures)
-                    and pa._match(node.attrs, captures)):
+                    and pa._match(node.attrs, captures)
+                    and pn._match(node.span, captures)):
                 return False
             cq = deque(node.children)
             pcq = deque(pcs)

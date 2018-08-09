@@ -14,10 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .. import ast, pattern
 from ..grammar import T
-from ..pattern import Predicate as P
-from ... import parsing
+from ... import ast, parsing, pattern
+from ...pattern import Predicate as P
 
 
 def require_token(t):
@@ -30,36 +29,32 @@ def token(t, key=None):
 
 def unop(operator, sym):
     @pattern.match(
-        ast.AstNode('expr', P('position'), children=[
-            token(operator), P('rhs'),
-        ]))
-    def name_unop(self, position, rhs):
-        return ast.AstNode(sym, position, children=[rhs])
+        ast.AstNode('expr', children=[token(operator), P('rhs')]))
+    def name_unop(self, rhs):
+        return ast.AstNode(sym, children=[rhs])
 
     return name_unop
 
 
 def binop(operator, sym):
     @pattern.match(
-        ast.AstNode('expr', P('position'), children=[
-            P('lhs'), token(operator), P('rhs'),
-        ]))
-    def name_binop(self, position, lhs, rhs):
-        return ast.AstNode(sym, position, children=[lhs, rhs])
+        ast.AstNode('expr', children=[P('lhs'), token(operator), P('rhs')]))
+    def name_binop(self, lhs, rhs):
+        return ast.AstNode(sym, children=[lhs, rhs])
 
     return name_binop
 
 
 def left_recursion(sym):
     @pattern.match(
-        ast.AstNode(sym, P('position'), children=[
-            ast.AstNode(sym, P.any(), children=[
+        ast.AstNode(sym, children=[
+            ast.AstNode(sym, children=[
                 P.zero_or_more_nodes('children0')
             ]),
             P.zero_or_more_nodes('children1'),
         ]))
-    def collapse_left_recursion(self, position, children0, children1):
-        return ast.AstNode(sym, position, children=children0+children1)
+    def collapse_left_recursion(self, children0, children1):
+        return ast.AstNode(sym, children=children0+children1)
 
     return collapse_left_recursion
 
@@ -68,10 +63,7 @@ def left_recursion(sym):
 class Simplify:
     transform_attrs = False
 
-    @pattern.match(
-        ast.AstNode('expr', P.any(), children=[
-            P.any_node('node'),
-        ]))
+    @pattern.match(ast.AstNode('expr', children=[P.any_node('node')]))
     def remove_single_expr(self, node):
         return node
 
@@ -79,40 +71,39 @@ class Simplify:
     collapse_block = left_recursion('block')
 
     @pattern.match(
-        ast.AstNode('alist_inner', P('position'), children=[
-            ast.AstNode('alist_inner', P.any(), children=[
+        ast.AstNode('alist_inner', children=[
+            ast.AstNode('alist_inner', children=[
                 P.zero_or_more_nodes('children0')
             ]),
             require_token(T.PUNCT_COMMA),
             P.zero_or_more_nodes('children1'),
         ]))
-    def collapse_alist_inner(self, position, children0, children1):
-        return ast.AstNode('alist_inner', position,
-                           children=children0+children1)
+    def collapse_alist_inner(self, children0, children1):
+        return ast.AstNode('alist_inner', children=children0+children1)
 
     @pattern.match(
-        ast.AstNode('alist', P('position'), children=[
-            ast.AstNode('alist_inner', P.any(), children=[
+        ast.AstNode('alist', children=[
+            ast.AstNode('alist_inner', children=[
                 P.zero_or_more_nodes('children'),
             ])
         ]))
-    def collapse_alist(self, position, children):
-        return ast.AstNode('alist', position, children=children)
+    def collapse_alist(self, children):
+        return ast.AstNode('alist', children=children)
 
     @pattern.match(
-        ast.AstNode('stmt_use', P('position'), children=[
+        ast.AstNode('stmt_use', children=[
             require_token(T.STMT_USE),
             P('unit_name'),
         ]))
-    def collapse_stmt_use(self, position, unit_name):
-        return ast.AstNode('use', position, attrs={
+    def collapse_stmt_use(self, unit_name):
+        return ast.AstNode('use', attrs={
             'name': unit_name.text,
         })
 
     @pattern.match(
-        ast.AstNode('stmt_constant', P('position'), children=[
+        ast.AstNode('stmt_constant', children=[
             require_token(T.STMT_CONSTANT),
-            ast.AstNode('declaration', P.any(), children=[
+            ast.AstNode('declaration', children=[
                 P('name'),
                 require_token(T.PUNCT_COLON),
                 P('ty'),
@@ -120,19 +111,19 @@ class Simplify:
             require_token(T.OPERATOR_ASSIGN),
             P('rhs'),
         ]))
-    def collapse_stmt_constant(self, position, name, ty, rhs):
-        return ast.AstNode('constant', position, attrs={
+    def collapse_stmt_constant(self, name, ty, rhs):
+        return ast.AstNode('constant', attrs={
             'name': name.text,
             'type': ty,
         }, children=[rhs])
 
     @pattern.match(
-        ast.AstNode('stmt_let', P('position'), children=[
+        ast.AstNode('stmt_let', children=[
             require_token(T.STMT_LET),
-            ast.AstNode('storage', P.any(), children=[
+            ast.AstNode('storage', children=[
                 P.zero_or_more_nodes('storage'),
             ]),
-            ast.AstNode('declaration', P.any(), children=[
+            ast.AstNode('declaration', children=[
                 P('name'),
                 require_token(T.PUNCT_COLON),
                 P('ty'),
@@ -140,63 +131,62 @@ class Simplify:
             require_token(T.OPERATOR_ASSIGN),
             P('rhs'),
         ]))
-    def collapse_stmt_let(self, position, storage, name, ty, rhs):
-        return ast.AstNode('let', position, attrs={
+    def collapse_stmt_let(self, storage, name, ty, rhs):
+        return ast.AstNode('let', attrs={
             'name': name.text,
             'type': ty,
             **{'storage': s.text for s in storage},
         }, children=[rhs])
 
     @pattern.match(
-        ast.AstNode('stmt_assign', P('position'), children=[
+        ast.AstNode('stmt_assign', children=[
             P('lhs'),
             require_token(T.OPERATOR_ASSIGN),
             P('rhs'),
         ]))
-    def collapse_stmt_assign(self, position, lhs, rhs):
-        return ast.AstNode('set', position, children=[lhs, rhs])
+    def collapse_stmt_assign(self, lhs, rhs):
+        return ast.AstNode('set', children=[lhs, rhs])
 
     # TODO: handle arguments, return values
     @pattern.match(
-        ast.AstNode('stmt_fun', P('position'), children=[
+        ast.AstNode('stmt_fun', children=[
             require_token(T.STMT_FUN),
             P('name'),
             require_token(T.PAREN_OPEN),
             P.any(),  # plist
             require_token(T.PAREN_CLOSE),
-            ast.AstNode('block', P.any(), children=[
+            ast.AstNode('block', children=[
                 P.zero_or_more_nodes('body'),
             ]),
             require_token(T.PUNCT_ENDFUN),
         ]))
-    def collapse_stmt_fun(self, position, name, body):
-        return ast.AstNode('fun', position, attrs={
+    def collapse_stmt_fun(self, name, body):
+        return ast.AstNode('fun', attrs={
             'name': name.text,
             'return': None,
             'args': [],
         }, children=body)
 
-    @pattern.match(ast.AstNode('type_id', P.any(), children=[P('ty')]))
+    @pattern.match(ast.AstNode('type_id', children=[P('ty')]))
     def simple_type(self, ty):
         return ty.text
 
     @pattern.match(
-        ast.AstNode('type_id', P('position'), children=[
+        ast.AstNode('type_id', children=[
             token(T.OPERATOR_REF),
-            ast.AstNode('storage', P.any(), children=[
+            ast.AstNode('storage', children=[
                 P.zero_or_more_nodes('storage'),
             ]),
             P('ty'),
         ]))
-    def ref_type(self, position, storage, ty):
-        return ast.AstNode('type_ref', position, attrs={
+    def ref_type(self, storage, ty):
+        return ast.AstNode('type_ref', attrs={
             'type': ty,
             **{'storage': s.text for s in storage},
         })
 
-    @pattern.match(
-        ast.AstNode('expr', P('position'), children=[token(T.NUMERIC, 'n')]))
-    def numeric(self, position, n):
+    @pattern.match(ast.AstNode('expr', children=[token(T.NUMERIC, 'n')]))
+    def numeric(self, n):
         try:
             if n.text.startswith('0x'):
                 value = int(n.text[2:], 16)
@@ -209,19 +199,16 @@ class Simplify:
         except ValueError as e:
             raise parsing.ParseError(str(e))
 
-        return ast.AstNode('numeric', position, attrs={'value': value})
+        return ast.AstNode('numeric', attrs={'value': value})
 
-    @pattern.match(
-        ast.AstNode('expr', P('position'), children=[
-            token(T.IDENTIFIER, 'id'),
-        ]))
-    def identifier(self, position, id):
-        return ast.AstNode('identifier', position, attrs={
+    @pattern.match(ast.AstNode('expr', children=[token(T.IDENTIFIER, 'id')]))
+    def identifier(self, id):
+        return ast.AstNode('identifier', attrs={
             'name': id.text,
         })
 
     @pattern.match(
-        ast.AstNode('expr', P.any(), children=[
+        ast.AstNode('expr', children=[
             token(T.PAREN_OPEN), P('inner'), token(T.PAREN_CLOSE),
         ]))
     def drop_expr_parens(self, inner):
@@ -235,41 +222,41 @@ class Simplify:
     name_div = binop(T.OPERATOR_DIVIDE, 'div')
 
     @pattern.match(
-        ast.AstNode('expr', P('position'), children=[
+        ast.AstNode('expr', children=[
             P('namespace'),
             token(T.OPERATOR_DOT),
-            ast.AstNode('member', P.any(), children=[
+            ast.AstNode('member', children=[
                 P('member'),
             ]),
         ]))
-    def name_member_access(self, position, namespace, member):
-        return ast.AstNode('member_access', position, attrs={
+    def name_member_access(self, namespace, member):
+        return ast.AstNode('member_access', attrs={
             'member': member.text,
         }, children=[namespace])
 
     @pattern.match(
-        ast.AstNode('expr', P('position'), children=[
+        ast.AstNode('expr', children=[
             P('function'),
             token(T.PAREN_OPEN),
-            ast.AstNode('alist', P.any(), children=[
+            ast.AstNode('alist', children=[
                 P.zero_or_more_nodes('args'),
             ]),
             token(T.PAREN_CLOSE),
         ]))
-    def name_call(self, position, function, args):
-        return ast.AstNode('call', position, attrs={
+    def name_call(self, function, args):
+        return ast.AstNode('call', attrs={
             'target': function,
         }, children=args)
 
     # Collapse left-recursion on strings. Note that the list we use to build
     # the string is wrapped in another list to protect it from being spliced
     # directly into the node children.
-    @pattern.match(ast.AstNode('string_inner', P.any(), children=[]))
+    @pattern.match(ast.AstNode('string_inner', children=[]))
     def string_inner_empty(self):
         return [[]]
 
     @pattern.match(
-        ast.AstNode('string_inner', P.any(), children=[
+        ast.AstNode('string_inner', children=[
             P('string0'),
             token(T.STRING, 'string1'),
         ]))
@@ -278,7 +265,7 @@ class Simplify:
         return [string0]
 
     @pattern.match(
-        ast.AstNode('string_inner', P.any(), children=[
+        ast.AstNode('string_inner', children=[
             P('string0'),
             token(T.STRING_ESCAPE, 'string1'),
         ]))
@@ -287,12 +274,10 @@ class Simplify:
         return [string0]
 
     @pattern.match(
-        ast.AstNode('string', P('position'), children=[
+        ast.AstNode('string', children=[
             require_token(T.STRING_DELIM),
             P('value'),
             require_token(T.STRING_DELIM),
         ]))
-    def collapse_string(self, position, value):
-        return ast.AstNode('string', position, attrs={
-            'value': "".join(value),
-        })
+    def collapse_string(self, value):
+        return ast.AstNode('string', attrs={'value': "".join(value)})
