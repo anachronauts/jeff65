@@ -15,24 +15,22 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
-import antlr4
-from .lexer import Lexer
-from .grammar import Parser
-from . import asm, ast, binding, lower, storage, typepasses, units
-from .. import blum
+from . import grammar
+from .. import ast, blum, parsing
+from .passes import asm, binding, lower, resolve, simplify, typepasses
 
 
 passes = [
-    # binding.ExplicitScopes,
-    units.ResolveUnits,
+    binding.ExplicitScopes,
+    resolve.ResolveUnits,
     binding.ShadowNames,
     typepasses.ConstructTypes,
     binding.BindNamesToTypes,
-    units.ResolveMembers,
+    resolve.ResolveMembers,
     typepasses.PropagateTypes,
     binding.EvaluateConstants,
     binding.ResolveConstants,
-    storage.ResolveStorage,
+    resolve.ResolveStorage,
     lower.LowerAssignment,
     lower.LowerFunctions,
     asm.AssembleWithRelocations,
@@ -46,39 +44,16 @@ def open_unit(unit):
     return open(unit, 'r')
 
 
-def _make_parser(fileobj, name):
-    lexer = Lexer(fileobj, name=name)
-    tokens = antlr4.CommonTokenStream(lexer)
-    return Parser(tokens)
-
-
 def parse(fileobj, name):
-    parser = _make_parser(fileobj, name)
-    tree = parser.unit()
-    if parser._syntaxErrors > 0:
-        raise ast.ParseError("Unit {} had errors; terminating".format(name))
-    builder = ast.AstBuilder()
-    return builder.walk(tree)
-
-
-def parse_expr(fileobj, name):
-    parser = _make_parser(fileobj, name)
-    tree = parser.expr()
-    if parser._syntaxErrors > 0:
-        raise ast.ParseError("Expression had errors; terminating")
-    builder = ast.AstBuilder()
-    builder._push(ast.AstNode('<expr>', (0, 0)))
-    return builder.walk(tree)
-
-
-def parse_block(fileobj, name):
-    parser = _make_parser(fileobj, name)
-    tree = parser.block()
-    if parser._syntaxErrors > 0:
-        raise ast.ParseError("Block had errors; terminating")
-    builder = ast.AstBuilder()
-    builder._push(ast.AstNode('<block>', (0, 0)))
-    return builder.walk(tree)
+    stream = parsing.ReStream(fileobj)
+    tree = grammar.parse(
+        stream, grammar.lex,
+        lambda t, s, c, m: ast.AstNode(t, span=s, children=c))
+    # if parser._syntaxErrors > 0:
+    #     raise ast.ParseError("Unit {} had errors; terminating".format(name))
+    unit = tree.transform(simplify.Simplify(), always_list=True)
+    assert len(unit) == 1
+    return unit[0]
 
 
 def translate(unit, verbose=False):

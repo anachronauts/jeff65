@@ -5,8 +5,8 @@ from nose.tools import (
     assert_is_instance,
     assert_is_none,
     assert_raises)
-from jeff65 import gold
-from jeff65.gold import ast, compiler
+from hypothesis import given, strategies as st
+from jeff65 import ast, gold, parsing
 
 sys.stderr = sys.stdout
 
@@ -19,15 +19,17 @@ def parse(source):
 
 
 def parse_expr(source):
+    source = f"let a: u8 = {source}"
     with io.StringIO(source) as s:
-        a = compiler.parse_expr(s, '<test>')
+        a = gold.parse(s, '<test>').children[0]
         print(a.pretty())
         return a
 
 
 def parse_block(source):
+    source = f"fun a() {source} endfun"
     with io.StringIO(source) as s:
-        a = compiler.parse_block(s, '<test>')
+        a = gold.parse(s, '<test>').children[0]
         print(a.pretty())
         return a
 
@@ -68,11 +70,11 @@ def test_comments_multiline():
 
 
 def test_comments_unclosed():
-    assert_raises(gold.ParseError, parse, "/* oh no")
+    assert_raises(parsing.ParseError, parse, "/* oh no")
 
 
 def test_comments_unopened():
-    assert_raises(gold.ParseError, parse, "oh no */")
+    assert_raises(parsing.ParseError, parse, "oh no */")
 
 
 def test_nested_comment():
@@ -82,7 +84,7 @@ def test_nested_comment():
 
 
 def test_nested_comments_unclosed():
-    assert_raises(gold.ParseError, parse, "/* /* oh no")
+    assert_raises(parsing.ParseError, parse, "/* /* oh no")
 
 
 def test_comment_before_statement():
@@ -140,20 +142,20 @@ def test_parentheses_with_sign():
 
 
 def test_unmatched_open_parentheses():
-    assert_raises(gold.ParseError, parse_expr, "(1 + 2")
+    assert_raises(parsing.ParseError, parse_expr, "(1 + 2")
 
 
 def test_unmatched_close_parentheses():
-    assert_raises(gold.ParseError, parse_expr, "1 + 2)")
+    assert_raises(parsing.ParseError, parse_expr, "1 + 2)")
 
 
 def test_comparison_not_equals():
     a = parse_expr("1 != 2")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('cmp_ne', None, children=[
-            ast.AstNode('numeric', None, attrs={'value': 1}),
-            ast.AstNode('numeric', None, attrs={'value': 2}),
+        ast.AstNode('cmp_ne', children=[
+            ast.AstNode('numeric', attrs={'value': 1}),
+            ast.AstNode('numeric', attrs={'value': 2}),
         ]),
         a.children[0])
 
@@ -162,11 +164,11 @@ def test_comparison_equals():
     a = parse_expr("2 == 1 + 1")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('cmp_eq', None, children=[
-            ast.AstNode('numeric', None, attrs={'value': 2}),
-            ast.AstNode('add', None, children=[
-                ast.AstNode('numeric', None, attrs={'value': 1}),
-                ast.AstNode('numeric', None, attrs={'value': 1}),
+        ast.AstNode('cmp_eq', children=[
+            ast.AstNode('numeric', attrs={'value': 2}),
+            ast.AstNode('add', children=[
+                ast.AstNode('numeric', attrs={'value': 1}),
+                ast.AstNode('numeric', attrs={'value': 1}),
             ]),
         ]),
         a.children[0])
@@ -176,14 +178,14 @@ def test_comparison_lt():
     a = parse_expr("3 < (1 + 1) * 2")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('cmp_lt', None, children=[
-            ast.AstNode('numeric', None, attrs={'value': 3}),
-            ast.AstNode('mul', None, children=[
-                ast.AstNode('add', None, children=[
-                    ast.AstNode('numeric', None, attrs={'value': 1}),
-                    ast.AstNode('numeric', None, attrs={'value': 1}),
+        ast.AstNode('cmp_lt', children=[
+            ast.AstNode('numeric', attrs={'value': 3}),
+            ast.AstNode('mul', children=[
+                ast.AstNode('add', children=[
+                    ast.AstNode('numeric', attrs={'value': 1}),
+                    ast.AstNode('numeric', attrs={'value': 1}),
                 ]),
-                ast.AstNode('numeric', None, attrs={'value': 2}),
+                ast.AstNode('numeric', attrs={'value': 2}),
             ]),
         ]),
         a.children[0])
@@ -193,14 +195,14 @@ def test_comparison_gt():
     a = parse_expr("5 > (1 + 1) * 2")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('cmp_gt', None, children=[
-            ast.AstNode('numeric', None, attrs={'value': 5}),
-            ast.AstNode('mul', None, children=[
-                ast.AstNode('add', None, children=[
-                    ast.AstNode('numeric', None, attrs={'value': 1}),
-                    ast.AstNode('numeric', None, attrs={'value': 1}),
+        ast.AstNode('cmp_gt', children=[
+            ast.AstNode('numeric', attrs={'value': 5}),
+            ast.AstNode('mul', children=[
+                ast.AstNode('add', children=[
+                    ast.AstNode('numeric', attrs={'value': 1}),
+                    ast.AstNode('numeric', attrs={'value': 1}),
                 ]),
-                ast.AstNode('numeric', None, attrs={'value': 2}),
+                ast.AstNode('numeric', attrs={'value': 2}),
             ]),
         ]),
         a.children[0])
@@ -210,9 +212,9 @@ def test_comparison_lte():
     a = parse_expr("x <= 5")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('cmp_le', None, children=[
-            ast.AstNode('identifier', None, attrs={'name': 'x'}),
-            ast.AstNode('numeric', None, attrs={'value': 5}),
+        ast.AstNode('cmp_le', children=[
+            ast.AstNode('identifier', attrs={'name': 'x'}),
+            ast.AstNode('numeric', attrs={'value': 5}),
         ]),
         a.children[0])
 
@@ -221,9 +223,23 @@ def test_comparison_gte():
     a = parse_expr("5 >= x")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('cmp_ge', None, children=[
-            ast.AstNode('numeric', None, attrs={'value': 5}),
-            ast.AstNode('identifier', None, attrs={'name': 'x'}),
+        ast.AstNode('cmp_ge', children=[
+            ast.AstNode('numeric', attrs={'value': 5}),
+            ast.AstNode('identifier', attrs={'name': 'x'}),
+        ]),
+        a.children[0])
+
+
+def test_member_access():
+    a = parse_expr("foo.bar")
+    print(a.pretty())
+    assert_equal(
+        ast.AstNode('member_access', attrs={
+            'member': 'bar',
+        }, children=[
+            ast.AstNode('identifier', attrs={
+                'name': 'foo',
+            }),
         ]),
         a.children[0])
 
@@ -272,8 +288,96 @@ def test_let_without_storage_class():
     assert_equal(7, n.attrs['value'])
 
 
+def test_complex_type():
+    a = parse("let a: &u8 = 0")
+    print(a.pretty())
+    assert_equal(
+        ast.AstNode('let', attrs={
+            'name': 'a',
+            'type': ast.AstNode('type_ref', attrs={
+                'type': 'u8',
+            }),
+        }, children=[
+            ast.AstNode('numeric', attrs={
+                'value': 0,
+            }),
+        ]),
+        a.children[0])
+
+
+@given(st.characters(('Lu', 'Ll', 'Lt', 'Lm', 'Lo')),
+       st.text(st.characters(blacklist_characters='()[]{}:;.,"\@&',
+                             blacklist_categories=('Zs', 'Zl', 'Zp', 'Cc'))))
+def test_identifiers(name0, name):
+    name = name0 + name
+    a = parse(f"let a: u8 = {name}")
+    print(a.pretty())
+    assert_equal(ast.AstNode('let', attrs={
+        'name': 'a',
+        'type': 'u8',
+    }, children=[
+        ast.AstNode('identifier', attrs={
+            'name': name,
+        })
+    ]), a.children[0])
+
+
+@given(st.integers())
+def test_numeric_hex_valid(n):
+    a = parse(f"let a: u8 = 0x{n:x}")
+    print(a.pretty())
+    assert_equal(ast.AstNode('let', attrs={
+        'name': 'a',
+        'type': 'u8',
+    }, children=[
+        ast.AstNode('numeric', attrs={
+            'value': n,
+        })
+    ]), a.children[0])
+
+
+def test_numeric_hex_invalid():
+    assert_raises(parsing.ParseError, parse, "let a: u8 = 0xcage")
+
+
+@given(st.integers())
+def test_numeric_oct_valid(n):
+    a = parse(f"let a: u8 = 0o{n:o}")
+    print(a.pretty())
+    assert_equal(ast.AstNode('let', attrs={
+        'name': 'a',
+        'type': 'u8',
+    }, children=[
+        ast.AstNode('numeric', attrs={
+            'value': n,
+        })
+    ]), a.children[0])
+
+
+def test_numeric_oct_invalid():
+    assert_raises(parsing.ParseError, parse, "let a: u8 = 0o18")
+
+
+@given(st.integers())
+def test_numeric_bin_valid(n):
+    a = parse(f"let a: u8 = 0b{n:b}")
+    print(a.pretty())
+    assert_equal(ast.AstNode('let', attrs={
+        'name': 'a',
+        'type': 'u8',
+    }, children=[
+        ast.AstNode('numeric', attrs={
+            'value': n,
+        })
+    ]), a.children[0])
+
+
+def test_numeric_bin_invalid():
+    assert_raises(parsing.ParseError, parse, "let a: u8 = 0b012")
+
+
 def test_let_with_invalid_storage_class():
-    assert_raises(gold.ParseError, parse, "let bogus a: u8 = 7")
+    assert_raises(parsing.ParseError, parse, "let bogus a: u8 = 7")
 
 
 def test_let_multistatement():
@@ -365,20 +469,20 @@ def test_array_multidimensional():
 
 
 def test_array_unmatched_open_bracket():
-    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
+    assert_raises(parsing.ParseError, parse, "let x: [u8; 3] = [0, 1, 2")
 
 
 def test_array_unmatched_close_bracket():
-    assert_raises(gold.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
+    assert_raises(parsing.ParseError, parse, "let x: [u8; 3] = 0, 1, 2]")
 
 
 def test_basic_assign():
     a = parse_block("x = 5")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('set', None, children=[
-            ast.AstNode('identifier', None, attrs={'name': 'x'}),
-            ast.AstNode('numeric', None, attrs={'value': 5}),
+        ast.AstNode('set', children=[
+            ast.AstNode('identifier', attrs={'name': 'x'}),
+            ast.AstNode('numeric', attrs={'value': 5}),
         ]),
         a.children[0])
 
@@ -388,17 +492,21 @@ def test_multiple_assign():
     x = 5
     y = 6
     """)
+    assert_equal(2, len(a.children))
     assert_equal(
-        ast.AstNode('<block>', None, children=[
-            ast.AstNode('set', None, children=[
-                ast.AstNode('identifier', None, attrs={'name': 'x'}),
-                ast.AstNode('numeric', None, attrs={'value': 5}),
-            ]),
-            ast.AstNode('set', None, children=[
-                ast.AstNode('identifier', None, attrs={'name': 'y'}),
-                ast.AstNode('numeric', None, attrs={'value': 6}),
-            ]),
-        ]), a)
+        ast.AstNode('set', children=[
+            ast.AstNode('identifier', attrs={'name': 'x'}),
+            ast.AstNode('numeric', attrs={'value': 5}),
+        ]),
+        a.children[0]
+    )
+    assert_equal(
+        ast.AstNode('set', children=[
+            ast.AstNode('identifier', attrs={'name': 'y'}),
+            ast.AstNode('numeric', attrs={'value': 6}),
+        ]),
+        a.children[1]
+    )
 
 
 def test_array_member_assign():
@@ -472,6 +580,15 @@ def test_string_literal():
     assert_equal("this is a string", s.attrs['value'])
 
 
+def test_string_literal_with_space_after():
+    a = parse('let a: [u8; 5] = "this is a string" ')
+    assert_equal(1, len(a.children))
+    print(a.pretty())
+    s = a.children[0].children[0]
+    assert_equal('string', s.t)
+    assert_equal("this is a string", s.attrs['value'])
+
+
 def test_string_multiline():
     a = parse('''
     let a: [u8; 5] = "this is a
@@ -499,34 +616,43 @@ def test_fun_call_empty():
     a = parse_block("foo()")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('call', None, attrs={
-            'target': ast.AstNode('identifier', None, attrs={'name': 'foo'})
+        ast.AstNode('call', attrs={
+            'target': ast.AstNode('identifier', attrs={'name': 'foo'})
         }),
         a.children[0])
 
 
 def test_fun_call_one():
-    a = parse_block("foo(1)")
-    assert_equal(1, len(a.children))
+    a = parse_block("foo(7)")
+    print(a.pretty())
     assert_equal(
-        ast.AstNode('call', None, attrs={
-            'target': ast.AstNode('identifier', None, attrs={'name': 'foo'})
+        ast.AstNode('call', attrs={
+            'target': ast.AstNode('identifier', attrs={
+                'name': 'foo',
+            }),
         }, children=[
-            ast.AstNode('numeric', None, attrs={'value': 1}),
+            ast.AstNode('numeric', attrs={
+                'value': 7,
+            }),
         ]),
         a.children[0])
 
 
 def test_fun_call_many():
-    a = parse_block("foo(1, 2, 3)")
+    a = parse_block('foo(7, "hello")')
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('call', None, attrs={
-            'target': ast.AstNode('identifier', None, attrs={'name': 'foo'})
+        ast.AstNode('call', attrs={
+            'target': ast.AstNode('identifier', attrs={
+                'name': 'foo',
+            }),
         }, children=[
-            ast.AstNode('numeric', None, attrs={'value': 1}),
-            ast.AstNode('numeric', None, attrs={'value': 2}),
-            ast.AstNode('numeric', None, attrs={'value': 3}),
+            ast.AstNode('numeric', attrs={
+                'value': 7,
+            }),
+            ast.AstNode('string', attrs={
+                'value': "hello",
+            }),
         ]),
         a.children[0])
 
@@ -535,13 +661,13 @@ def test_member_access_function():
     a = parse_block("foo.bar(baz)")
     assert_equal(1, len(a.children))
     assert_equal(
-        ast.AstNode('call', None, attrs={
+        ast.AstNode('call', attrs={
             'target': ast.AstNode(
-                'member_access', None, attrs={'member': 'bar'}, children=[
-                    ast.AstNode('identifier', None, attrs={'name': 'foo'}),
+                'member_access', attrs={'member': 'bar'}, children=[
+                    ast.AstNode('identifier', attrs={'name': 'foo'}),
                 ]),
         }, children=[
-            ast.AstNode('identifier', None, attrs={'name': 'baz'}),
+            ast.AstNode('identifier', attrs={'name': 'baz'}),
         ]),
         a.children[0])
 
@@ -706,16 +832,28 @@ def test_while_multistatement():
 
 
 def test_while_missing_do():
-    assert_raises(ast.ParseError, parse, "while x < 5 x = x + 1 end")
+    assert_raises(parsing.ParseError, parse, "while x < 5 x = x + 1 end")
 
 
 def test_while_missing_end():
-    assert_raises(ast.ParseError, parse, "while x < 5 do x = x + 1")
+    assert_raises(parsing.ParseError, parse, "while x < 5 do x = x + 1")
 
 
 def test_use():
     a = parse("use mem")
+    print(a.pretty())
     assert_equal(1, len(a.children))
     u = a.children[0]
     assert_equal('use', u.t)
     assert_equal("mem", u.attrs['name'])
+
+
+def test_assign():
+    a = parse("fun foo() a = 7 endfun")
+    print(a.pretty())
+    assert_equal(
+        ast.AstNode('set', children=[
+            ast.AstNode('identifier', attrs={'name': 'a'}),
+            ast.AstNode('numeric', attrs={'value': 7}),
+        ]),
+        a.children[0].children[0])

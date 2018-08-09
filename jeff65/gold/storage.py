@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from . import ast
+from ..pattern import Predicate
 
 
 class AbsoluteStorage:
@@ -25,6 +25,15 @@ class AbsoluteStorage:
     def __repr__(self):
         return "<{} bytes at ${:x}>".format(self.width, self.address)
 
+    def _to_predicate(self, a):
+        pa = a.make_predicate(self.address)
+        pw = a.make_predicate(self.width)
+
+        def _storage_predicate(s, c):
+            return (pa._match(s.address, c)
+                    and pw._match(s.width, c))
+        return Predicate(None, _storage_predicate)
+
 
 class ImmediateStorage:
     def __init__(self, value, width):
@@ -34,13 +43,11 @@ class ImmediateStorage:
     def __repr__(self):
         return "<immediate {} bytes = ${:x}>".format(self.width, self.value)
 
+    def _to_predicate(self, a):
+        pv = a.make_predicate(self.value)
+        pw = a.make_predicate(self.width)
 
-class ResolveStorage(ast.TranslationPass):
-    def enter_deref(self, node):
-        assert node.children[0].t == 'numeric'
-        return AbsoluteStorage(node.children[0].attrs['value'],
-                               node.attrs['type'].width)
-
-    def enter_numeric(self, node):
-        assert node.attrs['value'] < 256
-        return ImmediateStorage(node.attrs['value'], 1)
+        def _storage_predicate(s, c):
+            return (pv._match(s.value, c)
+                    and pw._match(s.width, c))
+        return Predicate(None, _storage_predicate)

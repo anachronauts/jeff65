@@ -1,4 +1,4 @@
-# jeff65 gold-syntax parser module
+# jeff65 gold-syntax lowering passes
 # Copyright (C) 2018  jeff65 maintainers
 #
 # This program is free software: you can redistribute it and/or modify
@@ -14,10 +14,25 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .Gold import Gold as Parser
-from .GoldListener import GoldListener as ParseListener
+from . import asm
+from ... import ast
 
-__all__ = [
-    'Parser',
-    'ParseListener',
-]
+
+class LowerAssignment(ast.TranslationPass):
+    def exit_set(self, node):
+        lhs = node.children[0]
+        rhs = node.children[1]
+        assert node.attrs['type'].width == lhs.width
+        assert node.attrs['type'].width == rhs.width
+
+        return [
+            asm.lda(rhs, node.span),
+            asm.sta(lhs, node.span),
+        ]
+
+
+class LowerFunctions(ast.TranslationPass):
+    def exit_fun(self, node):
+        children = list(node.children)
+        children.append(asm.rts(node.span))
+        return node.evolve(with_children=children)

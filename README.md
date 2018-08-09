@@ -1,7 +1,9 @@
 # jeff65
 
-[![Build Status](https://travis-ci.org/jdpage/jeff65.svg?branch=master)](https://travis-ci.org/jdpage/jeff65)
-[![Coverage Status](https://coveralls.io/repos/github/jdpage/jeff65/badge.svg?branch=master)](https://coveralls.io/github/jdpage/jeff65?branch=master)
+[![Build Status](https://img.shields.io/travis/jdpage/jeff65.svg?style=flat-square)](https://travis-ci.org/jdpage/jeff65)
+[![AppVeyor](https://img.shields.io/appveyor/ci/jdpage/jeff65.svg?style=flat-square)](https://ci.appveyor.com/project/jdpage/jeff65)
+[![Coverage Status](https://img.shields.io/coveralls/github/jdpage/jeff65.svg?style=flat-square)](https://coveralls.io/github/jdpage/jeff65?branch=master)
+[![Requirements Status](https://img.shields.io/requires/github/jdpage/jeff65.svg?branch=master&style=flat-square)](https://requires.io/github/jdpage/jeff65/requirements/?branch=master)
 
 *jeff65* is a compiler for the Commodore 64 (and perhaps in the future, other
 6502-based computers). It is implemented in Python 3.6 (or newer) and produces .prg files
@@ -15,15 +17,16 @@ are largely the product of wishful thinking and may change at any time.
 intermediate files. *gold* syntax provides an imperative systems language for
 6502-series processors.
 
-Invocation:
+Primary invocation:
 
-    usage: jeff65 [-h] input_file
+    usage: jeff65 compile [-h] [-v] file
 
     positional arguments:
-      input_file  the file to compile
+      file           the file to compile
 
     optional arguments:
-      -h, --help  show this help message and exit
+      -h, --help     show this help message and exit
+      -v, --verbose  show the output of each pass
 
 
 ## Licensing

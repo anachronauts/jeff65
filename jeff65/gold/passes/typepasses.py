@@ -14,8 +14,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from ..blum import types
-from . import ast, binding
+from . import binding
+from ... import ast
+from ...blum import types
 
 
 class ConstructTypes(ast.TranslationPass):
@@ -39,25 +40,22 @@ class ConstructTypes(ast.TranslationPass):
 class PropagateTypes(binding.ScopedPass):
     def enter_identifier(self, node):
         t = self.look_up_name(node.attrs['name'])
-        node = node.clone()
-        node.attrs['type'] = t
-        return node
+        return node.evolve(update_attrs={'type': t})
 
     def exit_deref(self, node):
-        return node.clone(with_attrs={
+        return node.evolve(update_attrs={
             'type': node.children[0].attrs['type'].target
         })
 
     def exit_set(self, node):
-        return node.clone(with_attrs={
+        return node.evolve(update_attrs={
             'type': node.children[0].attrs['type']
         })
 
     def enter_fun(self, node):
-        node = node.clone(with_attrs={
-            'type': types.FunctionType(
-                node.attrs['return'] or types.void,
-                *node.attrs['args']),
-        })
-        del node.attrs['return']
-        return super().enter_fun(node)
+        attrs = node.attrs.asbuilder()
+        attrs['type'] = types.FunctionType(
+            node.attrs['return'] or types.void,
+            *node.attrs['args'])
+        del attrs['return']
+        return node.evolve(with_attrs=attrs)
