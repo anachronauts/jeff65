@@ -15,9 +15,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import attr
+import logging
 import re
 import time
 from itertools import chain
+
+logger = logging.getLogger(__name__)
 
 
 class ParseError(Exception):
@@ -486,7 +489,9 @@ class Grammar:
 
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
-        print(f'Built firstsets ({count} cycles) in {elapsed_ms:.2f}ms')
+        logger.debug(__(
+            "Built firstsets ({} cycles) in {:.2f}ms",
+            count, elapsed_ms))
         return firstsets
 
     def build_followsets(self):
@@ -540,11 +545,13 @@ class Grammar:
 
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
-        print(f'Built followsets ({count} cycles) in {elapsed_ms:.2f}ms')
+        logger.debug(__(
+            "Build followsets ({} cycles) in {:.2f}ms",
+            count, elapsed_ms))
         return followsets
 
     def build_parser(self, hidden=None, channel=ReStream.CHANNEL_DEFAULT):
-        print(f'Grammar has {len(self.rules)} rules')
+        logger.debug(__("Grammar has {} rules", len(self.rules)))
 
         start_time_t = time.perf_counter()
         translation_table = TranslationTable(self)
@@ -646,11 +653,13 @@ class Grammar:
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
         elapsed_t_ms = (end_time - start_time_t) * 1000
-        print(f'Built action/goto table ({len(agtable)} entries)',
-              f'in {elapsed_ms:.2f}ms')
-        print(f'Built parser in {elapsed_t_ms:.2f}ms total')
-        print(f'Symbols: {len(self.symbols)},',
-              f'States: {len(translation_table.itemsets)}')
+        logger.debug(__(
+            "Built action/goto table ({} enties) in {:.2f}ms",
+            len(agtable), elapsed_ms))
+        logger.debug(__("Built parser in {:.2f}ms total", elapsed_t_ms))
+        logger.debug(__(
+            "Symbols: {}, States: {}",
+            len(self.symbols), len(translation_table.itemsets)))
         return parser
 
 
@@ -689,7 +698,7 @@ class TranslationTable:
 
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
-        print(f'Built {current} itemsets in {elapsed_ms:.2f}ms')
+        logger.debug(__("Built {} itemsets in {:.2f}ms", current, elapsed_ms))
 
     def items(self):
         return self.translation_table.items()
@@ -757,7 +766,9 @@ class TranslationTable:
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
         sz = len(extended_rules)
-        print(f'Built extended grammar ({sz} rules) in {elapsed_ms:.2f}ms')
+        logger.debug(__(
+            "Built extended grammar ({} rules) in {:.2f}ms",
+            sz, elapsed_ms))
         return extended_grammar
 
     def build_modes(self):
@@ -820,7 +831,7 @@ class Parser:
         and values returned from make_node.
         """
 
-        # start_time = time.perf_counter()
+        start_time = time.perf_counter()
         output = []
         set_stack = [0]
         lookahead = self.next_token_skip_hidden(stream, next_token, set_stack)
@@ -871,8 +882,9 @@ class Parser:
 
         assert len(output) == 1
 
-        # end_time = time.perf_counter()
-        # elapsed_ms = (end_time - start_time) * 1000
-        # TODO: log to debug log
-        # print(f'Parsed input in {elapsed_ms:.2f}ms')
+        end_time = time.perf_counter()
+        elapsed_ms = (end_time - start_time) * 1000
+        logger.debug(__(
+            "Parsed input on channel {} in {:.2f}ms",
+            self.channel, elapsed_ms))
         return output[0][0]
