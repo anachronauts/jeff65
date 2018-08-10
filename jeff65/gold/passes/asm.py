@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import struct
-from .. import storage
 from ... import ast, pattern
 from ...pattern import Predicate as P
 
@@ -25,12 +24,10 @@ class AssemblyError(Exception):
         super().__init__(*args, **kwargs)
 
 
-class AsmRun:
-    def __init__(self, data):
-        self.data = data
-
-    def __repr__(self):
-        return "<asm {}>".format(self.data)
+def asmrun(fmt, *args):
+    return ast.AstNode('asmrun', attrs={
+        'bin': struct.pack(fmt, *args)
+    })
 
 
 @pattern.transform(pattern.Order.Any)
@@ -38,64 +35,74 @@ class AssembleWithRelocations:
     transform_attrs = False
 
     @pattern.match(
-        ast.AstNode('lda', attrs={
-            'storage': storage.ImmediateStorage(
-                P('value'), P.require(1, AssemblyError)),
-        }))
+        ast.AstNode('lda', children=[
+            ast.AstNode('immediate_storage', attrs={
+                'value': P('value'),
+                'width': P.require(1, AssemblyError),
+            })
+        ]))
     def lda_imm(self, value):
-        return AsmRun(struct.pack('<BB', 0xa9, value))
+        return asmrun('<BB', 0xa9, value)
 
     @pattern.match(
-        ast.AstNode('sta', attrs={
-            'storage': storage.AbsoluteStorage(
-                P('address'), P.require(1, AssemblyError)),
-        }))
+        ast.AstNode('sta', children=[
+            ast.AstNode('absolute_storage', attrs={
+                'address': P('address'),
+                'width': P.require(1, AssemblyError),
+            })
+        ]))
     def sta_abs(self, address):
-        return AsmRun(struct.pack('<BH', 0x8d, address))
+        return asmrun('<BH', 0x8d, address)
 
     @pattern.match(
-        ast.AstNode('jmp', attrs={
-            'storage': storage.AbsoluteStorage(P('address'), P.any()),
-        }))
+        ast.AstNode('jmp', children=[
+            ast.AstNode('absolute_storage', attrs={
+                'address': P('address'),
+            })
+        ]))
     def jmp(self, address):
-        return AsmRun(struct.pack('<BH', 0x4c, address))
+        return asmrun('<BH', 0x4c, address)
 
     @pattern.match(ast.AstNode('rts'))
     def rts(self):
-        return AsmRun(b'\x60')
+        return asmrun('<B', 0x60)
 
 
-class FlattenSymbol(ast.TranslationPass):
-    def exit_fun(self, node):
-        return ast.AstNode('fun_symbol', span=node.span, attrs={
-            'name': node.attrs['name'],
-            'type': node.attrs['type'],
-            'text': b"".join(c.data for c in node.children)
+@pattern.transform(pattern.Order.Any)
+class FlattenSymbol:
+    transform_attrs = False
+
+    @pattern.match(
+        ast.AstNode('fun', attrs={
+            'name': P('name'),
+            'type': P('ty'),
+        }, children=[
+            P.zero_or_more_nodes('asmruns', allow='asmrun')
+        ]))
+    def fun(self, name, ty, asmruns):
+        return ast.AstNode('fun_symbol', attrs={
+            'name': name,
+            'type': ty,
+            'text': b"".join(r.attrs['bin'] for r in asmruns)
         })
 
 
 def lda(arg, span):
-    assert type(arg) is storage.ImmediateStorage
     return ast.AstNode('lda', span=span, attrs={
-        'storage': arg,
         'size': 2,
-    })
+    }, children=[arg])
 
 
 def sta(arg, span):
-    assert type(arg) is storage.AbsoluteStorage
     return ast.AstNode('sta', span=span, attrs={
-        'storage': arg,
         'size': 3,
-    })
+    }, children=[arg])
 
 
 def jmp(arg, span):
-    assert type(arg) is storage.AbsoluteStorage
     return ast.AstNode('jmp', span=span, attrs={
-        'storage': arg,
         'size': 3,
-    })
+    }, children=[arg])
 
 
 def rts(span):

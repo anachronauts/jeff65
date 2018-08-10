@@ -16,7 +16,6 @@
 
 from . import binding
 from .. import mem
-from ..storage import AbsoluteStorage, ImmediateStorage
 from ... import ast, pattern
 from ...pattern import Predicate as P
 
@@ -34,14 +33,20 @@ class ResolveStorage:
             })
         ]))
     def deref_to_absolute(self, ty, address):
-        return AbsoluteStorage(address, ty.width)
+        return ast.AstNode('absolute_storage', attrs={
+            'address': address,
+            'width': ty.width
+        })
 
     @pattern.match(
         ast.AstNode('numeric', attrs={
             'value': P.lt(256, 'value', require=True),
         }))
     def numeric_to_immediate(self, value):
-        return ImmediateStorage(value, 1)
+        return ast.AstNode('immediate_storage', attrs={
+            'value': value,
+            'width': 1,
+        })
 
 
 class ResolveUnits(binding.ScopedPass):

@@ -118,9 +118,6 @@ class PatternAnalyser:
         if isinstance(obj, Predicate):
             # objects which are already predicates are just passed on
             return obj
-        elif hasattr(obj, '_to_predicate'):
-            # some objects know how to turn themselves into predicates
-            return obj._to_predicate(self)
         # fallback case: check for equality without capturing.
         return Predicate.eq(obj)
 
