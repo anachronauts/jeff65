@@ -2,5 +2,5 @@ nose==1.3.7
 flake8==3.5.0
 coverage==4.5.1
 coveralls==1.3.0
-hypothesis==3.66.32
+hypothesis==3.68.0
 attrs==18.1.0
