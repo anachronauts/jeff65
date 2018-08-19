@@ -83,7 +83,7 @@ class Token:
 
     def _pretty(self, indent, no_position):
         i = " " * indent
-        return f'{i}{self.t}={self.text!r} {self.span}'
+        return f'{i}{self.t}={self.text!r} {self.span}\n'
 
 
 class ReStream:
@@ -393,9 +393,18 @@ class ItemSet:
         return modes.pop()
 
 
+@attr.s(slots=True, frozen=True, repr=False, cmp=False)
+class Special:
+    name = attr.ib()
+
+    def __repr__(self):
+        return "$" + self.name
+
+
 class Grammar:
-    EMPTY = Symbol(object())
-    END = object()
+    EMPTY_TOKEN = Special("EMPTY")
+    EMPTY = Symbol(EMPTY_TOKEN)
+    END = Special("END")
 
     def __init__(self, start_symbol, end_symbols, rules):
         self.rules = rules
@@ -567,6 +576,7 @@ class Grammar:
         # the parser will execute a goto by providing a nonterminal as input.
         # These are represented as integers.
         agtable = {}
+        conflicts = []
 
         # copy the nonterminal entries in the translation table over as gotos
         # and the terminal entries as shifts.
@@ -589,11 +599,28 @@ class Grammar:
                 finals = {s.end for s in rule.rhs[-1]}
                 assert len(finals) == 1
                 final = finals.pop()
-            if finalset_rules[final] is not None:
-                assert finalset_rules[final] == rule.parent, (
-                    f'reduce/reduce:\n' +
-                    f'  {finalset_rules[final]}\n' +
-                    f'  {rule.parent}')
+            if finalset_rules[final] is not None \
+               and finalset_rules[final] != rule.parent:
+                # This is a reduce/reduce conflict. We decide how to resolve
+                # this based on the precedence of the rules involved.
+                # TODO work out how to handle ties?
+                # TODO check if this is sound. Somehow
+                if finalset_rules[final].prec is None or \
+                   rule.parent.prec is None or \
+                   finalset_rules[final].prec == rule.parent.prec:
+                    conflicts.append(
+                        f'reduce/reduce:\n'
+                        f'  {finalset_rules[final]}\n'
+                        f'  {rule.parent}')
+                    continue
+
+                logging.debug(__(
+                    "Resolved reduce/reduce conflict between {} and {}",
+                    finalset_rules[final],
+                    rule.parent))
+                if finalset_rules[final].prec > rule.parent.prec:
+                    continue
+
             finalset_rules[final] = rule.parent
             finalset_followsets[final].update(followsets[rule.lhs])
 
@@ -618,9 +645,13 @@ class Grammar:
 
                     # If one of them is missing a precedence, go ahead and
                     # hard-fail.
-                    assert shift_rule.prec is not None \
-                        and finalset_rules[k].prec is not None, \
-                        f'shift/reduce:\n  {shift_rule}\n  {finalset_rules[k]}'
+                    if shift_rule.prec is None \
+                       or finalset_rules[k].prec is None:
+                        conflicts.append(
+                            f'shift/reduce:\n'
+                            f'  {shift_rule}\n'
+                            f'  {finalset_rules[k]}')
+                        continue
 
                     # If the shifting rule is right-associative, then we should
                     # break ties in favour of the shift. Otherwise, in favour
@@ -642,6 +673,10 @@ class Grammar:
                         'reduce',
                         finalset_rules[k].lhs.value,
                         len(finalset_rules[k].rhs))
+
+        if len(conflicts) > 0:
+            logger.critical('\n\n'.join(conflicts))
+            assert False, "conflicts detected"
 
         # build the hidden-channel parsers
         hidden_parsers = {
@@ -840,11 +875,16 @@ class Parser:
             try:
                 action, sym, arg = self.agtable[(set_stack[-1], lookahead.t)]
             except KeyError:
-                msg = [f"Got {lookahead.t} but expected one of:"]
-                for state, token in self.agtable:
-                    if state == set_stack[-1]:
-                        msg.append(f"  {token}")
-                raise ParseError("\n".join(msg))
+                try:
+                    action, sym, arg = self.agtable[
+                        (set_stack[-1], Grammar.EMPTY_TOKEN)]
+                    assert action == 'reduce'
+                except KeyError:
+                    msg = [f"Got {lookahead.t} but expected one of:"]
+                    for state, token in self.agtable:
+                        if state == set_stack[-1]:
+                            msg.append(f"  {token}")
+                    raise ParseError("\n".join(msg))
 
             if action == 'shift':
                 output.append((lookahead, lookahead.span))
@@ -884,7 +924,8 @@ class Parser:
 
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
-        logger.debug(__(
-            "Parsed input on channel {} in {:.2f}ms",
-            self.channel, elapsed_ms))
+        if self.channel == ReStream.CHANNEL_DEFAULT:
+            logger.debug(__(
+                "Parsed input on channel {} in {:.2f}ms",
+                self.channel, elapsed_ms))
         return output[0][0]

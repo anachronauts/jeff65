@@ -32,34 +32,32 @@ def asmrun(fmt, *args):
 
 @pattern.transform(pattern.Order.Any)
 class AssembleWithRelocations:
-    transform_attrs = False
-
     @pattern.match(
-        ast.AstNode('lda', children=[
-            ast.AstNode('immediate_storage', attrs={
+        ast.AstNode('lda', {
+            'storage': ast.AstNode('immediate_storage', {
                 'value': P('value'),
                 'width': P.require(1, AssemblyError),
-            })
-        ]))
+            }),
+        }))
     def lda_imm(self, value):
         return asmrun('<BB', 0xa9, value)
 
     @pattern.match(
-        ast.AstNode('sta', children=[
-            ast.AstNode('absolute_storage', attrs={
+        ast.AstNode('sta', {
+            'storage': ast.AstNode('absolute_storage', {
                 'address': P('address'),
                 'width': P.require(1, AssemblyError),
             })
-        ]))
+        }))
     def sta_abs(self, address):
         return asmrun('<BH', 0x8d, address)
 
     @pattern.match(
-        ast.AstNode('jmp', children=[
-            ast.AstNode('absolute_storage', attrs={
+        ast.AstNode('jmp', {
+            'storage': ast.AstNode('absolute_storage', {
                 'address': P('address'),
             })
-        ]))
+        }))
     def jmp(self, address):
         return asmrun('<BH', 0x4c, address)
 
@@ -68,41 +66,55 @@ class AssembleWithRelocations:
         return asmrun('<B', 0x60)
 
 
-@pattern.transform(pattern.Order.Any)
+@pattern.transform(pattern.Order.Ascending)
 class FlattenSymbol:
-    transform_attrs = False
+    @pattern.match(
+        ast.AstNode('block', {
+            'stmt': ast.AstNode('asmrun', {'bin': P('bin0')}),
+            'next': ast.AstNode('block', {
+                'stmt': ast.AstNode('asmrun', {'bin': P('binf')}),
+            }),
+        }))
+    def concatenate_bins(self, bin0, binf):
+        return ast.AstNode('block', {
+            'stmt': ast.AstNode('asmrun', {'bin': bin0 + binf})
+        })
 
     @pattern.match(
         ast.AstNode('fun', attrs={
             'name': P('name'),
             'type': P('ty'),
-        }, children=[
-            P.zero_or_more_nodes('asmruns', allow='asmrun')
-        ]))
-    def fun(self, name, ty, asmruns):
-        return ast.AstNode('fun_symbol', attrs={
+            'body': ast.AstNode('block', {
+                'stmt': ast.AstNode('asmrun', {'bin': P('text')})
+            }),
+        }))
+    def fun(self, name, ty, text):
+        return ast.AstNode('fun_symbol', {
             'name': name,
             'type': ty,
-            'text': b"".join(r.attrs['bin'] for r in asmruns)
+            'text': text,
         })
 
 
-def lda(arg, span):
+def lda(storage, span):
     return ast.AstNode('lda', span=span, attrs={
         'size': 2,
-    }, children=[arg])
+        'storage': storage,
+    })
 
 
-def sta(arg, span):
+def sta(storage, span):
     return ast.AstNode('sta', span=span, attrs={
         'size': 3,
-    }, children=[arg])
+        'storage': storage,
+    })
 
 
-def jmp(arg, span):
+def jmp(storage, span):
     return ast.AstNode('jmp', span=span, attrs={
         'size': 3,
-    }, children=[arg])
+        'storage': storage,
+    })
 
 
 def rts(span):

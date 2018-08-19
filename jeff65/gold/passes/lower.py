@@ -15,24 +15,34 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from . import asm
-from ... import ast
+from ... import ast, pattern
+from ...pattern import Predicate as P
 
 
-class LowerAssignment(ast.TranslationPass):
-    def exit_set(self, node):
-        lhs = node.children[0]
-        rhs = node.children[1]
-        assert node.attrs['type'].width == lhs.attrs['width']
-        assert node.attrs['type'].width == rhs.attrs['width']
-
-        return [
-            asm.lda(rhs, node.span),
-            asm.sta(lhs, node.span),
-        ]
+@pattern.transform(pattern.Order.Any)
+class LowerAssignment:
+    @pattern.match(
+        ast.AstNode("block", {
+            "stmt": ast.AstNode("set", span=P("span"), attrs={
+                "type": P("ty"),
+                "lvalue": P("lvalue"),
+                "rvalue": P("rvalue"),
+            }),
+            "next": P("nxt"),
+        }))
+    def lower_set(self, span, ty, lvalue, rvalue, nxt):
+        assert ty.width == lvalue.attrs["width"]
+        assert ty.width == rvalue.attrs["width"]
+        return ast.AstNode.make_sequence("block", "stmt", [
+            asm.lda(rvalue, span),
+            asm.sta(lvalue, span),
+        ], rest=nxt)
 
 
 class LowerFunctions(ast.TranslationPass):
     def exit_fun(self, node):
-        children = list(node.children)
+        children = node.select("body", "stmt")
         children.append(asm.rts(node.span))
-        return node.evolve(with_children=children)
+        return node.update_attrs({
+            "body": ast.AstNode.make_sequence("block", "stmt", children),
+        })

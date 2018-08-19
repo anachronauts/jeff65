@@ -22,16 +22,13 @@ from ...pattern import Predicate as P
 
 @pattern.transform(pattern.Order.Descending)
 class ResolveStorage:
-    transform_attrs = False
-
     @pattern.match(
         ast.AstNode('deref', attrs={
             'type': P('ty'),
-        }, children=[
-            ast.AstNode(P.require('numeric'), attrs={
+            'address': ast.AstNode(P.require('numeric'), attrs={
                 'value': P('address'),
-            })
-        ]))
+            }),
+        }))
     def deref_to_absolute(self, ty, address):
         return ast.AstNode('absolute_storage', attrs={
             'address': address,
@@ -60,16 +57,19 @@ class ResolveUnits(binding.ScopedPass):
         name = node.attrs['name']
         unit = self.builtin_units[name]
         self.bind_name(name, unit)
-        return []
+        return None
+
+    def exit_toplevel(self, node):
+        if node.attrs["stmt"] is None:
+            return node.attrs["next"]
+        return node
 
 
 class ResolveMembers(binding.ScopedPass):
     """Resolves members to functions."""
 
-    transform_attrs = True
-
     def exit_member_access(self, node):
         member = node.attrs['member']
-        name = node.children[0].attrs['name']
+        name = node.attrs['namespace'].attrs['name']
         unit = self.look_up_name(name)
         return unit.member(member)

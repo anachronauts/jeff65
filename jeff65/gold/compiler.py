@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 
 passes = [
-    binding.ExplicitScopes,
     resolve.ResolveUnits,
     binding.ShadowNames,
     typepasses.ConstructTypes,
@@ -51,12 +50,12 @@ def parse(fileobj, name):
     stream = parsing.ReStream(fileobj)
     tree = grammar.parse(
         stream, grammar.lex,
-        lambda t, s, c, m: ast.AstNode(t, span=s, children=c))
+        lambda t, s, c, m: ast.AstNode(t, span=s, attrs={
+            f"{k:02}": v for k, v in enumerate(c)
+        }))
     # if parser._syntaxErrors > 0:
     #     raise ast.ParseError("Unit {} had errors; terminating".format(name))
-    unit = tree.transform(simplify.Simplify(), always_list=True)
-    assert len(unit) == 1
-    return unit[0]
+    return tree.transform(simplify.Simplify())
 
 
 def translate(unit):
@@ -64,10 +63,10 @@ def translate(unit):
         obj = parse(input_file, name=unit.name)
         for p in passes:
             obj = obj.transform(p())
-            logger.debug(__("Pass {}:\n{}", p.__name__, obj.pretty()))
+            logger.debug(__("Pass {}:\n{:p}", p.__name__, obj))
 
     archive = blum.Archive()
-    for node in obj.children:
+    for node in obj.select("toplevels", "stmt"):
         if node.t is 'fun_symbol':
             sym_name = '{}.{}'.format(unit.stem, node.attrs['name'])
             sym = blum.Symbol(

@@ -20,8 +20,6 @@ from ...blum import types
 
 
 class ConstructTypes(ast.TranslationPass):
-    transform_attrs = True
-
     builtin_types = {
         'u8': types.u8, 'u16': types.u16, 'u24': types.u24, 'u32': types.u32,
         'i8': types.i8, 'i16': types.i16, 'i24': types.i24, 'i32': types.i32,
@@ -40,22 +38,22 @@ class ConstructTypes(ast.TranslationPass):
 class PropagateTypes(binding.ScopedPass):
     def enter_identifier(self, node):
         t = self.look_up_name(node.attrs['name'])
-        return node.evolve(update_attrs={'type': t})
+        return node.update_attrs({"type": t})
 
     def exit_deref(self, node):
-        return node.evolve(update_attrs={
-            'type': node.children[0].attrs['type'].target
+        return node.update_attrs({
+            "type": node.select("address", "type")[0].target,
         })
 
     def exit_set(self, node):
-        return node.evolve(update_attrs={
-            'type': node.children[0].attrs['type']
+        return node.update_attrs({
+            "type": node.select("lvalue", "type")[0],
         })
 
     def enter_fun(self, node):
         attrs = node.attrs.asbuilder()
         attrs['type'] = types.FunctionType(
             node.attrs['return'] or types.void,
-            *node.attrs['args'])
+            *node.select("args", "arg"))
         del attrs['return']
-        return node.evolve(with_attrs=attrs)
+        return node.replace_attrs(attrs)

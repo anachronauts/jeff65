@@ -12,10 +12,9 @@ sys.stderr = sys.stdout
 def assemble(node):
     backup = node.pretty()
     result = node.transform(asm.AssembleWithRelocations())
-    assert_equal(1, len(result))
     # check that the previous AST wasn't mutated
     assert_equal(backup, node.pretty())
-    return result[0].attrs['bin']
+    return result.attrs['bin']
 
 
 def flatten(unit):
@@ -79,19 +78,24 @@ def test_assemble_sta_abs_too_wide():
 
 def test_flatten_symbol():
     assert_equal(
-        ast.AstNode('unit', children=[
-            ast.AstNode('fun_symbol', attrs={
-                'name': 'meaning-of-life',
-                'type': types.FunctionType(types.u8),
-                'text': b'\xa9\x42\x60',
-            })
-        ]), flatten(ast.AstNode('unit', children=[
-            ast.AstNode('fun', attrs={
-                'name': 'meaning-of-life',
-                'type': types.FunctionType(types.u8),
-            }, children=[
-                ast.AstNode('asmrun', attrs={'bin': b'\xa9\x42'}),
-                ast.AstNode('asmrun', attrs={'bin': b'\x60'}),
+        ast.AstNode('unit', {
+            'toplevels': ast.AstNode.make_sequence('toplevel', 'stmt', [
+                ast.AstNode('fun_symbol', attrs={
+                    'name': 'meaning-of-life',
+                    'type': types.FunctionType(types.u8),
+                    'text': b'\xa9\x42\x60',
+                })
             ])
-        ]))
+        }), flatten(ast.AstNode('unit', {
+            'toplevels': ast.AstNode.make_sequence('toplevel', 'stmt', [
+                ast.AstNode('fun', attrs={
+                    'name': 'meaning-of-life',
+                    'type': types.FunctionType(types.u8),
+                    'body': ast.AstNode.make_sequence('block', 'stmt', [
+                        ast.AstNode('asmrun', attrs={'bin': b'\xa9\x42'}),
+                        ast.AstNode('asmrun', attrs={'bin': b'\x60'}),
+                    ]),
+                }),
+            ]),
+        }))
     )

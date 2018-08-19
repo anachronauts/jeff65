@@ -14,9 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from ... import ast, pattern
+from ... import ast
 from ...immutable import FrozenDict
-from ...pattern import Predicate as P
 
 
 class ScopedPass(ast.TranslationPass):
@@ -50,13 +49,12 @@ class ScopedPass(ast.TranslationPass):
     def transform_enter(self, t, node):
         node = super().transform_enter(t, node)
         if t in self.scoped_types:
-            self.scopes.append(node.attrs.asbuilder())
-            known_names = self.scopes[-1].get('known_names',
-                                              FrozenDict.empty())
-            self.scopes[-1]['known_names'] = known_names.asbuilder()
-            known_constants = self.scopes[-1].get('known_constants',
-                                                  FrozenDict.empty())
-            self.scopes[-1]['known_constants'] = known_constants.asbuilder()
+            self.scopes.append({
+                "known_names": node.attrs.get(
+                    "known_names", FrozenDict.empty()).asbuilder(),
+                "known_constants": node.attrs.get(
+                    "known_constants", FrozenDict.empty()).asbuilder(),
+            })
             node = self.enter__scope(node)
         return node
 
@@ -64,86 +62,16 @@ class ScopedPass(ast.TranslationPass):
         if t in self.scoped_types:
             node = self.exit__scope(node)
         if t in self.scoped_types:
-            attrs = self.scopes.pop()
-            attrs['known_names'] = FrozenDict.create(
-                attrs['known_names'])
-            attrs['known_constants'] = FrozenDict.create(
-                attrs['known_constants'])
-            node = node.evolve(update_attrs=attrs)
-        nodes = super().transform_exit(t, node)
-        return nodes
+            node = node.update_attrs(
+                {k: v.asfrozen() for k, v in self.scopes.pop().items()})
+        node = super().transform_exit(t, node)
+        return node
 
     def enter__scope(self, node):
         return node
 
-    def exit__scope(self, nodes):
-        return nodes
-
-
-@pattern.transform(pattern.Order.Descending)
-class ExplicitScopes:
-    """Translation pass to make lexical scopes explicit.
-    Introducing a binding inside a function results in a new implicit scope
-    being introduced, which continues to the end of the explicit scope, i.e.
-    let-bindings, constant-bindings, and use-bindings are not valid before they
-    are mentioned inside function scope. For example, the following tree:
-    fun
-      :name 'foo'
-      call
-        :target 'spam'
-      let
-        let_set!
-          :name 'bar'
-          :type u8
-          42
-      call
-        :target 'eggs'
-        'bar'
-    should be transformed into
-    fun
-      :name 'foo'
-      call
-        :target 'spam'
-      let_scoped
-        let_set!
-          :name 'bar'
-          :type u8
-          42
-        call
-          :target 'eggs'
-          'bar'
-    Note that the call to 'eggs' now explicitly has 'bar' in-scope.
-    This does not apply to toplevel declarations; all toplevel declarations are
-    in scope throughout the unit.
-    """
-
-    transform_attrs = False
-
-    # the reason this has to be a descending transformation is because when we
-    # match the node containing the 'let' nodes, only the first 'let' node is
-    # transformed; subsequent ones are collected by the
-    # zero_or_more_nodes('after'), and moved inside it. During a descending
-    # transform, the children of the transformed node are traversed, meaning
-    # that the new 'let_scoped' will be the subject of a match if it contains
-    # any more 'let' nodes. See test_explicit_scopes_multiple in
-    # test_binding.py for a demonstration.
-
-    @pattern.match(
-        P.any_node('root', with_children=[
-            P.zero_or_more_nodes('before', exclude=['let']),
-            ast.AstNode('let', span=P('let_p'), children=[
-                P.zero_or_more_nodes('inner'),
-            ]),
-            P.zero_or_more_nodes('after'),
-        ]))
-    def extend_scope(self, root, before, after, inner, let_p):
-        return root.evolve(with_children=[
-            *before,
-            ast.AstNode('let_scoped', span=let_p, children=[
-                *inner,
-                *after,
-            ])
-        ])
+    def exit__scope(self, node):
+        return node
 
 
 class ShadowNames(ScopedPass):
@@ -177,12 +105,17 @@ class EvaluateConstants(ScopedPass):
 
     def exit_constant(self, node):
         self.evaluating = False
-        self.bind_constant(node.attrs['name'], node.children[0])
-        return []
+        self.bind_constant(node.attrs['name'], node.attrs["value"])
+        return None
+
+    def exit_toplevel(self, node):
+        if node.attrs["stmt"] is None:
+            return node.attrs["next"]
+        return node
 
     def exit_call(self, node):
         target = node.attrs['target']
-        return target(*node.children)
+        return target(*node.select("args", "arg"))
 
 
 class ResolveConstants(ScopedPass):

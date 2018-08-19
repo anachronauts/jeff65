@@ -11,16 +11,7 @@ from nose.tools import (
     assert_equal,
     assert_not_in)
 from jeff65 import ast
-from jeff65.blum import types
 from jeff65.gold.passes import binding
-
-
-def transform(node, xform):
-    backup = node.pretty()
-    result = node.transform(xform)
-    # check that the previous AST wasn't mutated
-    assert_equal(backup, node.pretty())
-    return result
 
 
 @attr.s
@@ -63,8 +54,7 @@ class ScopedTransform(RuleBasedStateMachine):
         # somehow?
         assume(self.frames[-1].t == t)
         frame = self.frames.pop()
-        node, *nodes = self.transform.transform_exit(t, frame.node)
-        assert_equal(0, len(nodes))
+        node = self.transform.transform_exit(t, frame.node)
         assert_equal(ast.AstNode(t), frame.orig)
         assert_equal(frame.names, node.attrs['known_names'])
 
@@ -82,8 +72,7 @@ class ScopedTransform(RuleBasedStateMachine):
         # somehow?
         assume(self.frames[-1].t == t)
         frame = self.frames.pop()
-        node, *nodes = self.transform.transform_exit(t, frame.node)
-        assert_equal(0, len(nodes))
+        node = self.transform.transform_exit(t, frame.node)
         assert_equal(ast.AstNode(t), frame.orig)
         assert_not_in('known_names', node.attrs)
 
@@ -107,91 +96,3 @@ class ScopedTransform(RuleBasedStateMachine):
 
 
 TestScopedPass = ScopedTransform.TestCase
-
-
-def test_explicit_scopes_single():
-    a = ast.AstNode('fun', children=[
-        ast.AstNode('call', attrs={'target': 'spam'}),
-        ast.AstNode('let', children=[
-            ast.AstNode('let_set!', attrs={
-                'name': 'foo',
-                'type': types.u8,
-            }, children=[
-                ast.AstNode('numeric', attrs={'value': 42}),
-            ]),
-        ]),
-        ast.AstNode('call', attrs={'target': 'eggs'}),
-    ])
-    b = transform(a, binding.ExplicitScopes())
-    expected = ast.AstNode('fun', children=[
-        ast.AstNode('call', attrs={'target': 'spam'}),
-        ast.AstNode('let_scoped', children=[
-            ast.AstNode('let_set!', attrs={
-                'name': 'foo',
-                'type': types.u8,
-            }, children=[
-                ast.AstNode('numeric', attrs={'value': 42}),
-            ]),
-            ast.AstNode('call', attrs={'target': 'eggs'}),
-        ]),
-    ])
-    try:
-        assert_equal(expected, b[0])
-    except AssertionError:
-        print(expected.pretty(no_position=True))
-        print('!=')
-        print(b[0].pretty(no_position=True))
-        raise
-
-
-def test_explicit_scopes_multiple():
-    a = ast.AstNode('fun', children=[
-        ast.AstNode('call', attrs={'target': 'spam'}),
-        ast.AstNode('let', children=[
-            ast.AstNode('let_set!', attrs={
-                'name': 'foo',
-                'type': types.u8,
-            }, children=[
-                ast.AstNode('numeric', attrs={'value': 42}),
-            ]),
-        ]),
-        ast.AstNode('call', attrs={'target': 'eggs'}),
-        ast.AstNode('let', children=[
-            ast.AstNode('let_set!', attrs={
-                'name': 'bar',
-                'type': types.u8,
-            }, children=[
-                ast.AstNode('numeric', attrs={'value': 54}),
-            ]),
-        ]),
-        ast.AstNode('call', attrs={'target': 'beans'}),
-    ])
-    b = transform(a, binding.ExplicitScopes())
-    expected = ast.AstNode('fun', children=[
-        ast.AstNode('call', attrs={'target': 'spam'}),
-        ast.AstNode('let_scoped', children=[
-            ast.AstNode('let_set!', attrs={
-                'name': 'foo',
-                'type': types.u8,
-            }, children=[
-                ast.AstNode('numeric', attrs={'value': 42}),
-            ]),
-            ast.AstNode('call', attrs={'target': 'eggs'}),
-            ast.AstNode('let_scoped', children=[
-                ast.AstNode('let_set!', attrs={
-                    'name': 'bar',
-                    'type': types.u8,
-                }, children=[
-                    ast.AstNode('numeric', attrs={'value': 54}),
-                ]),
-                ast.AstNode('call', attrs={'target': 'beans'}),
-            ]),
-        ]),
-    ])
-    try:
-        assert_equal(expected, b[0])
-    except AssertionError:
-        print(expected.pretty(no_position=True))
-        print('!=')
-        print(b[0].pretty(no_position=True))
-        raise

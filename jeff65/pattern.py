@@ -23,7 +23,6 @@ procedural DFS transform system.
 import attr
 import enum
 import inspect
-from collections import deque
 from . import ast
 
 
@@ -77,13 +76,12 @@ def transform(order):
             else:
                 _, pattern, template = value
                 if isinstance(pattern, ast.AstNode):
-                    predicates = pattern.transform(analyser, always_list=True)
+                    predicates = pattern.transform(analyser)
                 else:
                     # do the non-recursive transform
-                    predicates = [analyser.make_predicate(pattern)]
-                assert 1 == len(predicates)
+                    predicates = analyser.make_predicate(pattern)
                 m_dict[member] = template
-                ptpairs.append((predicates[0], template))
+                ptpairs.append((predicates, template))
         return type(cls.__name__, cls.__bases__, m_dict)
 
     return _decorate_transform
@@ -112,8 +110,6 @@ def transform_handler(self, t, node):
 class PatternAnalyser:
     """Converts a pattern into a bound predicate."""
 
-    transform_attrs = False
-
     def make_predicate(self, obj):
         if isinstance(obj, Predicate):
             # objects which are already predicates are just passed on
@@ -131,10 +127,19 @@ class PatternAnalyser:
             return attrs
 
         pas = {}
+        exhaustive = False
         for k, v in attrs.items():
-            pas[k] = self.make_predicate(v)
+            if k == "exhaustive!":
+                # yeah, the in-band signaling is a little weird, but I'm not
+                # really sure where else to put this flag.
+                exhaustive = v
+            else:
+                pas[k] = self.make_predicate(v)
+        keys = set(pas.keys())
 
         def _attrs_predicate(attrs, captures):
+            if exhaustive and set(attrs.keys()) != keys:
+                return False
             for k, v in pas.items():
                 if not v._match(attrs[k], captures):
                     return False
@@ -148,7 +153,6 @@ class PatternAnalyser:
         return Predicate.node(
             self.make_predicate(node.t),
             self.make_attrs_predicate(node.attrs),
-            node.children,
             self.make_span_predicate(node.span))
 
 
@@ -159,10 +163,6 @@ class Predicate:
             self.predicate = lambda _1, _2: predicate
         else:
             self.predicate = predicate
-
-    def _seq_match(self, vq: deque, captures) -> bool:
-        return (len(vq) > 0
-                and self._match(vq.popleft(), captures))
 
     def _match(self, value, captures):
         if not self.predicate(value, captures):
@@ -176,43 +176,28 @@ class Predicate:
         return cls(None)
 
     @classmethod
-    def any_node(cls, key=None, with_children=None):
-        if with_children is None:
-            children = [cls.zero_or_more_nodes()]
+    def any_node(cls, key=None, with_attrs=None):
+        if with_attrs is None:
+            attrs = cls.any()
         else:
-            analyser = PatternAnalyser()
             # this is goofy but the children have to be transformed now or it's
             # not happening...
-            children = []
-            for c in with_children:
-                if isinstance(c, ast.AstNode):
-                    children.extend(c.transform(analyser))
-                else:
-                    children.append(c)
+            analyser = PatternAnalyser()
+            attrs = analyser.make_attrs_predicate(with_attrs)
 
         return cls.node(
             cls.any(),
-            cls.any(),
-            children,
+            attrs,
             cls.any(),
             key=key)
 
     @classmethod
-    def node(cls, pt, pa, pcs, pn, key=None):
+    def node(cls, pt, pa, pn, key=None):
         def _node_predicate(node, captures):
-            if not (isinstance(node, ast.AstNode)
+            return (isinstance(node, ast.AstNode)
                     and pt._match(node.t, captures)
                     and pa._match(node.attrs, captures)
-                    and pn._match(node.span, captures)):
-                return False
-            cq = deque(node.children)
-            pcq = deque(pcs)
-            while len(pcq) > 0:
-                pc = pcq.popleft()
-                if not pc._seq_match(cq, captures):
-                    return False
-            # we expect all items to have been consumed
-            return len(cq) == 0
+                    and pn._match(node.span, captures))
         return cls(key, _node_predicate)
 
     @classmethod
@@ -255,42 +240,3 @@ class Predicate:
                 raise MatchError(f"Expected value <{value}, got {v}")
             return False
         return cls(key, _p_lt)
-
-    @staticmethod
-    def zero_or_more_nodes(key=None, allow=None, exclude=None):
-        return SequencePredicate(
-            key, lambda v, c: ((allow is None or v.t in allow)
-                               and (exclude is None or v.t not in exclude)))
-
-
-class SequencePredicate(Predicate):
-    def __init__(self, key, predicate, min_count=0, max_count=None):
-        super().__init__(key, predicate)
-        self.min_count = min_count
-        self.max_count = max_count
-
-    def _seq_match(self, vq: deque, captures) -> bool:
-        # we get passed a queue, and we're expected to consume items (from the
-        # left) from it as long as our predicates are satisfied. If we stop
-        # matching and we haven't reached min_count, we return false to fail
-        # the match. If we reach the max_count or our predicate stops matching,
-        # we return True.
-
-        matched = []
-        if self.key is not None:
-            captures[self.key] = matched
-
-        while self.max_count is None or len(matched) < self.max_count:
-            if len(vq) == 0:
-                break
-            v = vq.popleft()
-            if not self.predicate(v, captures):
-                # backtrack
-                vq.appendleft(v)
-                break
-            matched.append(v)
-
-        return len(matched) >= self.min_count
-
-    def _match(self, value, captures):
-        raise ValueError("Cannot single-match a sequence")
