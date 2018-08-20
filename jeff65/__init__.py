@@ -43,7 +43,7 @@ class BraceMessage:
 BraceMessage.install()
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--debug",
@@ -58,6 +58,8 @@ def main():
     subparsers = parser.add_subparsers()
     compile_parser = subparsers.add_parser(
         'compile', help="compile one or more files")
+    compile_parser.add_argument("-o", help="place the output into OUTPUT",
+                                dest="output", type=pathlib.PurePath)
     compile_parser.add_argument('file', help="the file to compile",
                                 type=pathlib.PurePath)
     compile_parser.set_defaults(func=cmd_compile)
@@ -68,7 +70,7 @@ def main():
                                 type=pathlib.PurePath)
     objdump_parser.set_defaults(func=cmd_objdump)
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
     elif args.verbose:
@@ -90,9 +92,9 @@ def cmd_compile(args):
     from . import blum
 
     archive = gold.translate(args.file)
-    archive.dumpf(args.file.with_suffix('.blum'))
+    # archive.dumpf(args.file.with_suffix('.blum'))
     blum.link('{}.main'.format(args.file.stem), archive,
-              args.file.with_suffix('.prg'))
+              args.output or args.file.with_suffix(".prg"))
 
 
 def cmd_objdump(args):
