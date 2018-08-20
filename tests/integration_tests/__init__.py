@@ -4,6 +4,7 @@ import pathlib
 import sys
 import tempfile
 import unittest
+from nose.plugins.attrib import attr as nose_attr
 from nose.tools import (assert_equal)
 import jeff65
 
@@ -46,6 +47,7 @@ def with_dump_of(path):
         return unittest.skip("VICE-based tests are Linux-only")
 
     def _decorate_test(f):
+        @nose_attr("vice")
         def _test_with_dump():
             fullpath = pathlib.Path(__file__).parent / path
             return f(compile_run_dump(fullpath))

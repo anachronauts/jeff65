@@ -12,7 +12,7 @@ develop: all
 
 check: all
 	flake8 jeff65 tests
-	python setup.py nosetests
+	python setup.py nosetests -a "!vice"
 
 demo: examples/heart.prg
 	x64 $<
