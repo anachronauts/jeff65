@@ -28,13 +28,16 @@ def make_startup_for(main, version):
             # simply make the target of the SYS instruction be our main
             # function, but our relocation system isn't smart enough for that
             # and we may wish to add more complicated startup code in the
-            # future. It is assumed that main() will RTS.
-            "<HHB4sxHBH",
+            # future. We could assume that main exits using RTS and save one
+            # byte and a few cycles, but for now it's convenient to have a
+            # well-known address to break on.
+            "<HHB4sxHBHB",
             0x080b,         # 0x0000 0x0801 (H)    addr of next BASIC line
             version,        # 0x0002 0x0803 (H)    BASIC line number
             0x9e, b'2061',  # 0x0004 0x0805 (B4sx) SYS2061 (0x080d)
             0x0000,         # 0x000a 0x080b (H)    BASIC end-of-program
-            0x4c, 0xffff,   # 0x000c 0x080d (BH)   jmp $ffff
+            0x20, 0xffff,   # 0x000c 0x080d (BH)   jsr $ffff
+            0x60,           # 0x000f 0x0810 (B)    rts
         ),
         type_info=types.phantom,
         relocations={
