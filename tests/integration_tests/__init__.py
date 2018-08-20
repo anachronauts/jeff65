@@ -1,10 +1,11 @@
 import functools
 import os
 import pathlib
+import sys
 import tempfile
+import unittest
 from nose.tools import (assert_equal)
 import jeff65
-from . import vicectl
 
 
 def compile_run_dump(path):
@@ -14,6 +15,11 @@ def compile_run_dump(path):
     emulator memory just before the program terminates, returning the memory as
     a bytes object.
     """
+
+    # This doesn't work on all platforms, so we import it locally to give the
+    # decorator a chance to decide if we're even going to run the test.
+    from . import vicectl
+
     try:
         fd, outpath = tempfile.mkstemp()
         os.close(fd)
@@ -36,6 +42,9 @@ def compile_run_dump(path):
 
 
 def with_dump_of(path):
+    if sys.platform != "linux":
+        return unittest.skip("VICE-based tests are Linux-only")
+
     def _decorate_test(f):
         def _test_with_dump():
             fullpath = pathlib.Path(__file__).parent / path
