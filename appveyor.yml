@@ -6,9 +6,17 @@ environment:
     - PYTHON: "C:\\Python37-x64"
 
 install:
-  - "%PYTHON%\\python.exe -m pip install -Ur requirements.txt"
+  - "%PYTHON%\\python.exe -m pip install pipenv"
+  - "%PYTHON%\\python.exe -m pipenv sync --dev"
 
 build: off
 
 test_script:
-  - "%PYTHON%\\python.exe setup.py nosetests"
+  - "%PYTHON%\\python.exe -m pipenv run python setup.py nosetests --with-xunit"
+
+on_finish:
+  - ps: |
+      $wc = New-Object 'System.Net.WebClient'
+      $wc.UploadFile(
+        "https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)",
+        (Resolve-Path .\nosetests.xml))

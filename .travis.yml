@@ -10,7 +10,13 @@ matrix:
     - python : "3.8-dev"
       dist: xenial
       sudo: true
+
+install:
+  - pip install pipenv
+  - make develop
+
 script:
   - make check
+
 after_success:
   - coveralls
