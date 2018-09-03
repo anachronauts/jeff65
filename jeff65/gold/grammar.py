@@ -22,7 +22,6 @@ from ..parsing import Grammar, Lexer, Parser, ReStream, Rule
 @enum.unique
 class Mode(enum.IntEnum):
     NORMAL = Parser.NORMAL_MODE
-    COMMENT = 1
     STRING = 2
 
 
@@ -32,7 +31,7 @@ T = enum.Enum('T', [
 
     # literals tokens
     'IDENTIFIER', 'NUMERIC', 'STRING', 'STRING_ESCAPE', 'WHITESPACE',
-    'COMMENT_TEXT', 'COMMENT_NEWLINE',
+    'COMMENT',
 
     # arithmetic operators
     'OPERATOR_PLUS', 'OPERATOR_MINUS', 'OPERATOR_TIMES', 'OPERATOR_DIVIDE',
@@ -154,21 +153,9 @@ lex = Lexer(T.EOF, [
     # because that one is run first we don't have to worry about that.
     (r'\w[^\s{}]*'.format(specials), T.IDENTIFIER),
 
-    # comment opener. When the lexer comes back, it will be in comment mode
-    (Mode.NORMAL, re.escape('--[['), T.COMMENT_OPEN, ReStream.CHANNEL_HIDDEN),
-
-    # comment delimiers, but for comment mode.
-    (Mode.COMMENT, re.escape(']]'), T.COMMENT_CLOSE, ReStream.CHANNEL_HIDDEN),
-
-    # This is necessary because the next pattern matches up to, but not
-    # including, the newline; however, it will happily match zero characters,
-    # causing an infinite loop. This matches that last newline.
-    (Mode.COMMENT, r'\n', T.COMMENT_NEWLINE, ReStream.CHANNEL_HIDDEN),
-
-    # Matches either to the next comment-control token, or the end of the line,
-    # whichever happens first.
-    (Mode.COMMENT, r'.*?(?=\]\]|$)', T.COMMENT_TEXT,
-     ReStream.CHANNEL_HIDDEN),
+    # Block and Line Comments
+    (Mode.NORMAL, r'\-\-\[(=*)\[(.|\n)*\]\1\]', T.COMMENT, ReStream.CHANNEL_HIDDEN),
+    (Mode.NORMAL, r'\-\-.*\n', T.COMMENT, ReStream.CHANNEL_HIDDEN),
 
     # String delimiter. When the lexer comes back, it will be in string mode
     (re.escape('"'), T.STRING_DELIM),
@@ -352,22 +339,4 @@ grammar = Grammar('start', [T.EOF], [
     Rule('start', ['unit']),
 ])
 
-comment_grammar = Grammar('start', [T.WHITESPACE, T.EOF], [
-    # left-recursive definition of a comment
-    Rule('comment_inner', [], mode=Mode.COMMENT),
-    Rule('comment_inner', ['comment_inner',
-                           (T.COMMENT_TEXT, T.COMMENT_NEWLINE)],
-         mode=Mode.COMMENT),
-
-    # enter/exit mode split
-    Rule('comment', [T.COMMENT_OPEN, 'comment_inner', T.COMMENT_CLOSE]),
-
-    # the empty rule handles whitespace
-    Rule('hidden', []),
-    Rule('hidden', ['comment']),
-    Rule('start', ['hidden']),
-])
-
-parse = grammar.build_parser({
-    ReStream.CHANNEL_HIDDEN: comment_grammar,
-})
+parse = grammar.build_parser()

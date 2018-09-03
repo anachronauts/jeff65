@@ -33,6 +33,6 @@ fun main()
     memory access, since, since screen-corner and screen-corner-color are
     inlined.
   ]]
-  @screen-corner = 0x53       --[[ screencode for <3 ]]
-  @screen-corner-color = 10   --[[ light red ]]
+  @screen-corner = 0x53       -- screencode for <3
+  @screen-corner-color = 10   -- light red
 endfun
