@@ -30,61 +30,61 @@ def test_whitespace_only_file():
 
 
 def test_comments_newline():
-    a = parse("/* a comment */\n")
+    a = parse("--[[ a comment ]]\n")
     assert_equal('unit', a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_comments_no_newline():
-    a = parse("/* a comment */")
+    a = parse("--[[ a comment ]]")
     assert_equal('unit', a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_comments_multiline():
     a = parse("""
-    /*
-     * a multiline comment
-     * with multiple lines
-     */
+    --[[
+      a multiline comment
+      with multiple lines
+    ]]
     """)
     assert_equal('unit', a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_comments_unclosed():
-    assert_raises(parsing.ParseError, parse, "/* oh no")
+    assert_raises(parsing.ParseError, parse, "--[[ oh no")
 
 
 def test_comments_unopened():
-    assert_raises(parsing.ParseError, parse, "oh no */")
+    assert_raises(parsing.ParseError, parse, "oh no ]]")
 
 
 def test_nested_comment():
-    a = parse("/* a /* nested */ comment */")
+    a = parse("--[=[ a --[[ nested ]] comment ]=]")
     assert_equal('unit', a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_nested_comments_unclosed():
-    assert_raises(parsing.ParseError, parse, "/* /* oh no")
+    assert_raises(parsing.ParseError, parse, "--[=[ --[[ oh no")
 
 
 def test_comment_before_statement():
     expected = parse("constant x: u8 = 1")
-    actual = parse("/* a comment */ constant x: u8 = 1")
+    actual = parse("--[[ a comment ]] constant x: u8 = 1")
     assert_equal(expected, actual)
 
 
 def test_comment_after_statement():
     expected = parse("constant x: u8 = 1")
-    actual = parse("constant x: u8 = 1 /* a comment */")
+    actual = parse("constant x: u8 = 1 --[[ a comment ]]")
     assert_equal(expected, actual)
 
 
 def test_comment_within_statement():
     expected = parse("constant x: u8 = 1")
-    actual = parse("constant x: u8 = /* a comment */ 1")
+    actual = parse("constant x: u8 = --[[ a comment ]] 1")
     assert_equal(expected, actual)
 
 

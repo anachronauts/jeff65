@@ -1,38 +1,38 @@
-/*
- * This is the simplest possible program that does anything visible on the C64.
- * It prints a light red heart in the top-left corner of the screen, then
- * immediately exits back to the BASIC prompt.
- */
+--[[
+  This is the simplest possible program that does anything visible on the C64.
+  It prints a light red heart in the top-left corner of the screen, then
+  immediately exits back to the BASIC prompt.
+]]
 
-/*
- * Use the 'mem' unit. This provides functions for converting between
- * structured memory access (arrays, slices, pointers) and raw memory access.
- * These are basically all implemented as compiler intrinsics, and are
- * impossible to implement directly in gold-syntax.
- */
+--[[
+  Use the 'mem' unit. This provides functions for converting between
+  structured memory access (arrays, slices, pointers) and raw memory access.
+  These are basically all implemented as compiler intrinsics, and are
+  impossible to implement directly in gold-syntax.
+]]
 use mem
 
-/*
- * A pointer aimed at the top-left corner of screen memory. 'mem.as-pointer' is
- * a compiler intrinsic which pokes a hole in the type system for you, and is
- * essentially compiled out entirely. If its argument is 'known', then its
- * return value is also considered 'known', so it can be used in a top-level
- * binding. In addition, 'constant' makes this a compile-time constant, which
- * is inlined at use sites.
- */
+--[[
+  A pointer aimed at the top-left corner of screen memory. 'mem.as-pointer' is
+  a compiler intrinsic which pokes a hole in the type system for you, and is
+  essentially compiled out entirely. If its argument is 'known', then its
+  return value is also considered 'known', so it can be used in a top-level
+  binding. In addition, 'constant' makes this a compile-time constant, which
+  is inlined at use sites.
+]]
 constant screen-corner: &u8 = mem.as-pointer(0x0400)
 constant screen-corner-color: &u8 = mem.as-pointer(0xd800)
 
-/*
- * The compiler automatically links in a header which allows the program to be
- * LOADed, and will invoke main() at startup.
- */
+--[[
+ The compiler automatically links in a header which allows the program to be
+ LOADed, and will invoke main() at startup.
+]]
 fun main()
-  /* 
-   * Note that each of these compiles down to an immediate load and an absolute
-   * memory access, since, since screen-corner and screen-corner-color are
-   * inlined.
-   */
-  @screen-corner = 0x53       /* screencode for <3 */
-  @screen-corner-color = 10   /* light red */
+  --[[
+    Note that each of these compiles down to an immediate load and an absolute
+    memory access, since, since screen-corner and screen-corner-color are
+    inlined.
+  ]]
+  @screen-corner = 0x53       --[[ screencode for <3 ]]
+  @screen-corner-color = 10   --[[ light red ]]
 endfun

@@ -32,7 +32,7 @@ T = enum.Enum('T', [
 
     # literals tokens
     'IDENTIFIER', 'NUMERIC', 'STRING', 'STRING_ESCAPE', 'WHITESPACE',
-    'COMMENT_TEXT',
+    'COMMENT_TEXT', 'COMMENT_NEWLINE',
 
     # arithmetic operators
     'OPERATOR_PLUS', 'OPERATOR_MINUS', 'OPERATOR_TIMES', 'OPERATOR_DIVIDE',
@@ -155,20 +155,19 @@ lex = Lexer(T.EOF, [
     (r'\w[^\s{}]*'.format(specials), T.IDENTIFIER),
 
     # comment opener. When the lexer comes back, it will be in comment mode
-    (Mode.NORMAL, re.escape('/*'), T.COMMENT_OPEN, ReStream.CHANNEL_HIDDEN),
+    (Mode.NORMAL, re.escape('--[['), T.COMMENT_OPEN, ReStream.CHANNEL_HIDDEN),
 
     # comment delimiers, but for comment mode.
-    (Mode.COMMENT, re.escape('/*'), T.COMMENT_OPEN, ReStream.CHANNEL_HIDDEN),
-    (Mode.COMMENT, re.escape('*/'), T.COMMENT_CLOSE, ReStream.CHANNEL_HIDDEN),
+    (Mode.COMMENT, re.escape(']]'), T.COMMENT_CLOSE, ReStream.CHANNEL_HIDDEN),
 
     # This is necessary because the next pattern matches up to, but not
     # including, the newline; however, it will happily match zero characters,
     # causing an infinite loop. This matches that last newline.
-    (Mode.COMMENT, r'\n', T.COMMENT_TEXT, ReStream.CHANNEL_HIDDEN),
+    (Mode.COMMENT, r'\n', T.COMMENT_NEWLINE, ReStream.CHANNEL_HIDDEN),
 
     # Matches either to the next comment-control token, or the end of the line,
     # whichever happens first.
-    (Mode.COMMENT, r'.*?(?=\/\*|\*\/|$)', T.COMMENT_TEXT,
+    (Mode.COMMENT, r'.*?(?=\]\]|$)', T.COMMENT_TEXT,
      ReStream.CHANNEL_HIDDEN),
 
     # String delimiter. When the lexer comes back, it will be in string mode
@@ -353,16 +352,11 @@ grammar = Grammar('start', [T.EOF], [
     Rule('start', ['unit']),
 ])
 
-comment_grammar = Grammar('start', [T.COMMENT_CLOSE, T.WHITESPACE, T.EOF], [
+comment_grammar = Grammar('start', [T.WHITESPACE, T.EOF], [
     # left-recursive definition of a comment
     Rule('comment_inner', [], mode=Mode.COMMENT),
     Rule('comment_inner', ['comment_inner',
-                           (T.COMMENT_TEXT, 'comment_nested')],
-         mode=Mode.COMMENT),
-
-    # we have to define a rule for nested comments separately to avoid
-    # mode/mode conflicts
-    Rule('comment_nested', [T.COMMENT_OPEN, 'comment_inner', T.COMMENT_CLOSE],
+                           (T.COMMENT_TEXT, T.COMMENT_NEWLINE)],
          mode=Mode.COMMENT),
 
     # enter/exit mode split
