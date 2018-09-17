@@ -15,7 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import enum
-import re
+import regex as re
 from ..parsing import Grammar, Lexer, Parser, ReStream, Rule
 
 
@@ -161,27 +161,19 @@ lex = Lexer(T.EOF, [
     (Mode.COMMENT, re.escape('/*'), T.COMMENT_OPEN, ReStream.CHANNEL_HIDDEN),
     (Mode.COMMENT, re.escape('*/'), T.COMMENT_CLOSE, ReStream.CHANNEL_HIDDEN),
 
-    # This is necessary because the next pattern matches up to, but not
-    # including, the newline; however, it will happily match zero characters,
-    # causing an infinite loop. This matches that last newline.
-    (Mode.COMMENT, r'\n', T.COMMENT_TEXT, ReStream.CHANNEL_HIDDEN),
-
-    # Matches either to the next comment-control token, or the end of the line,
-    # whichever happens first.
-    (Mode.COMMENT, r'.*?(?=\/\*|\*\/|$)', T.COMMENT_TEXT,
+    # Matches up to the next comment-control token.
+    (Mode.COMMENT, r'(?s).*?(?=\/\*|\*\/)', T.COMMENT_TEXT,
      ReStream.CHANNEL_HIDDEN),
 
     # String delimiter. When the lexer comes back, it will be in string mode
     (re.escape('"'), T.STRING_DELIM),
 
     # String control tokens
-    (Mode.STRING, r'\\.', T.STRING_ESCAPE),
+    (Mode.STRING, r'(?s)\\.', T.STRING_ESCAPE),
     (Mode.STRING, re.escape('"'), T.STRING_DELIM),
 
-    # Matches non-special text inside a string. The newline-matching pattern is
-    # for the same reason as for comments.
-    (Mode.STRING, r'\n', T.STRING),
-    (Mode.STRING, r'.*?(?=\\|"|$)', T.STRING),
+    # Matches non-special text inside a string.
+    (Mode.STRING, r'(?s).*?(?=\\|")', T.STRING),
 
     # operators & punctuation. These must be ordered such that if A is a prefix
     # of B, then B comes before A. The easiest way to do this is to order them
@@ -216,7 +208,7 @@ lex = Lexer(T.EOF, [
     (re.escape('}'), T.BRACE_CLOSE),
 
     # If we fail to match anything, consume one character, and move on.
-    (r'.', T.MYSTERY),
+    (r'(?s).', T.MYSTERY),
 ])
 
 

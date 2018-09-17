@@ -16,8 +16,9 @@
 
 import attr
 import logging
-import re
+import regex as re
 import time
+from collections import deque
 from itertools import chain
 
 logger = logging.getLogger(__name__)
@@ -95,30 +96,46 @@ class ReStream:
 
     def __init__(self, stream):
         self.stream = iter(stream)
-        self.current = None
-        self.line = 0
+        self.current = deque()
+        self.current_line = 1  # the number of the first line in current
+        self.line = 1  # the number of the actual current-position line
         self.column = 0
 
         try:
-            self.advance_line()
+            self.extend_buffer()
         except StopIteration:
-            self.current = ""
-            self.line = 1
+            pass
 
-    def advance_line(self):
-        """Advance the stream position to the beginning of the next line."""
-        try:
-            self.current = next(self.stream)
-        except StopIteration:
-            raise
-        else:
-            self.line += 1
-            self.column = 0
+    def extend_buffer(self):
+        """Extends the current buffer to include an additional line."""
 
-    def assure_line(self):
-        """Assures that at least one character remains in the current line."""
-        if self.column == len(self.current):
-            self.advance_line()
+        self.current.append(next(self.stream))
+
+        # If this is the last line in the file, it might not have a newline. To
+        # simplify the logic, we add one. (Emitting an EOF is triggered by
+        # trying to read past the last line, but line reads are triggered by
+        # processing newlines.)
+        if not self.current[-1].endswith("\n"):
+            self.current[-1] += "\n"
+
+    def trim_buffer(self):
+        """Trims already-consumed lines from the buffer."""
+
+        while self.current_line < self.line:
+            self.current.popleft()
+            self.current_line += 1
+
+    def assure_buffer(self):
+        """Assures that at least one character remains in the buffer."""
+
+        while self.line - self.current_line >= len(self.current):
+            self.extend_buffer()
+        self.trim_buffer()
+
+        # This is always true because the last character on a line is always a
+        # newline, and producing a token with a newline automatically shifts us
+        # to the next line.
+        assert self.column < len(self.current[self.line-self.current_line])
 
     def match(self, regex):
         """Match the given regex at the current stream position.
@@ -129,17 +146,39 @@ class ReStream:
         Returns a match object if successful, None otherwise.
         """
 
-        self.assure_line()
-        return regex.match(self.current, self.column)
+        self.assure_buffer()
+        assert self.line == self.current_line  # else the buf expr is wrong
+        while True:
+            buf = "".join(self.current)
+            m = regex.match(buf, self.column, partial=True)
+            if not m or not m.partial:
+                return m
+
+            try:
+                self.extend_buffer()
+            except StopIteration:
+                # EOF, so go ahead and accept the partial match
+                return m
 
     def produce(self, symbol, match, channel=CHANNEL_DEFAULT):
         """Produce a token and advance the position."""
 
-        token = Token(symbol, match.group(), channel,
+        text = match.group()
+        end_line = self.line + text.count("\n")
+        if end_line > self.line:
+            end_column = len(text) - text.rindex("\n") - 1
+        else:
+            end_column = match.end()
+
+        token = Token(symbol, text, channel,
                       TextSpan(
                           self.line, self.column,
-                          self.line, match.end()))
-        self.column = match.end()
+                          end_line, end_column))
+        self.line = end_line
+        self.column = end_column
+
+        # note that we don't trim the buffer, in case a rewind is needed.
+        logger.debug(__("Produced token {}", token))
         return token
 
     def rewind(self, token: Token):
@@ -150,6 +189,7 @@ class ReStream:
         """
 
         assert token.span.end == (self.line, self.column)
+        self.line = token.span.start_line
         self.column = token.span.start_column
 
     def produce_eof(self, symbol):
@@ -183,7 +223,7 @@ class Lexer:
 
     def __call__(self, stream: ReStream, mode: int) -> Token:
         try:
-            stream.assure_line()
+            stream.assure_buffer()
         except StopIteration:
             return stream.produce_eof(self.eof)
 
