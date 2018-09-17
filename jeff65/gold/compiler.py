@@ -47,23 +47,21 @@ def open_unit(unit):
 
 
 def parse(fileobj, name):
-    stream = parsing.ReStream(fileobj)
-    tree = grammar.parse(
-        stream, grammar.lex,
-        lambda t, s, c, m: ast.AstNode(t, span=s, attrs={
-            f"{k:02}": v for k, v in enumerate(c)
-        }))
-    # if parser._syntaxErrors > 0:
-    #     raise ast.ParseError("Unit {} had errors; terminating".format(name))
+    with parsing.ReStream(fileobj) as stream:
+        tree = grammar.parse(
+            stream, grammar.lex,
+            lambda t, s, c, m: ast.AstNode(t, span=s, attrs={
+                f"{k:02}": v for k, v in enumerate(c)
+            }))
     return tree.transform(simplify.Simplify())
 
 
 def translate(unit):
-    with open_unit(unit) as input_file:
-        obj = parse(input_file, name=unit.name)
-        for p in passes:
-            obj = obj.transform(p())
-            logger.debug(__("Pass {}:\n{:p}", p.__name__, obj))
+    # parse will close the file for us
+    obj = parse(open_unit(unit), name=unit.name)
+    for p in passes:
+        obj = obj.transform(p())
+        logger.debug(__("Pass {}:\n{:p}", p.__name__, obj))
 
     archive = blum.Archive()
     for node in obj.select("toplevels", "stmt"):

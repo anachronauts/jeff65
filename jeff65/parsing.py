@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import attr
+import io
 import logging
 import regex as re
 import time
@@ -94,48 +95,76 @@ class ReStream:
     CHANNEL_DEFAULT = 0
     CHANNEL_HIDDEN = 1
 
-    def __init__(self, stream):
-        self.stream = iter(stream)
+    def __init__(self, stream, encoding='utf8', blocksize=4096):
         self.current = deque()
-        self.current_line = 1  # the number of the first line in current
+        self.position = 0
+        self.bufsize = 0
         self.line = 1  # the number of the actual current-position line
         self.column = 0
+
+        # TODO: If we got a buffered stream, it'd be cool to pull the buffer
+        # size out of it directly, since e.g. file streams will use the block
+        # size of the underlying storage automatically.
+        self.blocksize = blocksize
+
+        if isinstance(stream, io.StringIO):
+            # Since everything is already in-memory anyway, just bypass the
+            # stream API.
+            self.encoding = None
+            self.bstream = None
+            self.current.append(stream.getvalue())
+            self.bufsize = len(self.current[0])
+        elif isinstance(stream, io.TextIOBase):
+            self.encoding = stream.encoding
+            self.bstream = stream.detach()
+        else:
+            self.encoding = encoding
+            self.bstream = stream
 
         try:
             self.extend_buffer()
         except StopIteration:
             pass
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        if self.bstream is not None:
+            self.bstream.close()
+            self.bstream = None
+
     def extend_buffer(self):
-        """Extends the current buffer to include an additional line."""
+        """Extends the current buffer to include an additional block."""
 
-        self.current.append(next(self.stream))
+        if self.bstream is None:
+            raise StopIteration
 
-        # If this is the last line in the file, it might not have a newline. To
-        # simplify the logic, we add one. (Emitting an EOF is triggered by
-        # trying to read past the last line, but line reads are triggered by
-        # processing newlines.)
-        if not self.current[-1].endswith("\n"):
-            self.current[-1] += "\n"
+        block = self.bstream.read(self.blocksize)
+        if len(block) == 0:
+            raise StopIteration
+
+        text = block.decode(self.encoding)
+        self.current.append(text)
+        self.bufsize += len(text)
 
     def trim_buffer(self):
-        """Trims already-consumed lines from the buffer."""
+        """Trims already-consumed blocks from the buffer."""
 
-        while self.current_line < self.line:
-            self.current.popleft()
-            self.current_line += 1
+        while len(self.current) > 0 and self.position > len(self.current[0]):
+            count = len(self.current.popleft())
+            self.position -= count
+            self.bufsize -= count
 
     def assure_buffer(self):
         """Assures that at least one character remains in the buffer."""
 
-        while self.line - self.current_line >= len(self.current):
+        while self.position >= self.bufsize:
             self.extend_buffer()
         self.trim_buffer()
-
-        # This is always true because the last character on a line is always a
-        # newline, and producing a token with a newline automatically shifts us
-        # to the next line.
-        assert self.column < len(self.current[self.line-self.current_line])
 
     def match(self, regex):
         """Match the given regex at the current stream position.
@@ -146,19 +175,25 @@ class ReStream:
         Returns a match object if successful, None otherwise.
         """
 
+        # The approach taken here, of reattempting partial matches with longer
+        # and longer inputs, leaves something to be desired. In particular, it
+        # means that multiline matches technically run in O(n^2) time. In
+        # practice, unless you have megabytes of comments (or strings), it
+        # shouldn't be an issue.
+
         self.assure_buffer()
-        assert self.line == self.current_line  # else the buf expr is wrong
+        assert self.position < len(self.current[0])  # else buf expr is wrong
         while True:
             buf = "".join(self.current)
-            m = regex.match(buf, self.column, partial=True)
+            m = regex.match(buf, self.position, partial=True)
             if not m or not m.partial:
                 return m
 
             try:
                 self.extend_buffer()
             except StopIteration:
-                # EOF, so go ahead and accept the partial match
-                return m
+                # EOF, so see if the partial match is valid as a full match.
+                return regex.match(buf, self.position)
 
     def produce(self, symbol, match, channel=CHANNEL_DEFAULT):
         """Produce a token and advance the position."""
@@ -168,17 +203,17 @@ class ReStream:
         if end_line > self.line:
             end_column = len(text) - text.rindex("\n") - 1
         else:
-            end_column = match.end()
+            end_column = self.column + len(text)
 
         token = Token(symbol, text, channel,
                       TextSpan(
                           self.line, self.column,
                           end_line, end_column))
+        self.position = match.end()
         self.line = end_line
         self.column = end_column
 
         # note that we don't trim the buffer, in case a rewind is needed.
-        logger.debug(__("Produced token {}", token))
         return token
 
     def rewind(self, token: Token):
@@ -191,6 +226,7 @@ class ReStream:
         assert token.span.end == (self.line, self.column)
         self.line = token.span.start_line
         self.column = token.span.start_column
+        self.position -= len(token.text)
 
     def produce_eof(self, symbol):
         """Produce an EOF token."""

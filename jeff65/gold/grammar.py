@@ -209,6 +209,8 @@ lex = Lexer(T.EOF, [
 
     # If we fail to match anything, consume one character, and move on.
     (r'(?s).', T.MYSTERY),
+    (Mode.STRING, r'(?s).', T.MYSTERY),
+    (Mode.COMMENT, r'(?s).', T.MYSTERY, ReStream.CHANNEL_HIDDEN),
 ])
 
 
