@@ -1,9 +1,9 @@
 # jeff65
 
-[![Build Status](https://img.shields.io/travis/jdpage/jeff65/master.svg?style=flat-square&logo=travis)](https://travis-ci.org/jdpage/jeff65)
+[![Build Status](https://img.shields.io/travis/anachronauts/jeff65/master.svg?style=flat-square&logo=travis)](https://travis-ci.org/anachronauts/jeff65)
 [![AppVeyor](https://img.shields.io/appveyor/ci/jdpage/jeff65/master.svg?style=flat-square&logo=appveyor)](https://ci.appveyor.com/project/jdpage/jeff65)
-[![Coverage Status](https://img.shields.io/coveralls/github/jdpage/jeff65/master.svg?style=flat-square)](https://coveralls.io/github/jdpage/jeff65?branch=master)
-[![Requirements Status](https://img.shields.io/requires/github/jdpage/jeff65.svg?branch=master&style=flat-square)](https://requires.io/github/jdpage/jeff65/requirements/?branch=master)
+[![Coverage Status](https://img.shields.io/coveralls/github/anachronauts/jeff65/master.svg?style=flat-square)](https://coveralls.io/github/anachronauts/jeff65?branch=master)
+[![Requirements Status](https://img.shields.io/requires/github/anachronauts/jeff65.svg?branch=master&style=flat-square)](https://requires.io/github/anachronauts/jeff65/requirements/?branch=master)
 
 *jeff65* is a compiler for the Commodore 64 (and perhaps in the future, other
 6502-based computers). It is implemented in Python 3 and produces .prg files
