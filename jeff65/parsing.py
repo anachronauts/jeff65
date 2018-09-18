@@ -15,9 +15,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import attr
+import io
 import logging
-import re
+import regex as re
 import time
+from collections import deque
 from itertools import chain
 
 logger = logging.getLogger(__name__)
@@ -93,32 +95,76 @@ class ReStream:
     CHANNEL_DEFAULT = 0
     CHANNEL_HIDDEN = 1
 
-    def __init__(self, stream):
-        self.stream = iter(stream)
-        self.current = None
-        self.line = 0
+    def __init__(self, stream, encoding='utf8', blocksize=4096):
+        self.current = deque()
+        self.position = 0
+        self.bufsize = 0
+        self.line = 1  # the number of the actual current-position line
         self.column = 0
 
-        try:
-            self.advance_line()
-        except StopIteration:
-            self.current = ""
-            self.line = 1
+        # TODO: If we got a buffered stream, it'd be cool to pull the buffer
+        # size out of it directly, since e.g. file streams will use the block
+        # size of the underlying storage automatically.
+        self.blocksize = blocksize
 
-    def advance_line(self):
-        """Advance the stream position to the beginning of the next line."""
-        try:
-            self.current = next(self.stream)
-        except StopIteration:
-            raise
+        if isinstance(stream, io.StringIO):
+            # Since everything is already in-memory anyway, just bypass the
+            # stream API.
+            self.encoding = None
+            self.bstream = None
+            self.current.append(stream.getvalue())
+            self.bufsize = len(self.current[0])
+        elif isinstance(stream, io.TextIOBase):
+            self.encoding = stream.encoding
+            self.bstream = stream.detach()
         else:
-            self.line += 1
-            self.column = 0
+            self.encoding = encoding
+            self.bstream = stream
 
-    def assure_line(self):
-        """Assures that at least one character remains in the current line."""
-        if self.column == len(self.current):
-            self.advance_line()
+        try:
+            self.extend_buffer()
+        except StopIteration:
+            pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def close(self):
+        if self.bstream is not None:
+            self.bstream.close()
+            self.bstream = None
+
+    def extend_buffer(self):
+        """Extends the current buffer to include an additional block."""
+
+        if self.bstream is None:
+            raise StopIteration
+
+        block = self.bstream.read(self.blocksize)
+        if len(block) == 0:
+            raise StopIteration
+
+        text = block.decode(self.encoding)
+        self.current.append(text)
+        self.bufsize += len(text)
+
+    def trim_buffer(self):
+        """Trims already-consumed blocks from the buffer."""
+
+        while len(self.current) > 0 and self.position > len(self.current[0]):
+            count = len(self.current.popleft())
+            self.position -= count
+            self.bufsize -= count
+
+    def assure_buffer(self):
+        """Assures that at least one character remains in the buffer."""
+
+        while self.position >= self.bufsize:
+            self.extend_buffer()
+        self.trim_buffer()
 
     def match(self, regex):
         """Match the given regex at the current stream position.
@@ -129,17 +175,45 @@ class ReStream:
         Returns a match object if successful, None otherwise.
         """
 
-        self.assure_line()
-        return regex.match(self.current, self.column)
+        # The approach taken here, of reattempting partial matches with longer
+        # and longer inputs, leaves something to be desired. In particular, it
+        # means that multiline matches technically run in O(n^2) time. In
+        # practice, unless you have megabytes of comments (or strings), it
+        # shouldn't be an issue.
+
+        self.assure_buffer()
+        assert self.position < len(self.current[0])  # else buf expr is wrong
+        while True:
+            buf = "".join(self.current)
+            m = regex.match(buf, self.position, partial=True)
+            if not m or not m.partial:
+                return m
+
+            try:
+                self.extend_buffer()
+            except StopIteration:
+                # EOF, so see if the partial match is valid as a full match.
+                return regex.match(buf, self.position)
 
     def produce(self, symbol, match, channel=CHANNEL_DEFAULT):
         """Produce a token and advance the position."""
 
-        token = Token(symbol, match.group(), channel,
+        text = match.group()
+        end_line = self.line + text.count("\n")
+        if end_line > self.line:
+            end_column = len(text) - text.rindex("\n") - 1
+        else:
+            end_column = self.column + len(text)
+
+        token = Token(symbol, text, channel,
                       TextSpan(
                           self.line, self.column,
-                          self.line, match.end()))
-        self.column = match.end()
+                          end_line, end_column))
+        self.position = match.end()
+        self.line = end_line
+        self.column = end_column
+
+        # note that we don't trim the buffer, in case a rewind is needed.
         return token
 
     def rewind(self, token: Token):
@@ -150,7 +224,9 @@ class ReStream:
         """
 
         assert token.span.end == (self.line, self.column)
+        self.line = token.span.start_line
         self.column = token.span.start_column
+        self.position -= len(token.text)
 
     def produce_eof(self, symbol):
         """Produce an EOF token."""
@@ -183,7 +259,7 @@ class Lexer:
 
     def __call__(self, stream: ReStream, mode: int) -> Token:
         try:
-            stream.assure_line()
+            stream.assure_buffer()
         except StopIteration:
             return stream.produce_eof(self.eof)
 
