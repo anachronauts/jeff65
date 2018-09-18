@@ -15,10 +15,10 @@
     "default": {
         "attrs": {
             "hashes": [
-                "sha256:4b90b09eeeb9b88c35bc642cbac057e45a5fd85367b985bd2809c62b7b939265",
-                "sha256:e0d0eb91441a3b53dab4d9b743eafc1ac44476296a2053b6ca3af0b139faf87b"
+                "sha256:10cbf6e27dbce8c30807caf056c8eb50917e0eaafe86347671b57254006c3e69",
+                "sha256:ca4be454458f9dec299268d472aaa5a11f67a4ff70093396e1ceae9c76cf4bbb"
             ],
-            "version": "==18.1.0"
+            "version": "==18.2.0"
         },
         "e1839a8": {
             "editable": true,
@@ -48,10 +48,10 @@
     "develop": {
         "attrs": {
             "hashes": [
-                "sha256:4b90b09eeeb9b88c35bc642cbac057e45a5fd85367b985bd2809c62b7b939265",
-                "sha256:e0d0eb91441a3b53dab4d9b743eafc1ac44476296a2053b6ca3af0b139faf87b"
+                "sha256:10cbf6e27dbce8c30807caf056c8eb50917e0eaafe86347671b57254006c3e69",
+                "sha256:ca4be454458f9dec299268d472aaa5a11f67a4ff70093396e1ceae9c76cf4bbb"
             ],
-            "version": "==18.1.0"
+            "version": "==18.2.0"
         },
         "certifi": {
             "hashes": [
@@ -105,10 +105,10 @@
         },
         "coveralls": {
             "hashes": [
-                "sha256:016358e1630559906f2e322727e5af7799c70eb61227cf1c43cad5562cd9ec89",
-                "sha256:7ddb2e3114db9604a7cb1fcc68a7dcca32dce346f5ba568c99979b38e166f5a6"
+                "sha256:9dee67e78ec17b36c52b778247762851c8e19a893c9a14e921a2fc37f05fac22",
+                "sha256:aec5a1f5e34224b9089664a1b62217732381c7de361b6ed1b3c394d7187b352a"
             ],
-            "version": "==1.4.0"
+            "version": "==1.5.0"
         },
         "docopt": {
             "hashes": [
@@ -125,11 +125,11 @@
         },
         "hypothesis": {
             "hashes": [
-                "sha256:5de432db5a7e8e0a423c831f4fa2ef65ecff7d6ea1e813d5a3f1db85f36a5834",
-                "sha256:77e4b41aea6db4f9ad66f7d085cd2f15ecdb081cc8ff3f5271cf1fd56c5436f8",
-                "sha256:bebb3b46aca93e30238cb113722ea70e223cb40f19959910ecec00129b3c02f1"
+                "sha256:08182e016e2c248b98579d7dbe4d10c7388cf6c5e57394177a2decafe137197d",
+                "sha256:14b43b6c75ec23e1ade58c8472a38f2bb4b4eb9d9e1a74f10752c494bb14a758",
+                "sha256:a2a5fb6d9d46653163f8d288c744e2a982d12b37758810e63caefac33a2ac902"
             ],
-            "version": "==3.69.10"
+            "version": "==3.71.10"
         },
         "idna": {
             "hashes": [

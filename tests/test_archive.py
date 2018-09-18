@@ -1,7 +1,7 @@
 import io
 import struct
 import zlib
-from hypothesis import given
+from hypothesis import given, settings, HealthCheck
 import hypothesis.strategies as hs
 from nose.tools import (
     assert_equal)
@@ -336,6 +336,7 @@ def test_unpack_archive():
 
 
 @given(archives())
+@settings(suppress_health_check=[HealthCheck.too_slow])
 def test_roundtrip_archive(a):
     with io.BytesIO() as f:
         a.dump(f)
