@@ -241,7 +241,7 @@ def test_complex_type():
 
 
 @given(st.characters(('Lu', 'Ll', 'Lt', 'Lm', 'Lo')),
-       st.text(st.characters(blacklist_characters='()[]{}:;.,"\@&',
+       st.text(st.characters(blacklist_characters='()[]{}:;.,"@&',
                              blacklist_categories=('Zs', 'Zl', 'Zp', 'Cc'))))
 def test_identifiers(name0, name):
     name = name0 + name

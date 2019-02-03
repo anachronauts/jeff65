@@ -65,7 +65,7 @@ def translate(unit):
 
     archive = blum.Archive()
     for node in obj.select("toplevels", "stmt"):
-        if node.t is 'fun_symbol':
+        if node.t == 'fun_symbol':
             sym_name = '{}.{}'.format(unit.stem, node.attrs['name'])
             sym = blum.Symbol(
                 section='text',
