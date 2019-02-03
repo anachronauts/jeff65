@@ -7,12 +7,12 @@ checkall:
 	pipenv run make _checkall
 
 _check:
-	flake8 jeff65 tests
-	python setup.py nosetests -a "!vice"
+	flake8 src tests
+	nosetests -a "!vice"
 
 _checkall:
-	flake8 jeff65 tests
-	python setup.py nosetests
+	flake8 src tests
+	nosetests
 
 install:
 	pipenv sync
