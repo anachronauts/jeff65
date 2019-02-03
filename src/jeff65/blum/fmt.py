@@ -44,7 +44,7 @@ class Fmt:
 
     @staticmethod
     def make_cc(code):
-        cc, = struct.unpack('<H', code.encode('ascii'))
+        cc, = struct.unpack("<H", code.encode("ascii"))
         return cc
 
     @classmethod

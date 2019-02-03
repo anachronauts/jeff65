@@ -60,7 +60,7 @@ class AstNode:
         return f"<ast {self.t} at {self.span}>"
 
     def __format__(self, spec):
-        if spec == 'p':
+        if spec == "p":
             return self.pretty()
         return repr(self)
 
@@ -76,36 +76,31 @@ class AstNode:
         if no_position:
             pp.append("{}{}\n".format(i(), self.t))
         else:
-            pp.append("{}{:<{}} {}\n".format(i(), self.t, 70 - indent,
-                                             self.span))
+            pp.append("{}{:<{}} {}\n".format(i(), self.t, 70 - indent, self.span))
         has_next = False
         for name, value in self.attrs.items():
-            if name == 'next':
+            if name == "next":
                 has_next = True
                 continue  # we'll come back to this one
             if hasattr(value, "_pretty"):
                 pp.append("{}:{} ".format(i(), name))
-                pp.append(value._pretty(indent + 2 + len(name),
-                                        no_position).lstrip())
+                pp.append(value._pretty(indent + 2 + len(name), no_position).lstrip())
             else:
                 pp.append("{}:{} {!r}\n".format(i(), name, value))
         if has_next:
             # print this at the same level
-            nxt = self.attrs['next']
+            nxt = self.attrs["next"]
             if hasattr(nxt, "_pretty"):
                 pp.append(nxt._pretty(indent, no_position))
             elif nxt is not None:
-                pp.append('{}{!r}'.format(i(), nxt))
+                pp.append("{}{!r}".format(i(), nxt))
         return "".join(pp)
 
     @classmethod
     def make_sequence(cls, t_seq, a_elem, elems, rest=None):
         n = rest
         for e in reversed(elems):
-            n = cls(t_seq, {
-                a_elem: e,
-                'next': n,
-            })
+            n = cls(t_seq, {a_elem: e, "next": n})
         return n
 
     def select(self, *attrs):
@@ -128,10 +123,10 @@ class TranslationPass:
     """Base class for translation passes."""
 
     def transform_enter(self, t, node):
-        return getattr(self, f'enter_{t}', self.__generic_enter)(node)
+        return getattr(self, f"enter_{t}", self.__generic_enter)(node)
 
     def transform_exit(self, t, node):
-        return getattr(self, f'exit_{t}', self.__generic_exit)(node)
+        return getattr(self, f"exit_{t}", self.__generic_exit)(node)
 
     def __generic_enter(self, node):
         return node

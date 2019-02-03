@@ -21,27 +21,28 @@ from ...immutable import FrozenDict
 class ScopedPass(ast.TranslationPass):
     """Base class for translation passes which understand binding scope.
     """
-    scoped_types = ['unit', 'fun']
+
+    scoped_types = ["unit", "fun"]
 
     def __init__(self):
         self.scopes = []
 
     def bind_name(self, name, value):
-        self.scopes[-1]['known_names'][name] = value
+        self.scopes[-1]["known_names"][name] = value
 
     def look_up_name(self, name):
         for scope in reversed(self.scopes):
-            known_names = scope['known_names']
+            known_names = scope["known_names"]
             if name in known_names:
                 return known_names[name]
         return None
 
     def bind_constant(self, name, value):
-        self.scopes[-1]['known_constants'][name] = value
+        self.scopes[-1]["known_constants"][name] = value
 
     def look_up_constant(self, name):
         for scope in reversed(self.scopes):
-            known_constants = scope['known_constants']
+            known_constants = scope["known_constants"]
             if name in known_constants:
                 return known_constants[name]
         return None
@@ -49,12 +50,16 @@ class ScopedPass(ast.TranslationPass):
     def transform_enter(self, t, node):
         node = super().transform_enter(t, node)
         if t in self.scoped_types:
-            self.scopes.append({
-                "known_names": node.attrs.get(
-                    "known_names", FrozenDict.empty()).asbuilder(),
-                "known_constants": node.attrs.get(
-                    "known_constants", FrozenDict.empty()).asbuilder(),
-            })
+            self.scopes.append(
+                {
+                    "known_names": node.attrs.get(
+                        "known_names", FrozenDict.empty()
+                    ).asbuilder(),
+                    "known_constants": node.attrs.get(
+                        "known_constants", FrozenDict.empty()
+                    ).asbuilder(),
+                }
+            )
             node = self.enter__scope(node)
         return node
 
@@ -63,7 +68,8 @@ class ScopedPass(ast.TranslationPass):
             node = self.exit__scope(node)
         if t in self.scoped_types:
             node = node.update_attrs(
-                {k: v.asfrozen() for k, v in self.scopes.pop().items()})
+                {k: v.asfrozen() for k, v in self.scopes.pop().items()}
+            )
         node = super().transform_exit(t, node)
         return node
 
@@ -82,7 +88,7 @@ class ShadowNames(ScopedPass):
     """
 
     def exit_constant(self, node):
-        self.bind_name(node.attrs['name'], True)
+        self.bind_name(node.attrs["name"], True)
         return node
 
 
@@ -90,7 +96,7 @@ class BindNamesToTypes(ScopedPass):
     """Binds names to types. These are later overridden by the storage."""
 
     def exit_constant(self, node):
-        self.bind_name(node.attrs['name'], node.attrs['type'])
+        self.bind_name(node.attrs["name"], node.attrs["type"])
         return node
 
 
@@ -105,7 +111,7 @@ class EvaluateConstants(ScopedPass):
 
     def exit_constant(self, node):
         self.evaluating = False
-        self.bind_constant(node.attrs['name'], node.attrs["value"])
+        self.bind_constant(node.attrs["name"], node.attrs["value"])
         return None
 
     def exit_toplevel(self, node):
@@ -114,13 +120,13 @@ class EvaluateConstants(ScopedPass):
         return node
 
     def exit_call(self, node):
-        target = node.attrs['target']
+        target = node.attrs["target"]
         return target(*node.select("args", "arg"))
 
 
 class ResolveConstants(ScopedPass):
     def exit_identifier(self, node):
-        value = self.look_up_constant(node.attrs['name'])
+        value = self.look_up_constant(node.attrs["name"])
         if not value:
             return node
         return value

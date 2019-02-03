@@ -30,8 +30,8 @@ class FrozenDict(collections.abc.Mapping):
         self.__values = tuple(values)
 
     def __repr__(self):
-        pairs = ", ".join(f'{k!r}: {v!r}' for k, v in self.items())
-        return f'FrozenDict({{{pairs}}})'
+        pairs = ", ".join(f"{k!r}: {v!r}" for k, v in self.items())
+        return f"FrozenDict({{{pairs}}})"
 
     def __iter__(self):
         return iter(self.__keys)
@@ -84,8 +84,8 @@ class FrozenDict(collections.abc.Mapping):
             self.__values = list(values)
 
         def __repr__(self):
-            pairs = ", ".join(f'{k!r}: {v!r}' for k, v in self.items())
-            return f'FrozenDict.Builder({{{pairs}}})'
+            pairs = ", ".join(f"{k!r}: {v!r}" for k, v in self.items())
+            return f"FrozenDict.Builder({{{pairs}}})"
 
         def __iter__(self):
             return iter(self.__keys)

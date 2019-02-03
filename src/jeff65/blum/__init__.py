@@ -17,9 +17,4 @@
 from .linker import link
 from .symbol import Archive, Symbol, Relocation
 
-__all__ = [
-    'link',
-    'Archive',
-    'Symbol',
-    'Relocation',
-]
+__all__ = ["link", "Archive", "Symbol", "Relocation"]

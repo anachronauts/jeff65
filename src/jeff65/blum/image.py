@@ -21,8 +21,8 @@ from . import symbol, types
 
 def make_startup_for(main, version):
     archive = symbol.Archive()
-    archive.symbols['$startup.__start'] = symbol.Symbol(
-        section='startup',
+    archive.symbols["$startup.__start"] = symbol.Symbol(
+        section="startup",
         data=struct.pack(
             # Defines a simple startup header. Note that in theory, we could
             # simply make the target of the SYS instruction be our main
@@ -32,30 +32,39 @@ def make_startup_for(main, version):
             # byte and a few cycles, but for now it's convenient to have a
             # well-known address to break on.
             "<HHB4sxHBHB",
-            0x080b,         # 0x0000 0x0801 (H)    addr of next BASIC line
-            version,        # 0x0002 0x0803 (H)    BASIC line number
-            0x9e, b'2061',  # 0x0004 0x0805 (B4sx) SYS2061 (0x080d)
-            0x0000,         # 0x000a 0x080b (H)    BASIC end-of-program
-            0x20, 0xffff,   # 0x000c 0x080d (BH)   jsr $ffff
-            0x60,           # 0x000f 0x0810 (B)    rts
+            # 0x0000/0x0801 (H)    addr of next BASIC line
+            0x080B,
+            # 0x0002/0x0803 (H)    BASIC line number
+            version,
+            # 0x0004/0x0805 (B4sx) SYS2061 (0x080d)
+            0x9E,
+            b"2061",
+            # 0x000a/0x080b (H)    BASIC end-of-program
+            0x0000,
+            # 0x000c/0x080d (BH)   jsr $ffff
+            0x20,
+            0xFFFF,
+            # 0x000f/0x0810 (B)    rts
+            0x60,
         ),
         type_info=types.phantom,
         relocations={
             # Relocation for the address of 'main'
-            0x000d: symbol.Relocation(main),
-        })
+            0x000D: symbol.Relocation(main)
+        },
+    )
     return archive
 
 
 class Image:
-    m_reloc = re.compile(r'^([^,+-]+)([+-]\d+)?(,lo|,hi)?$')
+    m_reloc = re.compile(r"^([^,+-]+)([+-]\d+)?(,lo|,hi)?$")
 
     def __init__(self, fileobj, base_address=0x0801):
         self.fileobj = fileobj
         self.offsets = {}
         self.archive = symbol.Archive()
         self.base_address = base_address
-        self.start_symbol = '$startup.__start'
+        self.start_symbol = "$startup.__start"
 
         # Header for PRG files. Identifies the load location in memory.
         # 0x0801 is the load location for BASIC programs.
@@ -80,13 +89,13 @@ class Image:
         self.fileobj.write(self.prg_header)
 
         # write out the startup section
-        startup = self.archive.find_section('startup')
+        startup = self.archive.find_section("startup")
         assert len(startup) == 1
         for name, sym in startup:
             self._emit_sym(name, sym)
 
         # write out the text section
-        for name, sym in self.archive.find_section('text'):
+        for name, sym in self.archive.find_section("text"):
             self._emit_sym(name, sym)
 
         # perform relocations
@@ -95,6 +104,5 @@ class Image:
                 continue
 
             self.seek_to_offset(name, offset)
-            addr = reloc.bind(name).compute_bin(
-                self.base_address, self.offsets)
+            addr = reloc.bind(name).compute_bin(self.base_address, self.offsets)
             self.fileobj.write(addr)

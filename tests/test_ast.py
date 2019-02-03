@@ -1,9 +1,6 @@
 import io
 import sys
-from nose.tools import (
-    assert_equal,
-    assert_raises,
-    nottest)
+from nose.tools import assert_equal, assert_raises, nottest
 from hypothesis import given, strategies as st
 from jeff65 import ast, gold, parsing
 
@@ -12,43 +9,45 @@ sys.stderr = sys.stdout
 
 def parse(source):
     with io.StringIO(source) as s:
-        ast = gold.parse(s, '<test>')
+        ast = gold.parse(s, "<test>")
         print(ast.pretty())
         return ast
 
 
 def test_empty_file():
     a = parse("")
-    assert_equal('unit', a.t)
+    assert_equal("unit", a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_whitespace_only_file():
     a = parse("\n")
-    assert_equal('unit', a.t)
+    assert_equal("unit", a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_comments_newline():
     a = parse("/* a comment */\n")
-    assert_equal('unit', a.t)
+    assert_equal("unit", a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_comments_no_newline():
     a = parse("/* a comment */")
-    assert_equal('unit', a.t)
+    assert_equal("unit", a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
 def test_comments_multiline():
-    a = parse("""
+    a = parse(
+        """
     /*
      * a multiline comment
      * with multiple lines
      */
-    """)
-    assert_equal('unit', a.t)
+    """
+    )
+    assert_equal("unit", a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
@@ -62,7 +61,7 @@ def test_comments_unopened():
 
 def test_nested_comment():
     a = parse("/* a /* nested */ comment */")
-    assert_equal('unit', a.t)
+    assert_equal("unit", a.t)
     assert_equal(0, len(a.select("toplevels", "stmt")))
 
 
@@ -91,74 +90,114 @@ def test_comment_within_statement():
 def test_associativity():
     a = parse("constant x: u8 = 1 + 2 * 3")
     assert_equal(
-        [ast.AstNode("add", {
-            "lhs": ast.AstNode("numeric", {"value": 1}),
-            "rhs": ast.AstNode("mul", {
-                "lhs": ast.AstNode("numeric", {"value": 2}),
-                "rhs": ast.AstNode("numeric", {"value": 3}),
-            }),
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "add",
+                {
+                    "lhs": ast.AstNode("numeric", {"value": 1}),
+                    "rhs": ast.AstNode(
+                        "mul",
+                        {
+                            "lhs": ast.AstNode("numeric", {"value": 2}),
+                            "rhs": ast.AstNode("numeric", {"value": 3}),
+                        },
+                    ),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_sign():
     a = parse("constant x: u8 = -1 + 2")
     assert_equal(
-        [ast.AstNode("add", {
-            "lhs": ast.AstNode("negate", {
-                "value": ast.AstNode("numeric", {"value": 1}),
-            }),
-            "rhs": ast.AstNode("numeric", {"value": 2}),
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "add",
+                {
+                    "lhs": ast.AstNode(
+                        "negate", {"value": ast.AstNode("numeric", {"value": 1})}
+                    ),
+                    "rhs": ast.AstNode("numeric", {"value": 2}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_parentheses():
     a = parse("constant x: u8 = (1 + 2) * 3")
     assert_equal(
-        [ast.AstNode("mul", {
-            "lhs": ast.AstNode("add", {
-                "lhs": ast.AstNode("numeric", {"value": 1}),
-                "rhs": ast.AstNode("numeric", {"value": 2}),
-            }),
-            "rhs": ast.AstNode("numeric", {"value": 3}),
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "mul",
+                {
+                    "lhs": ast.AstNode(
+                        "add",
+                        {
+                            "lhs": ast.AstNode("numeric", {"value": 1}),
+                            "rhs": ast.AstNode("numeric", {"value": 2}),
+                        },
+                    ),
+                    "rhs": ast.AstNode("numeric", {"value": 3}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_nested_parentheses():
     a = parse("constant x: u8 = ((1 + 2) / 3) + 4")
     assert_equal(
-        [ast.AstNode("add", {
-            "lhs": ast.AstNode("div", {
-                "lhs": ast.AstNode("add", {
-                    "lhs": ast.AstNode("numeric", {"value": 1}),
-                    "rhs": ast.AstNode("numeric", {"value": 2}),
-                }),
-                "rhs": ast.AstNode("numeric", {"value": 3}),
-            }),
-            "rhs": ast.AstNode("numeric", {"value": 4}),
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "add",
+                {
+                    "lhs": ast.AstNode(
+                        "div",
+                        {
+                            "lhs": ast.AstNode(
+                                "add",
+                                {
+                                    "lhs": ast.AstNode("numeric", {"value": 1}),
+                                    "rhs": ast.AstNode("numeric", {"value": 2}),
+                                },
+                            ),
+                            "rhs": ast.AstNode("numeric", {"value": 3}),
+                        },
+                    ),
+                    "rhs": ast.AstNode("numeric", {"value": 4}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_parentheses_with_sign():
     a = parse("constant x: u8 = -(1 + 2)")
     e = a.select("toplevels", "stmt", "value")[0]
-    assert_equal('negate', e.t)
-    assert_equal('add', e.attrs["value"].t)
+    assert_equal("negate", e.t)
+    assert_equal("add", e.attrs["value"].t)
     assert_equal(
-        [ast.AstNode("negate", {
-            "value": ast.AstNode("add", {
-                "lhs": ast.AstNode("numeric", {"value": 1}),
-                "rhs": ast.AstNode("numeric", {"value": 2}),
-            }),
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "negate",
+                {
+                    "value": ast.AstNode(
+                        "add",
+                        {
+                            "lhs": ast.AstNode("numeric", {"value": 1}),
+                            "rhs": ast.AstNode("numeric", {"value": 2}),
+                        },
+                    )
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
@@ -173,81 +212,113 @@ def test_unmatched_close_parentheses():
 def test_member_access():
     a = parse("let a: u8 = foo.bar")
     assert_equal(
-        [ast.AstNode("let", {
-            "name": "a",
-            "type": "u8",
-            "storage": None,
-            "value": ast.AstNode("member_access", {
-                "namespace": ast.AstNode("identifier", {"name": "foo"}),
-                "member": "bar",
-            }),
-        })],
-        a.select("toplevels", "stmt")
+        [
+            ast.AstNode(
+                "let",
+                {
+                    "name": "a",
+                    "type": "u8",
+                    "storage": None,
+                    "value": ast.AstNode(
+                        "member_access",
+                        {
+                            "namespace": ast.AstNode("identifier", {"name": "foo"}),
+                            "member": "bar",
+                        },
+                    ),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt"),
     )
 
 
 def test_let_with_mut_storage_class():
     a = parse("let mut a: u8 = 7")
     assert_equal(
-        [ast.AstNode("let", {
-            "name": "a",
-            "type": "u8",
-            "storage": "mut",
-            "value": ast.AstNode("numeric", {"value": 7}),
-        })],
-        a.select("toplevels", "stmt")
+        [
+            ast.AstNode(
+                "let",
+                {
+                    "name": "a",
+                    "type": "u8",
+                    "storage": "mut",
+                    "value": ast.AstNode("numeric", {"value": 7}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt"),
     )
 
 
 def test_let_with_stash_storage_class():
     a = parse("let stash a: u8 = 7")
     assert_equal(
-        [ast.AstNode("let", {
-            "name": "a",
-            "type": "u8",
-            "storage": "stash",
-            "value": ast.AstNode("numeric", {"value": 7}),
-        })],
-        a.select("toplevels", "stmt")
+        [
+            ast.AstNode(
+                "let",
+                {
+                    "name": "a",
+                    "type": "u8",
+                    "storage": "stash",
+                    "value": ast.AstNode("numeric", {"value": 7}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt"),
     )
 
 
 def test_let_without_storage_class():
     a = parse("let a: u8 = 7")
     assert_equal(
-        [ast.AstNode("let", {
-            "name": "a",
-            "type": "u8",
-            "storage": None,
-            "value": ast.AstNode("numeric", {"value": 7}),
-        })],
-        a.select("toplevels", "stmt")
+        [
+            ast.AstNode(
+                "let",
+                {
+                    "name": "a",
+                    "type": "u8",
+                    "storage": None,
+                    "value": ast.AstNode("numeric", {"value": 7}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt"),
     )
 
 
 def test_complex_type():
     a = parse("let a: &u8 = 0")
     assert_equal(
-        [ast.AstNode('let', {
-            'name': 'a',
-            "storage": None,
-            'type': ast.AstNode('type_ref', {
-                'storage': None,
-                'type': 'u8',
-            }),
-            "value": ast.AstNode("numeric", {"value": 0})
-        })],
-        a.select("toplevels", "stmt"))
+        [
+            ast.AstNode(
+                "let",
+                {
+                    "name": "a",
+                    "storage": None,
+                    "type": ast.AstNode("type_ref", {"storage": None, "type": "u8"}),
+                    "value": ast.AstNode("numeric", {"value": 0}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt"),
+    )
 
 
-@given(st.characters(('Lu', 'Ll', 'Lt', 'Lm', 'Lo')),
-       st.text(st.characters(blacklist_characters='()[]{}:;.,"@&',
-                             blacklist_categories=('Zs', 'Zl', 'Zp', 'Cc'))))
+@given(
+    st.characters(("Lu", "Ll", "Lt", "Lm", "Lo")),
+    st.text(
+        st.characters(
+            blacklist_characters='()[]{}:;.,"@&',
+            blacklist_categories=("Zs", "Zl", "Zp", "Cc"),
+        )
+    ),
+)
 def test_identifiers(name0, name):
     name = name0 + name
     a = parse(f"let a: u8 = {name}")
     assert_equal(
-        [ast.AstNode('identifier', {'name': name})],
+        [ast.AstNode("identifier", {"name": name})],
         a.select("toplevels", "stmt", "value"),
     )
 
@@ -256,8 +327,7 @@ def test_identifiers(name0, name):
 def test_numeric_hex_valid(n):
     a = parse(f"let a: u8 = 0x{n:x}")
     assert_equal(
-        [ast.AstNode("numeric", {"value": n})],
-        a.select("toplevels", "stmt", "value"),
+        [ast.AstNode("numeric", {"value": n})], a.select("toplevels", "stmt", "value")
     )
 
 
@@ -269,8 +339,7 @@ def test_numeric_hex_invalid():
 def test_numeric_oct_valid(n):
     a = parse(f"let a: u8 = 0o{n:o}")
     assert_equal(
-        [ast.AstNode("numeric", {"value": n})],
-        a.select("toplevels", "stmt", "value"),
+        [ast.AstNode("numeric", {"value": n})], a.select("toplevels", "stmt", "value")
     )
 
 
@@ -282,8 +351,7 @@ def test_numeric_oct_invalid():
 def test_numeric_bin_valid(n):
     a = parse(f"let a: u8 = 0b{n:b}")
     assert_equal(
-        [ast.AstNode("numeric", {"value": n})],
-        a.select("toplevels", "stmt", "value"),
+        [ast.AstNode("numeric", {"value": n})], a.select("toplevels", "stmt", "value")
     )
 
 
@@ -296,14 +364,13 @@ def test_let_with_invalid_storage_class():
 
 
 def test_let_multistatement():
-    a = parse("""
+    a = parse(
+        """
     let a: u8 = 0
     let b: u8 = 0
-    """)
-    assert_equal(
-        ["let", "let"],
-        [n.t for n in a.select("toplevels", "stmt")]
+    """
     )
+    assert_equal(["let", "let"], [n.t for n in a.select("toplevels", "stmt")])
 
 
 @nottest
@@ -405,7 +472,7 @@ def test_string_literal():
     a = parse('let a: [u8; 5] = "this is a string"')
     assert_equal(
         [ast.AstNode("string", {"value": "this is a string"})],
-        a.select("toplevels", "stmt", "value")
+        a.select("toplevels", "stmt", "value"),
     )
 
 
@@ -413,19 +480,21 @@ def test_string_literal_with_space_after():
     a = parse('let a: [u8; 5] = "this is a string" ')
     assert_equal(
         [ast.AstNode("string", {"value": "this is a string"})],
-        a.select("toplevels", "stmt", "value")
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_string_multiline():
-    a = parse('''
+    a = parse(
+        """
     let a: [u8; 5] = "this is a
 very long
 string"
-    ''')
+    """
+    )
     assert_equal(
         [ast.AstNode("string", {"value": "this is a\nvery long\nstring"})],
-        a.select("toplevels", "stmt", "value")
+        a.select("toplevels", "stmt", "value"),
     )
 
 
@@ -433,45 +502,61 @@ def test_string_escaped():
     a = parse(r'let a: [u8; 5] = "this is a \"string"')
     assert_equal(
         [ast.AstNode("string", {"value": 'this is a "string'})],
-        a.select("toplevels", "stmt", "value")
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_fun_call_empty():
     a = parse("let a: u8 = foo()")
     assert_equal(
-        [ast.AstNode("call", {
-            "target": ast.AstNode("identifier", {"name": "foo"}),
-            "args": None,
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "call",
+                {"target": ast.AstNode("identifier", {"name": "foo"}), "args": None},
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_fun_call_one():
     a = parse("let a: u8 = foo(7)")
     assert_equal(
-        [ast.AstNode("call", {
-            "target": ast.AstNode("identifier", {"name": "foo"}),
-            "args": ast.AstNode.make_sequence("alist", "arg", [
-                ast.AstNode("numeric", {"value": 7}),
-            ]),
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "call",
+                {
+                    "target": ast.AstNode("identifier", {"name": "foo"}),
+                    "args": ast.AstNode.make_sequence(
+                        "alist", "arg", [ast.AstNode("numeric", {"value": 7})]
+                    ),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
 def test_fun_call_many():
     a = parse('let a: u8 = foo(7, "hello")')
     assert_equal(
-        [ast.AstNode("call", {
-            "target": ast.AstNode("identifier", {"name": "foo"}),
-            "args": ast.AstNode.make_sequence("alist", "arg", [
-                ast.AstNode("numeric", {"value": 7}),
-                ast.AstNode("string", {"value": "hello"}),
-            ]),
-        })],
-        a.select("toplevels", "stmt", "value")
+        [
+            ast.AstNode(
+                "call",
+                {
+                    "target": ast.AstNode("identifier", {"name": "foo"}),
+                    "args": ast.AstNode.make_sequence(
+                        "alist",
+                        "arg",
+                        [
+                            ast.AstNode("numeric", {"value": 7}),
+                            ast.AstNode("string", {"value": "hello"}),
+                        ],
+                    ),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "value"),
     )
 
 
@@ -499,13 +584,12 @@ def test_return_empty():
 def test_fun_def_void_empty():
     a = parse("fun foo() endfun")
     assert_equal(
-        [ast.AstNode("fun", {
-            "name": "foo",
-            "args": None,
-            "return": None,
-            "body": None,
-        })],
-        a.select("toplevels", "stmt")
+        [
+            ast.AstNode(
+                "fun", {"name": "foo", "args": None, "return": None, "body": None}
+            )
+        ],
+        a.select("toplevels", "stmt"),
     )
 
 
@@ -599,18 +683,20 @@ def test_isr_def():
 
 def test_use():
     a = parse("use mem")
-    assert_equal(
-        [ast.AstNode("use", {"name": "mem"})],
-        a.select("toplevels", "stmt")
-    )
+    assert_equal([ast.AstNode("use", {"name": "mem"})], a.select("toplevels", "stmt"))
 
 
 def test_assign():
     a = parse("fun foo() a = 7 endfun")
     assert_equal(
-        [ast.AstNode('set', {
-            "lvalue": ast.AstNode('identifier', {'name': 'a'}),
-            "rvalue": ast.AstNode('numeric', {'value': 7}),
-        })],
-        a.select("toplevels", "stmt", "body", "stmt")
+        [
+            ast.AstNode(
+                "set",
+                {
+                    "lvalue": ast.AstNode("identifier", {"name": "a"}),
+                    "rvalue": ast.AstNode("numeric", {"value": 7}),
+                },
+            )
+        ],
+        a.select("toplevels", "stmt", "body", "stmt"),
     )

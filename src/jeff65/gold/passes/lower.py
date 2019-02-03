@@ -22,27 +22,34 @@ from ...pattern import Predicate as P
 @pattern.transform(pattern.Order.Any)
 class LowerAssignment:
     @pattern.match(
-        ast.AstNode("block", {
-            "stmt": ast.AstNode("set", span=P("span"), attrs={
-                "type": P("ty"),
-                "lvalue": P("lvalue"),
-                "rvalue": P("rvalue"),
-            }),
-            "next": P("nxt"),
-        }))
+        ast.AstNode(
+            "block",
+            {
+                "stmt": ast.AstNode(
+                    "set",
+                    span=P("span"),
+                    attrs={
+                        "type": P("ty"),
+                        "lvalue": P("lvalue"),
+                        "rvalue": P("rvalue"),
+                    },
+                ),
+                "next": P("nxt"),
+            },
+        )
+    )
     def lower_set(self, span, ty, lvalue, rvalue, nxt):
         assert ty.width == lvalue.attrs["width"]
         assert ty.width == rvalue.attrs["width"]
-        return ast.AstNode.make_sequence("block", "stmt", [
-            asm.lda(rvalue, span),
-            asm.sta(lvalue, span),
-        ], rest=nxt)
+        return ast.AstNode.make_sequence(
+            "block", "stmt", [asm.lda(rvalue, span), asm.sta(lvalue, span)], rest=nxt
+        )
 
 
 class LowerFunctions(ast.TranslationPass):
     def exit_fun(self, node):
         children = node.select("body", "stmt")
         children.append(asm.rts(node.span))
-        return node.update_attrs({
-            "body": ast.AstNode.make_sequence("block", "stmt", children),
-        })
+        return node.update_attrs(
+            {"body": ast.AstNode.make_sequence("block", "stmt", children)}
+        )

@@ -5,7 +5,7 @@ import sys
 import tempfile
 import unittest
 from nose.plugins.attrib import attr as nose_attr
-from nose.tools import (assert_equal)
+from nose.tools import assert_equal
 import jeff65
 
 
@@ -51,8 +51,10 @@ def with_dump_of(path):
         def _test_with_dump():
             fullpath = pathlib.Path(__file__).parent / path
             return f(compile_run_dump(fullpath))
+
         functools.update_wrapper(_test_with_dump, f)
         return _test_with_dump
+
     return _decorate_test
 
 

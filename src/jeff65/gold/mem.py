@@ -28,12 +28,13 @@ class MemUnit(units.ExternalUnit):
     def __init__(self):
         super().__init__("mem")
         self.members = {}
-        self.add_member('as-pointer', self._as_pointer)
-        self.add_member('as-address', self._as_address)
+        self.add_member("as-pointer", self._as_pointer)
+        self.add_member("as-address", self._as_address)
 
     def add_member(self, name, impl):
         self.members[name] = units.IntrinsicSymbol(
-            name, self, impl.intrinsic_type, impl)
+            name, self, impl.intrinsic_type, impl
+        )
 
     def member(self, name):
         return self.members[name]
