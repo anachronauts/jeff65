@@ -12,12 +12,12 @@ format:
 _check:
 	black --check --diff src tests
 	flake8 src tests
-	nosetests -a "!vice"
+	pytest tests --cov=jeff65 --cov-config=tox.ini -m "not vice"
 
 _checkall:
 	black --check --diff src tests
 	flake8 src tests
-	nosetests
+	pytest tests --cov=jeff65 --cov-config=tox.ini
 
 _format:
 	black src tests

@@ -3,7 +3,6 @@ import struct
 import zlib
 from hypothesis import given, settings, HealthCheck
 import hypothesis.strategies as hs
-from nose.tools import assert_equal
 from jeff65.blum import symbol, types
 from jeff65.blum.fmt import Fmt
 
@@ -19,7 +18,7 @@ def unpack_by_type(t, bs):
     with io.BytesIO(bs) as f:
         with symbol.ArchiveReader(f, closefd=False) as reader:
             end, val = reader.load_by_type(t, 0)
-            assert_equal(len(bs), end)
+            assert end == len(bs)
             return val
 
 
@@ -38,42 +37,42 @@ def generate_packed_string(s):
 @given(hs.text(max_size=symbol.MAX_STRING_SIZE))
 def test_pack_string(s):
     packed = generate_packed_string(s)
-    assert_equal(packed, pack_by_type(Fmt.str, s))
+    assert pack_by_type(Fmt.str, s) == packed
 
 
 @given(hs.text(max_size=symbol.MAX_STRING_SIZE))
 def test_unpack_uncompressed_string(s):
     packed = generate_packed_string(s)
-    assert_equal(s, unpack_by_type(Fmt.str, packed))
+    assert unpack_by_type(Fmt.str, packed) == s
 
 
 @given(hs.text(max_size=symbol.MAX_STRING_SIZE))
 def test_unpack_compressed_string(s):
     enc = zlib.compress(s.encode("utf8"))
     packed = struct.pack("<l", -len(enc)) + enc
-    assert_equal(s, unpack_by_type(Fmt.str, packed))
+    assert unpack_by_type(Fmt.str, packed) == s
 
 
 @given(hs.text(max_size=symbol.MAX_STRING_SIZE))
 def test_roundtrip_string(s):
     packed = pack_by_type(Fmt.str, s)
     unpacked = unpack_by_type(Fmt.str, packed)
-    assert_equal(s, unpacked)
+    assert unpacked == s
 
 
 def test_pack_relocation():
     reloc = symbol.Relocation("spam", 0x42)
     packed = pack_by_type(Fmt.struct(symbol.Relocation), reloc)
-    assert_equal(b"\x03\x00sy\x04\x00\x00\x00spamic\x42\x00byw", packed)
+    assert packed == b"\x03\x00sy\x04\x00\x00\x00spamic\x42\x00byw"
 
 
 def test_unpack_relocation():
     reloc = unpack_by_type(
         Fmt.struct(symbol.Relocation), b"\x03\x00sy\x04\x00\x00\x00spamic\x42\x00byw"
     )
-    assert_equal("spam", reloc.symbol)
-    assert_equal(0x42, reloc.increment)
-    assert_equal(symbol.Relocation.full, reloc.byte)
+    assert reloc.symbol == "spam"
+    assert reloc.increment == 0x42
+    assert reloc.byte == symbol.Relocation.full
 
 
 @hs.composite
@@ -94,140 +93,106 @@ def test_roundtrip_relocation(reloc):
     t = Fmt.struct(symbol.Relocation)
     packed = pack_by_type(t, reloc)
     unpacked = unpack_by_type(t, packed)
-    assert_equal(reloc, unpacked)
+    assert unpacked == reloc
 
 
 def test_pack_type_phantom():
-    assert_equal(b"Ph\x00\x00", pack_by_type(types.fmt_type_info, types.phantom))
+    assert pack_by_type(types.fmt_type_info, types.phantom) == b"Ph\x00\x00"
 
 
 def test_unpack_type_phantom():
-    assert_equal(types.phantom, unpack_by_type(types.fmt_type_info, b"Ph\x00\x00"))
+    assert unpack_by_type(types.fmt_type_info, b"Ph\x00\x00") == types.phantom
 
 
 def test_pack_type_void():
-    assert_equal(b"Vd\x00\x00", pack_by_type(types.fmt_type_info, types.void))
+    assert pack_by_type(types.fmt_type_info, types.void) == b"Vd\x00\x00"
 
 
 def test_unpack_type_void():
-    assert_equal(types.void, unpack_by_type(types.fmt_type_info, b"Vd\x00\x00"))
+    assert unpack_by_type(types.fmt_type_info, b"Vd\x00\x00") == types.void
 
 
 def test_pack_types_integral():
-    assert_equal(b"In\x02\x00wd\x01sg\x00", pack_by_type(types.fmt_type_info, types.u8))
-    assert_equal(
-        b"In\x02\x00wd\x02sg\x00", pack_by_type(types.fmt_type_info, types.u16)
-    )
-    assert_equal(
-        b"In\x02\x00wd\x03sg\x00", pack_by_type(types.fmt_type_info, types.u24)
-    )
-    assert_equal(
-        b"In\x02\x00wd\x04sg\x00", pack_by_type(types.fmt_type_info, types.u32)
-    )
-    assert_equal(b"In\x02\x00wd\x01sg\x01", pack_by_type(types.fmt_type_info, types.i8))
-    assert_equal(
-        b"In\x02\x00wd\x02sg\x01", pack_by_type(types.fmt_type_info, types.i16)
-    )
-    assert_equal(
-        b"In\x02\x00wd\x03sg\x01", pack_by_type(types.fmt_type_info, types.i24)
-    )
-    assert_equal(
-        b"In\x02\x00wd\x04sg\x01", pack_by_type(types.fmt_type_info, types.i32)
-    )
+    assert pack_by_type(types.fmt_type_info, types.u8) == b"In\x02\x00wd\x01sg\x00"
+    assert pack_by_type(types.fmt_type_info, types.u16) == b"In\x02\x00wd\x02sg\x00"
+    assert pack_by_type(types.fmt_type_info, types.u24) == b"In\x02\x00wd\x03sg\x00"
+    assert pack_by_type(types.fmt_type_info, types.u32) == b"In\x02\x00wd\x04sg\x00"
+    assert pack_by_type(types.fmt_type_info, types.i8) == b"In\x02\x00wd\x01sg\x01"
+    assert pack_by_type(types.fmt_type_info, types.i16) == b"In\x02\x00wd\x02sg\x01"
+    assert pack_by_type(types.fmt_type_info, types.i24) == b"In\x02\x00wd\x03sg\x01"
+    assert pack_by_type(types.fmt_type_info, types.i32) == b"In\x02\x00wd\x04sg\x01"
 
 
 def test_unpack_types_integral():
-    assert_equal(
-        types.u8, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x01sg\x00")
-    )
-    assert_equal(
-        types.u16, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x02sg\x00")
-    )
-    assert_equal(
-        types.u24, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x03sg\x00")
-    )
-    assert_equal(
-        types.u32, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x04sg\x00")
-    )
-    assert_equal(
-        types.i8, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x01sg\x01")
-    )
-    assert_equal(
-        types.i16, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x02sg\x01")
-    )
-    assert_equal(
-        types.i24, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x03sg\x01")
-    )
-    assert_equal(
-        types.i32, unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x04sg\x01")
-    )
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x01sg\x00") == types.u8
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x02sg\x00") == types.u16
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x03sg\x00") == types.u24
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x04sg\x00") == types.u32
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x01sg\x01") == types.i8
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x02sg\x01") == types.i16
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x03sg\x01") == types.i24
+    assert unpack_by_type(types.fmt_type_info, b"In\x02\x00wd\x04sg\x01") == types.i32
 
 
 def test_pack_type_ref():
-    assert_equal(
-        b"Rf\x01\x00tgPh\x00\x00", pack_by_type(types.fmt_type_info, types.ptr)
+    assert pack_by_type(types.fmt_type_info, types.ptr) == b"Rf\x01\x00tgPh\x00\x00"
+    assert (
+        pack_by_type(types.fmt_type_info, types.RefType(types.i16))
+        == b"Rf\x01\x00tgIn\x02\x00wd\x02sg\x01"
     )
-    assert_equal(
-        b"Rf\x01\x00tgIn\x02\x00wd\x02sg\x01",
-        pack_by_type(types.fmt_type_info, types.RefType(types.i16)),
-    )
-    assert_equal(
-        b"Rf\x01\x00tgRf\x01\x00tgIn\x02\x00wd\x02sg\x01",
-        pack_by_type(types.fmt_type_info, types.RefType(types.RefType(types.i16))),
+    assert (
+        pack_by_type(types.fmt_type_info, types.RefType(types.RefType(types.i16)))
+        == b"Rf\x01\x00tgRf\x01\x00tgIn\x02\x00wd\x02sg\x01"
     )
 
 
 def test_unpack_type_ref():
-    assert_equal(
-        types.ptr, unpack_by_type(types.fmt_type_info, b"Rf\x01\x00tgPh\x00\x00")
-    )
-    assert_equal(
-        types.RefType(types.i16),
-        unpack_by_type(types.fmt_type_info, b"Rf\x01\x00tgIn\x02\x00wd\x02sg\x01"),
-    )
-    assert_equal(
-        types.RefType(types.RefType(types.i16)),
-        unpack_by_type(
-            types.fmt_type_info, b"Rf\x01\x00tgRf\x01\x00tgIn\x02\x00wd\x02sg\x01"
-        ),
-    )
+    assert unpack_by_type(types.fmt_type_info, b"Rf\x01\x00tgPh\x00\x00") == types.ptr
+    assert unpack_by_type(
+        types.fmt_type_info, b"Rf\x01\x00tgIn\x02\x00wd\x02sg\x01"
+    ) == types.RefType(
+        types.i16
+    )  # noqa: E721
+    assert unpack_by_type(
+        types.fmt_type_info, b"Rf\x01\x00tgRf\x01\x00tgIn\x02\x00wd\x02sg\x01"
+    ) == types.RefType(
+        types.RefType(types.i16)
+    )  # noqa: E721
 
 
 def test_pack_type_fun():
-    assert_equal(
-        b"Fn\x02\x00rtVd\x00\x00as\x00\x00\x00\x00",
-        pack_by_type(types.fmt_type_info, types.FunctionType(types.void)),
+    assert (
+        pack_by_type(types.fmt_type_info, types.FunctionType(types.void))
+        == b"Fn\x02\x00rtVd\x00\x00as\x00\x00\x00\x00"
     )
-    assert_equal(
+    assert (
+        pack_by_type(
+            types.fmt_type_info,
+            types.FunctionType(types.u16, types.i8, types.RefType(types.u24)),
+        )
+        == b"Fn\x02\x00"
+        + b"rtIn\x02\x00wd\x02sg\x00"
+        + b"as\x02\x00\x00\x00"
+        + b"In\x02\x00wd\x01sg\x01"
+        + b"Rf\x01\x00tgIn\x02\x00wd\x03sg\x00"
+    )
+
+
+def test_unpack_type_fun():
+    assert unpack_by_type(
+        types.fmt_type_info, b"Fn\x02\x00rtVd\x00\x00as\x00\x00\x00\x00"
+    ) == types.FunctionType(
+        types.void
+    )  # noqa: E721
+    assert types.FunctionType(
+        types.u16, types.i8, types.RefType(types.u24)
+    ) == unpack_by_type(
+        types.fmt_type_info,
         b"Fn\x02\x00"
         + b"rtIn\x02\x00wd\x02sg\x00"
         + b"as\x02\x00\x00\x00"
         + b"In\x02\x00wd\x01sg\x01"
         + b"Rf\x01\x00tgIn\x02\x00wd\x03sg\x00",
-        pack_by_type(
-            types.fmt_type_info,
-            types.FunctionType(types.u16, types.i8, types.RefType(types.u24)),
-        ),
-    )
-
-
-def test_unpack_type_fun():
-    assert_equal(
-        types.FunctionType(types.void),
-        unpack_by_type(
-            types.fmt_type_info, b"Fn\x02\x00rtVd\x00\x00as\x00\x00\x00\x00"
-        ),
-    )
-    assert_equal(
-        types.FunctionType(types.u16, types.i8, types.RefType(types.u24)),
-        unpack_by_type(
-            types.fmt_type_info,
-            b"Fn\x02\x00"
-            + b"rtIn\x02\x00wd\x02sg\x00"
-            + b"as\x02\x00\x00\x00"
-            + b"In\x02\x00wd\x01sg\x01"
-            + b"Rf\x01\x00tgIn\x02\x00wd\x03sg\x00",
-        ),
     )
 
 
@@ -260,7 +225,7 @@ def type_infos(draw):
 def test_roundtrip_type(ty):
     packed = pack_by_type(types.fmt_type_info, ty)
     unpacked = unpack_by_type(types.fmt_type_info, packed)
-    assert_equal(ty, unpacked)
+    assert unpacked == ty
 
 
 simple_archive = (
@@ -323,22 +288,22 @@ def test_pack_archive():
     )
     with io.BytesIO() as f:
         archive.dump(f)
-        assert_equal(simple_archive, f.getvalue())
+        assert f.getvalue() == simple_archive
 
 
 def test_unpack_archive():
     with io.BytesIO(simple_archive) as f:
         archive = symbol.Archive(f)
-    assert_equal(["eggs"], list(archive.symbols))
+    assert list(archive.symbols) == ["eggs"]
     sym = archive.symbols["eggs"]
-    assert_equal("text", sym.section)
-    assert_equal(b"spam", sym.data)
-    assert_equal(types.u32, sym.type_info)
-    assert_equal([0xCAFE], list(sym.relocations))
+    assert sym.section == "text"
+    assert sym.data == b"spam"
+    assert sym.type_info == types.u32
+    assert list(sym.relocations) == [0xCAFE]
     reloc = sym.relocations[0xCAFE]
-    assert_equal("beans", reloc.symbol)
-    assert_equal(7, reloc.increment)
-    assert_equal(symbol.Relocation.full, reloc.byte)
+    assert reloc.symbol == "beans"
+    assert reloc.increment == 7
+    assert reloc.byte == symbol.Relocation.full
 
 
 @given(archives())
@@ -351,4 +316,4 @@ def test_roundtrip_archive(a):
     with io.BytesIO(packed) as f:
         unpacked = symbol.Archive(f)
 
-    assert_equal(a.symbols, unpacked.symbols)
+    assert unpacked.symbols == a.symbols

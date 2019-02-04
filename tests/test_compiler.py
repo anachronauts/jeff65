@@ -1,7 +1,6 @@
 import io
 import pathlib
 import sys
-from nose.tools import assert_equal
 from jeff65.blum import types
 from jeff65.gold import compiler
 
@@ -18,7 +17,7 @@ def test_compile_empty():
         sys.stdin = stdin
         raise
 
-    assert_equal(0, len(archive.symbols))
+    assert len(archive.symbols) == 0
 
 
 def test_compile_simple():
@@ -36,9 +35,9 @@ def test_compile_simple():
         sys.stdin = stdin
         raise
 
-    assert_equal(1, len(archive.symbols))
+    assert len(archive.symbols) == 1
     sym = archive.symbols["-.main"]
-    assert_equal("text", sym.section)
-    assert_equal(b"\x60", sym.data)
-    assert_equal(0, len(sym.relocations))
-    assert_equal(types.FunctionType(types.void), sym.type_info)
+    assert sym.section == "text"
+    assert sym.data == b"\x60"
+    assert len(sym.relocations) == 0
+    assert sym.type_info == types.FunctionType(types.void)  # noqa: E721
