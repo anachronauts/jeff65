@@ -12,7 +12,7 @@ matrix:
       sudo: true
 
 install:
-  - pip install pipenv
+  - pip install --pre poetry 
   - make develop
 
 script:

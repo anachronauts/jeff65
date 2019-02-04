@@ -1,13 +1,13 @@
 .PHONY: check checkall demo democlean develop format install _check _checkall _format
 
 check:
-	pipenv run make _check
+	poetry run make _check
 
 checkall:
-	pipenv run make _checkall
+	poetry run make _checkall
 
 format:
-	pipenv run make _format
+	poetry run make _format
 
 _check:
 	black --check --diff src tests
@@ -23,10 +23,10 @@ _format:
 	black src tests
 
 install:
-	pipenv sync
+	poetry install --no-dev
 
 develop:
-	pipenv sync --dev
+	poetry install
 
 demo: examples/heart.prg
 	x64 $<
@@ -35,4 +35,4 @@ democlean:
 	-rm examples/*.blum examples/*.prg
 
 examples/heart.prg: examples/heart.gold
-	pipenv run jeff65 compile $<
+	poetry run jeff65 compile $<

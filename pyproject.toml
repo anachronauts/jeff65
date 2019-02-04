@@ -1,3 +1,40 @@
+[tool.poetry]
+name = "jeff65"
+version = "0.1.0"
+description = "A compiler targeting the Commodore 64"
+authors = [
+  "Jonathan David Page <jonathan@sleepingcyb.org>",
+  "Woodrow Barlow <wjbarlow@ncsu.edu>"
+]
+readme = "README.md"
+repository = "https://github.com/anachronauts/jeff65"
+license = "GPL-3.0+"
+packages = [
+  {include="jeff65", from="src"}
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+attrs = ">=18.2.0"
+regex = ">=2018.08.29"
+
+[tool.poetry.dev-dependencies]
+pytest = ">=4.2"
+pytest-cov = ">=2.6.1"
+flake8 = "^3.7.4"
+coverage = "^4.5.2"
+coveralls = ">=1.5.1"
+hypothesis = "^4.5.0"
+xvfbwrapper = ">=0.2.9"
+black = ">=18.9b0"
+
+[tool.poetry.scripts]
+jeff65 = "jeff65:main"
+
+[build-system]
+requires = ["poetry>=1.0.0a2"]
+build-backend = "poetry.masonry.api"
+
 [tool.black]
 line-length = 88
 py36 = true
