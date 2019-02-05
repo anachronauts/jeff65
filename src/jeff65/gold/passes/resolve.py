@@ -23,38 +23,35 @@ from ...pattern import Predicate as P
 @pattern.transform(pattern.Order.Descending)
 class ResolveStorage:
     @pattern.match(
-        ast.AstNode('deref', attrs={
-            'type': P('ty'),
-            'address': ast.AstNode(P.require('numeric'), attrs={
-                'value': P('address'),
-            }),
-        }))
+        ast.AstNode(
+            "deref",
+            attrs={
+                "type": P("ty"),
+                "address": ast.AstNode(
+                    P.require("numeric"), attrs={"value": P("address")}
+                ),
+            },
+        )
+    )
     def deref_to_absolute(self, ty, address):
-        return ast.AstNode('absolute_storage', attrs={
-            'address': address,
-            'width': ty.width
-        })
+        return ast.AstNode(
+            "absolute_storage", attrs={"address": address, "width": ty.width}
+        )
 
     @pattern.match(
-        ast.AstNode('numeric', attrs={
-            'value': P.lt(256, 'value', require=True),
-        }))
+        ast.AstNode("numeric", attrs={"value": P.lt(256, "value", require=True)})
+    )
     def numeric_to_immediate(self, value):
-        return ast.AstNode('immediate_storage', attrs={
-            'value': value,
-            'width': 1,
-        })
+        return ast.AstNode("immediate_storage", attrs={"value": value, "width": 1})
 
 
 class ResolveUnits(binding.ScopedPass):
     """Resolves external units identified in 'use' statements."""
 
-    builtin_units = {
-        'mem': mem.MemUnit(),
-    }
+    builtin_units = {"mem": mem.MemUnit()}
 
     def exit_use(self, node):
-        name = node.attrs['name']
+        name = node.attrs["name"]
         unit = self.builtin_units[name]
         self.bind_name(name, unit)
         return None
@@ -69,7 +66,7 @@ class ResolveMembers(binding.ScopedPass):
     """Resolves members to functions."""
 
     def exit_member_access(self, node):
-        member = node.attrs['member']
-        name = node.attrs['namespace'].attrs['name']
+        member = node.attrs["member"]
+        name = node.attrs["namespace"].attrs["name"]
         unit = self.look_up_name(name)
         return unit.member(member)

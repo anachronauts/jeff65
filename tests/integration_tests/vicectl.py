@@ -26,16 +26,19 @@ class Vice:
         # If we're using the GTK frontend for VICE on a Wayland system, this
         # forces it to actually use our framebuffer.
         env = dict(os.environ)
-        env['GDK_BACKEND'] = 'x11'
+        env["GDK_BACKEND"] = "x11"
 
         # VICE refuses to activate the monitor unless it's connected to a TTY,
         # so we'll create a pseudoterminal to keep it happy. THIS IS VERY VERY
         # LINUX-ONLY RIGHT NOW, SORRY
         self.dom, sub = pty.openpty()
         self.proc = subprocess.Popen(
-            ["x64", "-initbreak", str(initbreak), str(program)],
-            stdin=sub, stdout=sub, stderr=subprocess.PIPE,
-            env=env)
+            ["x64", "+sound", "-initbreak", str(initbreak), str(program)],
+            stdin=sub,
+            stdout=sub,
+            stderr=subprocess.PIPE,
+            env=env,
+        )
         os.close(sub)
 
         # we could avoid having to pump stderr by just letting it attach to our
@@ -55,13 +58,13 @@ class Vice:
         return False
 
     def _log_stderr(self):
-        for line in iter(self.proc.stderr.readline, b''):
+        for line in iter(self.proc.stderr.readline, b""):
             logger.debug("VICE stderr: %s", line.decode())
 
     def _readline(self, cond=None):
-        while ((cond is None or not cond("".join(self.obuf)))
-               and (len(self.linebuf) == 0
-                    or self.proc.poll())):
+        while (cond is None or not cond("".join(self.obuf))) and (
+            len(self.linebuf) == 0 or self.proc.poll()
+        ):
             block = os.read(self.dom, 4096).decode()
             left = 0
             while True:
@@ -69,7 +72,7 @@ class Vice:
                 if right == -1:
                     self.obuf.append(block[left:])
                     break
-                self.obuf.append(block[left:right+1])
+                self.obuf.append(block[left : right + 1])
                 self.linebuf.append("".join(self.obuf))
                 logger.debug("VICE stdout: %s", self.linebuf[-1])
                 self.obuf.clear()
@@ -93,8 +96,7 @@ class Vice:
             os.write(self.dom, cmd.encode())
 
             # wait for the prompt, because we have to keep the IO moving
-            while (self._readline(lambda line: line.startswith("(C:$"))
-                   is not None):
+            while self._readline(lambda line: line.startswith("(C:$")) is not None:
                 pass
 
             # waiting for the prompt doesn't actually work -- VICE will happily

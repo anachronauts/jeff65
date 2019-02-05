@@ -12,11 +12,11 @@ matrix:
       sudo: true
 
 install:
-  - pip install pipenv
-  - make develop
+  - pip install tox tox-travis coveralls
+  - pip install --pre poetry
 
 script:
-  - make check
+  - tox
 
 after_success:
   - coveralls

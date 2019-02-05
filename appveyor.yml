@@ -6,17 +6,19 @@ environment:
     - PYTHON: "C:\\Python37-x64"
 
 install:
-  - "%PYTHON%\\python.exe -m pip install pipenv"
-  - "%PYTHON%\\python.exe -m pipenv sync --dev"
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - "python --version"
+  - "python -m pip install -U setuptools pip virtualenv tox"
+  - "python -m pip install --pre poetry"
 
 build: off
 
 test_script:
-  - "%PYTHON%\\python.exe -m pipenv run python setup.py nosetests --with-xunit"
+  - "tox -e py-junit"
 
 on_finish:
   - ps: |
       $wc = New-Object 'System.Net.WebClient'
       $wc.UploadFile(
         "https://ci.appveyor.com/api/testresults/junit/$($env:APPVEYOR_JOB_ID)",
-        (Resolve-Path .\nosetests.xml))
+        (Resolve-Path .\report.xml))

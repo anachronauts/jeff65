@@ -35,6 +35,7 @@ class Order(enum.Enum):
 
     Use 'Any' if the order does not matter for the transform to work correctly.
     """
+
     Descending = 0
     Ascending = 1
 
@@ -58,19 +59,19 @@ def transform(order):
     def _decorate_transform(cls):
         analyser = PatternAnalyser()
         ptpairs = []
-        m_dict = {'ptpairs': ptpairs}
+        m_dict = {"ptpairs": ptpairs}
 
         if order == Order.Descending:
-            m_dict['transform_enter'] = transform_handler
-            m_dict['transform_exit'] = dummy_handler
+            m_dict["transform_enter"] = transform_handler
+            m_dict["transform_exit"] = dummy_handler
         else:
-            m_dict['transform_enter'] = dummy_handler
-            m_dict['transform_exit'] = transform_handler
+            m_dict["transform_enter"] = dummy_handler
+            m_dict["transform_exit"] = transform_handler
 
         for member, value in vars(cls).items():
-            if not (isinstance(value, tuple)
-                    and len(value) == 3
-                    and value[0] == _marker):
+            if not (
+                isinstance(value, tuple) and len(value) == 3 and value[0] == _marker
+            ):
                 # copy across non-pattern stuff unchanged
                 m_dict[member] = value
             else:
@@ -144,6 +145,7 @@ class PatternAnalyser:
                 if not v._match(attrs[k], captures):
                     return False
             return True
+
         return Predicate(None, _attrs_predicate)
 
     def transform_enter(self, t, node):
@@ -153,7 +155,8 @@ class PatternAnalyser:
         return Predicate.node(
             self.make_predicate(node.t),
             self.make_attrs_predicate(node.attrs),
-            self.make_span_predicate(node.span))
+            self.make_span_predicate(node.span),
+        )
 
 
 class Predicate:
@@ -167,7 +170,7 @@ class Predicate:
     def _match(self, value, captures):
         if not self.predicate(value, captures):
             return False
-        if self.key is not None and not self.key.startswith('!'):
+        if self.key is not None and not self.key.startswith("!"):
             captures[self.key] = value
         return True
 
@@ -185,19 +188,18 @@ class Predicate:
             analyser = PatternAnalyser()
             attrs = analyser.make_attrs_predicate(with_attrs)
 
-        return cls.node(
-            cls.any(),
-            attrs,
-            cls.any(),
-            key=key)
+        return cls.node(cls.any(), attrs, cls.any(), key=key)
 
     @classmethod
     def node(cls, pt, pa, pn, key=None):
         def _node_predicate(node, captures):
-            return (isinstance(node, ast.AstNode)
-                    and pt._match(node.t, captures)
-                    and pa._match(node.attrs, captures)
-                    and pn._match(node.span, captures))
+            return (
+                isinstance(node, ast.AstNode)
+                and pt._match(node.t, captures)
+                and pa._match(node.attrs, captures)
+                and pn._match(node.span, captures)
+            )
+
         return cls(key, _node_predicate)
 
     @classmethod
@@ -209,16 +211,19 @@ class Predicate:
             try:
                 value = inspect.getsource(value_or_predicate)
             except OSError:
-                value = '<predicate>'
+                value = "<predicate>"
         else:
+
             def predicate(v, c):
                 return v == value_or_predicate
+
             value = value_or_predicate
 
         def _p_require(v, captures):
             if not predicate(v, captures):
                 raise exc(f"Expected {value} got {v}")
             return True
+
         return cls(None, _p_require)
 
     @classmethod
@@ -229,6 +234,7 @@ class Predicate:
             if require:
                 raise MatchError(f"Expected {value}, got {v}")
             return False
+
         return cls(key, _p_eq)
 
     @classmethod
@@ -239,4 +245,5 @@ class Predicate:
             if require:
                 raise MatchError(f"Expected value <{value}, got {v}")
             return False
+
         return cls(key, _p_lt)

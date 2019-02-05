@@ -37,6 +37,7 @@ class BraceMessage:
         gettext, which is part of the standard library, so...
         """
         import builtins
+
         builtins.__ = cls
 
 
@@ -46,28 +47,36 @@ BraceMessage.install()
 def main(argv=None):
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--debug",
-                        help="run in debug mode",
-                        dest="debug", action="store_true",
-                        default=False)
-    parser.add_argument("-v", "--verbose",
-                        help="show additional information during operation",
-                        dest="verbose", action="store_true",
-                        default=False)
+    parser.add_argument(
+        "--debug",
+        help="run in debug mode",
+        dest="debug",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="show additional information during operation",
+        dest="verbose",
+        action="store_true",
+        default=False,
+    )
 
     subparsers = parser.add_subparsers()
-    compile_parser = subparsers.add_parser(
-        'compile', help="compile one or more files")
-    compile_parser.add_argument("-o", help="place the output into OUTPUT",
-                                dest="output", type=pathlib.PurePath)
-    compile_parser.add_argument('file', help="the file to compile",
-                                type=pathlib.PurePath)
+    compile_parser = subparsers.add_parser("compile", help="compile one or more files")
+    compile_parser.add_argument(
+        "-o", help="place the output into OUTPUT", dest="output", type=pathlib.PurePath
+    )
+    compile_parser.add_argument(
+        "file", help="the file to compile", type=pathlib.PurePath
+    )
     compile_parser.set_defaults(func=cmd_compile)
 
-    objdump_parser = subparsers.add_parser(
-        'objdump', help="list symbols of an object")
-    objdump_parser.add_argument('file', help="the file to examine",
-                                type=pathlib.PurePath)
+    objdump_parser = subparsers.add_parser("objdump", help="list symbols of an object")
+    objdump_parser.add_argument(
+        "file", help="the file to examine", type=pathlib.PurePath
+    )
     objdump_parser.set_defaults(func=cmd_objdump)
 
     args = parser.parse_args(argv)
@@ -76,7 +85,7 @@ def main(argv=None):
     elif args.verbose:
         logging.basicConfig(level=logging.INFO)
 
-    if hasattr(args, 'func'):
+    if hasattr(args, "func"):
         args.func(args)
     else:
         parser.print_help()
@@ -93,8 +102,11 @@ def cmd_compile(args):
 
     archive = gold.translate(args.file)
     # archive.dumpf(args.file.with_suffix('.blum'))
-    blum.link('{}.main'.format(args.file.stem), archive,
-              args.output or args.file.with_suffix(".prg"))
+    blum.link(
+        "{}.main".format(args.file.stem),
+        archive,
+        args.output or args.file.with_suffix(".prg"),
+    )
 
 
 def cmd_objdump(args):
@@ -110,7 +122,10 @@ def cmd_objdump(args):
     else:
         print("Symbols:")
         for name, symbol in archive.symbols.items():
-            print("    {}: size={}, section={}, type={}".format(
-                name, len(symbol.data), symbol.section, symbol.type_info))
+            print(
+                "    {}: size={}, section={}, type={}".format(
+                    name, len(symbol.data), symbol.section, symbol.type_info
+                )
+            )
             for relocation in symbol.relocations:
                 print("      {}".format(relocation))

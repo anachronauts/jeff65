@@ -55,7 +55,8 @@ class TextSpan:
         return (
             isinstance(other, TextSpan)
             and self.start <= other.start
-            and other.end <= self.end)
+            and other.end <= self.end
+        )
 
     @staticmethod
     def cover(spans):
@@ -66,14 +67,12 @@ class TextSpan:
         spans which are not contained in any of the given spans, but are
         contained in the cover span.
         """
-        return TextSpan(
-            *min(s.start for s in spans),
-            *max(s.end for s in spans))
+        return TextSpan(*min(s.start for s in spans), *max(s.end for s in spans))
 
     def __str__(self):
-        start = f'{self.start_line}:{self.start_column}'
-        end = f'{self.end_line}:{self.end_column}'
-        return f'{start}-{end}'
+        start = f"{self.start_line}:{self.start_column}"
+        end = f"{self.end_line}:{self.end_column}"
+        return f"{start}-{end}"
 
 
 @attr.s(slots=True, frozen=True)
@@ -85,7 +84,7 @@ class Token:
 
     def _pretty(self, indent, no_position):
         i = " " * indent
-        return f'{i}{self.t}={self.text!r} {self.span}\n'
+        return f"{i}{self.t}={self.text!r} {self.span}\n"
 
 
 class ReStream:
@@ -95,7 +94,7 @@ class ReStream:
     CHANNEL_DEFAULT = 0
     CHANNEL_HIDDEN = 1
 
-    def __init__(self, stream, encoding='utf8', blocksize=4096):
+    def __init__(self, stream, encoding="utf8", blocksize=4096):
         self.current = deque()
         self.position = 0
         self.bufsize = 0
@@ -205,10 +204,12 @@ class ReStream:
         else:
             end_column = self.column + len(text)
 
-        token = Token(symbol, text, channel,
-                      TextSpan(
-                          self.line, self.column,
-                          end_line, end_column))
+        token = Token(
+            symbol,
+            text,
+            channel,
+            TextSpan(self.line, self.column, end_line, end_column),
+        )
         self.position = match.end()
         self.line = end_line
         self.column = end_column
@@ -230,8 +231,12 @@ class ReStream:
 
     def produce_eof(self, symbol):
         """Produce an EOF token."""
-        return Token(symbol, None, self.CHANNEL_ALL,
-                     TextSpan(self.line, self.column, self.line, self.column))
+        return Token(
+            symbol,
+            None,
+            self.CHANNEL_ALL,
+            TextSpan(self.line, self.column, self.line, self.column),
+        )
 
 
 class Lexer:
@@ -336,7 +341,7 @@ class Rule:
     @property
     def next_symbols(self):
         if self.pointer is None:
-            raise Exception('Rule has no pointer')
+            raise Exception("Rule has no pointer")
         elif self.pointer == len(self.rhs):
             return frozenset()
         return self.rhs[self.pointer]
@@ -344,9 +349,9 @@ class Rule:
     @property
     def advanced(self):
         if self.pointer is None:
-            raise Exception('Rule has no pointer')
+            raise Exception("Rule has no pointer")
         elif self.pointer == len(self.rhs):
-            raise Exception('Rule cannot be advanced')
+            raise Exception("Rule cannot be advanced")
         return self.with_pointer(self.pointer + 1)
 
     def __repr__(self):
@@ -355,14 +360,14 @@ class Rule:
             if len(sym) == 1:
                 syms.append(str(next(iter(sym))))
             else:
-                alts = ' | '.join(str(s) for s in sym)
-                syms.append(f'({alts})')
+                alts = " | ".join(str(s) for s in sym)
+                syms.append(f"({alts})")
         if self.pointer is not None:
-            syms.insert(self.pointer, '.')
-        rhs = ' '.join(syms)
+            syms.insert(self.pointer, ".")
+        rhs = " ".join(syms)
         if self.prec is not None:
-            return f'{self.lhs} -> {rhs} ({self.prec})'
-        return f'{self.lhs} -> {rhs}'
+            return f"{self.lhs} -> {rhs} ({self.prec})"
+        return f"{self.lhs} -> {rhs}"
 
 
 class ItemSet:
@@ -375,12 +380,14 @@ class ItemSet:
         while True:
             old_size = len(self.items)
             nexts = set(
-                s for s in chain.from_iterable(
-                    r.next_symbols for r in self.items)
-                if not s.is_terminal)
+                s
+                for s in chain.from_iterable(r.next_symbols for r in self.items)
+                if not s.is_terminal
+            )
             self.items.update(
                 grammar.rules[r].with_pointer(0)
-                for r in grammar.find_rule_indices(nexts))
+                for r in grammar.find_rule_indices(nexts)
+            )
             if len(self.items) == old_size:
                 break
 
@@ -396,8 +403,8 @@ class ItemSet:
         given symbol have been, and items which cannot have been dropped.
         """
         return frozenset(
-            item.advanced for item in self.items
-            if symbol in item.next_symbols)
+            item.advanced for item in self.items if symbol in item.next_symbols
+        )
 
     @property
     def mode(self):
@@ -453,8 +460,9 @@ class ItemSet:
         #
         # Therefore, we only care about rules where the pointer is at the
         # beginning or end.
-        modes = {r.mode for r in self.items
-                 if r.pointer == 0 or len(r.next_symbols) == 0}
+        modes = {
+            r.mode for r in self.items if r.pointer == 0 or len(r.next_symbols) == 0
+        }
 
         # If there are no such rules, we can inherit. Note that we can't assign
         # based on the rule that we're in the middle of, because then we'd be
@@ -504,11 +512,11 @@ class Grammar:
         """Finds the starting rule given the start symbol."""
         starts = self.find_rule_indices([self.start_symbol])
         if len(starts) == 0:
-            raise Exception('No starting rule found')
+            raise Exception("No starting rule found")
         elif len(starts) > 1:
-            raise Exception('Multiple starting rules found')
+            raise Exception("Multiple starting rules found")
         elif len(self.rules[starts[0]].rhs) != 1:
-            raise Exception('Starting rule must have one token')
+            raise Exception("Starting rule must have one token")
         else:
             return starts[0]
 
@@ -561,8 +569,7 @@ class Grammar:
                 # when applied rules 1 & 2.
                 old_len = len(firstsets[rule.lhs])
                 for symbols in rule.rhs:
-                    fs = frozenset(chain.from_iterable(
-                        firstsets[s] for s in symbols))
+                    fs = frozenset(chain.from_iterable(firstsets[s] for s in symbols))
                     if self.EMPTY not in fs:
                         firstsets[rule.lhs].update(fs)
                         break
@@ -574,9 +581,7 @@ class Grammar:
 
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
-        logger.debug(__(
-            "Built firstsets ({} cycles) in {:.2f}ms",
-            count, elapsed_ms))
+        logger.debug(__("Built firstsets ({} cycles) in {:.2f}ms", count, elapsed_ms))
         return firstsets
 
     def build_followsets(self):
@@ -602,7 +607,7 @@ class Grammar:
             for k in range(len(rule.rhs) - 1):
                 for s in rule.rhs[k]:
                     if not s.is_terminal:
-                        for t in rule.rhs[k+1]:
+                        for t in rule.rhs[k + 1]:
                             followsets[s].update(firstsets[t])
 
         # suppose we have a rule R -> a*D. Then we add Follow(R) to Follow(D).
@@ -623,16 +628,13 @@ class Grammar:
                 for s in rule.rhs[-1]:
                     if not s.is_terminal:
                         old_len = len(followsets[s])
-                        followsets[s].update(
-                            followsets[rule.lhs])
+                        followsets[s].update(followsets[rule.lhs])
                         if len(followsets[s]) > old_len:
                             updated = True
 
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
-        logger.debug(__(
-            "Build followsets ({} cycles) in {:.2f}ms",
-            count, elapsed_ms))
+        logger.debug(__("Build followsets ({} cycles) in {:.2f}ms", count, elapsed_ms))
         return followsets
 
     def build_parser(self, hidden=None, channel=ReStream.CHANNEL_DEFAULT):
@@ -658,7 +660,7 @@ class Grammar:
         # and the terminal entries as shifts.
         for (f, s), t in translation_table.items():
             if s.is_terminal:
-                agtable[(f, s.value)] = ('shift', None, t)
+                agtable[(f, s.value)] = ("shift", None, t)
             else:
                 agtable[(f, s.value)] = t  # goto
 
@@ -675,25 +677,33 @@ class Grammar:
                 finals = {s.end for s in rule.rhs[-1]}
                 assert len(finals) == 1
                 final = finals.pop()
-            if finalset_rules[final] is not None \
-               and finalset_rules[final] != rule.parent:
+            if (
+                finalset_rules[final] is not None
+                and finalset_rules[final] != rule.parent
+            ):
                 # This is a reduce/reduce conflict. We decide how to resolve
                 # this based on the precedence of the rules involved.
                 # TODO work out how to handle ties?
                 # TODO check if this is sound. Somehow
-                if finalset_rules[final].prec is None or \
-                   rule.parent.prec is None or \
-                   finalset_rules[final].prec == rule.parent.prec:
+                if (
+                    finalset_rules[final].prec is None
+                    or rule.parent.prec is None
+                    or finalset_rules[final].prec == rule.parent.prec
+                ):
                     conflicts.append(
-                        f'reduce/reduce:\n'
-                        f'  {finalset_rules[final]}\n'
-                        f'  {rule.parent}')
+                        f"reduce/reduce:\n"
+                        f"  {finalset_rules[final]}\n"
+                        f"  {rule.parent}"
+                    )
                     continue
 
-                logging.debug(__(
-                    "Resolved reduce/reduce conflict between {} and {}",
-                    finalset_rules[final],
-                    rule.parent))
+                logging.debug(
+                    __(
+                        "Resolved reduce/reduce conflict between {} and {}",
+                        finalset_rules[final],
+                        rule.parent,
+                    )
+                )
                 if finalset_rules[final].prec > rule.parent.prec:
                     continue
 
@@ -713,20 +723,21 @@ class Grammar:
                     # been partially applied.
                     _, _, shift_index = agtable[(k, symbol.value)]
                     partials = [
-                        i for i
-                        in translation_table.itemsets[shift_index].items
-                        if i.pointer > 0]
-                    assert len(partials) == 1, 'shift/reduce (GENERATOR BUG)'
+                        i
+                        for i in translation_table.itemsets[shift_index].items
+                        if i.pointer > 0
+                    ]
+                    assert len(partials) == 1, "shift/reduce (GENERATOR BUG)"
                     shift_rule = partials[0]
 
                     # If one of them is missing a precedence, go ahead and
                     # hard-fail.
-                    if shift_rule.prec is None \
-                       or finalset_rules[k].prec is None:
+                    if shift_rule.prec is None or finalset_rules[k].prec is None:
                         conflicts.append(
-                            f'shift/reduce:\n'
-                            f'  {shift_rule}\n'
-                            f'  {finalset_rules[k]}')
+                            f"shift/reduce:\n"
+                            f"  {shift_rule}\n"
+                            f"  {finalset_rules[k]}"
+                        )
                         continue
 
                     # If the shifting rule is right-associative, then we should
@@ -735,23 +746,26 @@ class Grammar:
                     # associativity for this decision, a right-associative rule
                     # will bind more tightly than a left-associative rule with
                     # the same precedence.
-                    if (shift_rule.prec > finalset_rules[k].prec
-                        or (shift_rule.rassoc
-                            and shift_rule.prec == finalset_rules[k].prec)):
+                    if shift_rule.prec > finalset_rules[k].prec or (
+                        shift_rule.rassoc and shift_rule.prec == finalset_rules[k].prec
+                    ):
                         continue
 
                 # Check to see if this is actually the accept state
-                if finalset_rules[k].lhs == self.start_symbol \
-                   and symbol in self.end_symbols:
-                    agtable[(k, symbol.value)] = ('accept', None, None)
+                if (
+                    finalset_rules[k].lhs == self.start_symbol
+                    and symbol in self.end_symbols
+                ):
+                    agtable[(k, symbol.value)] = ("accept", None, None)
                 else:
                     agtable[(k, symbol.value)] = (
-                        'reduce',
+                        "reduce",
                         finalset_rules[k].lhs.value,
-                        len(finalset_rules[k].rhs))
+                        len(finalset_rules[k].rhs),
+                    )
 
         if len(conflicts) > 0:
-            logger.critical('\n\n'.join(conflicts))
+            logger.critical("\n\n".join(conflicts))
             assert False, "conflicts detected"
 
         # build the hidden-channel parsers
@@ -764,13 +778,21 @@ class Grammar:
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
         elapsed_t_ms = (end_time - start_time_t) * 1000
-        logger.debug(__(
-            "Built action/goto table ({} enties) in {:.2f}ms",
-            len(agtable), elapsed_ms))
+        logger.debug(
+            __(
+                "Built action/goto table ({} enties) in {:.2f}ms",
+                len(agtable),
+                elapsed_ms,
+            )
+        )
         logger.debug(__("Built parser in {:.2f}ms total", elapsed_t_ms))
-        logger.debug(__(
-            "Symbols: {}, States: {}",
-            len(self.symbols), len(translation_table.itemsets)))
+        logger.debug(
+            __(
+                "Symbols: {}, States: {}",
+                len(self.symbols),
+                len(translation_table.itemsets),
+            )
+        )
         return parser
 
 
@@ -841,12 +863,10 @@ class TranslationTable:
                     parent = rule
                 for k, symbols in enumerate(rule.rhs):
                     prev = state
-                    states = {self.translation_table[(state, s)]
-                              for s in symbols}
+                    states = {self.translation_table[(state, s)] for s in symbols}
                     if len(states) == 1:
                         state = states.pop()
-                        rhs.append(tuple(
-                            s.extend(prev, state) for s in symbols))
+                        rhs.append(tuple(s.extend(prev, state) for s in symbols))
                         continue
 
                     # our alternation goes to different places, so split
@@ -854,32 +874,39 @@ class TranslationTable:
                     for s in symbols:
                         rhs = list(rule.rhs)
                         rhs[k] = s
-                        rules_to_process.append(
-                            attr.evolve(rule, rhs=rhs, parent=rule))
+                        rules_to_process.append(attr.evolve(rule, rhs=rhs, parent=rule))
                         abort = True
                     break
                 if abort:
                     continue
                 try:
                     lhs = rule.lhs.extend(
-                        current, self.translation_table[(current, rule.lhs)])
+                        current, self.translation_table[(current, rule.lhs)]
+                    )
                 except KeyError:
                     lhs = rule.lhs.extend(current, Grammar.END)
                     start_symbol = lhs
                 extended_rules.add(
-                    attr.evolve(rule, lhs=lhs, rhs=rhs, pointer=None,
-                                parent=parent.with_pointer(None)))
+                    attr.evolve(
+                        rule,
+                        lhs=lhs,
+                        rhs=rhs,
+                        pointer=None,
+                        parent=parent.with_pointer(None),
+                    )
+                )
 
         extended_grammar = Grammar(
             start_symbol,
             [s.extend(None, None) for s in self.end_symbols],
-            extended_rules)
+            extended_rules,
+        )
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
         sz = len(extended_rules)
-        logger.debug(__(
-            "Built extended grammar ({} rules) in {:.2f}ms",
-            sz, elapsed_ms))
+        logger.debug(
+            __("Built extended grammar ({} rules) in {:.2f}ms", sz, elapsed_ms)
+        )
         return extended_grammar
 
     def build_modes(self):
@@ -904,16 +931,22 @@ class Parser:
         self.channel = channel
 
     def select_mode(self, set_stack):
-        return next((self.modes[s]
-                     for s in reversed(set_stack)
-                     if self.modes[s] != self.INHERIT_MODE),
-                    self.NORMAL_MODE)
+        return next(
+            (
+                self.modes[s]
+                for s in reversed(set_stack)
+                if self.modes[s] != self.INHERIT_MODE
+            ),
+            self.NORMAL_MODE,
+        )
 
     def next_token_skip_hidden(self, stream, next_token, set_stack):
         while True:
             lookahead = next_token(stream, self.select_mode(set_stack))
-            if lookahead.channel == self.channel \
-               or lookahead.channel == ReStream.CHANNEL_ALL:
+            if (
+                lookahead.channel == self.channel
+                or lookahead.channel == ReStream.CHANNEL_ALL
+            ):
                 return lookahead
 
             # When a token comes in on a channel other than the one we're
@@ -953,8 +986,9 @@ class Parser:
             except KeyError:
                 try:
                     action, sym, arg = self.agtable[
-                        (set_stack[-1], Grammar.EMPTY_TOKEN)]
-                    assert action == 'reduce'
+                        (set_stack[-1], Grammar.EMPTY_TOKEN)
+                    ]
+                    assert action == "reduce"
                 except KeyError:
                     msg = [f"Got {lookahead.t} but expected one of:"]
                     for state, token in self.agtable:
@@ -962,12 +996,11 @@ class Parser:
                             msg.append(f"  {token}")
                     raise ParseError("\n".join(msg))
 
-            if action == 'shift':
+            if action == "shift":
                 output.append((lookahead, lookahead.span))
                 set_stack.append(arg)
-                lookahead = self.next_token_skip_hidden(
-                    stream, next_token, set_stack)
-            elif action == 'reduce':
+                lookahead = self.next_token_skip_hidden(stream, next_token, set_stack)
+            elif action == "reduce":
                 if arg > 0:
                     children, spans = zip(*output[-arg:])
                     span = TextSpan.cover(spans)
@@ -989,11 +1022,11 @@ class Parser:
                         start = end
                     span = TextSpan(*start, *end)
                 set_stack.append(self.agtable[(set_stack[-1], sym)])
-                output.append((make_node(sym, span, children,
-                                         self.modes[set_stack[-1]]),
-                               span))
+                output.append(
+                    (make_node(sym, span, children, self.modes[set_stack[-1]]), span)
+                )
             else:
-                assert action == 'accept'
+                assert action == "accept"
                 break
 
         assert len(output) == 1
@@ -1001,7 +1034,7 @@ class Parser:
         end_time = time.perf_counter()
         elapsed_ms = (end_time - start_time) * 1000
         if self.channel == ReStream.CHANNEL_DEFAULT:
-            logger.debug(__(
-                "Parsed input on channel {} in {:.2f}ms",
-                self.channel, elapsed_ms))
+            logger.debug(
+                __("Parsed input on channel {} in {:.2f}ms", self.channel, elapsed_ms)
+            )
         return output[0][0]

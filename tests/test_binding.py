@@ -2,14 +2,7 @@ import attr
 import string
 import hypothesis.strategies as st
 from hypothesis import assume
-from hypothesis.stateful import (
-    Bundle,
-    RuleBasedStateMachine,
-    rule,
-    precondition)
-from nose.tools import (
-    assert_equal,
-    assert_not_in)
+from hypothesis.stateful import Bundle, RuleBasedStateMachine, rule, precondition
 from jeff65 import ast
 from jeff65.gold.passes import binding
 
@@ -28,12 +21,11 @@ class ScopedTransform(RuleBasedStateMachine):
         self.frames = []
         self.transform = binding.ScopedPass()
 
-    unscoped_types = Bundle('unscoped_types')
-    names = Bundle('names')
-    constants = Bundle('constants')
+    unscoped_types = Bundle("unscoped_types")
+    names = Bundle("names")
+    constants = Bundle("constants")
 
-    @rule(target=unscoped_types, u=st.text(
-        alphabet=string.ascii_letters + '_'))
+    @rule(target=unscoped_types, u=st.text(alphabet=string.ascii_letters + "_"))
     def u(self, u):
         return u
 
@@ -55,8 +47,8 @@ class ScopedTransform(RuleBasedStateMachine):
         assume(self.frames[-1].t == t)
         frame = self.frames.pop()
         node = self.transform.transform_exit(t, frame.node)
-        assert_equal(ast.AstNode(t), frame.orig)
-        assert_equal(frame.names, node.attrs['known_names'])
+        assert frame.orig == ast.AstNode(t)
+        assert node.attrs["known_names"] == frame.names
 
     @precondition(lambda self: len(self.frames) > 0)
     @rule(t=unscoped_types)
@@ -73,8 +65,8 @@ class ScopedTransform(RuleBasedStateMachine):
         assume(self.frames[-1].t == t)
         frame = self.frames.pop()
         node = self.transform.transform_exit(t, frame.node)
-        assert_equal(ast.AstNode(t), frame.orig)
-        assert_not_in('known_names', node.attrs)
+        assert frame.orig == ast.AstNode(t)
+        assert "known_names" not in node.attrs
 
     @precondition(lambda self: len(self.frames) > 0)
     @rule(n=names, v=st.integers())
@@ -87,9 +79,11 @@ class ScopedTransform(RuleBasedStateMachine):
     @rule(n=names)
     def look_up_name(self, n):
         try:
-            ev = next(f.names[n]
-                      for f in reversed(self.frames)
-                      if f.names is not None and n in f.names)
+            ev = next(
+                f.names[n]
+                for f in reversed(self.frames)
+                if f.names is not None and n in f.names
+            )
         except StopIteration:
             ev = None
         assert ev == self.transform.look_up_name(n)

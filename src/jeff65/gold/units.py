@@ -40,7 +40,8 @@ class UnitSymbol:
 
     def __repr__(self):
         return "<{} {}.{}: {}>".format(
-            type(self).__name__, self.unit, self.name, self.type)
+            type(self).__name__, self.unit, self.name, self.type
+        )
 
 
 class IntrinsicSymbol(UnitSymbol):

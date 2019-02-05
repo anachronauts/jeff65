@@ -43,16 +43,18 @@ passes = [
 def open_unit(unit):
     if str(unit) == "-":
         return sys.stdin
-    return open(unit, 'r')
+    return open(unit, "r")
 
 
 def parse(fileobj, name):
     with parsing.ReStream(fileobj) as stream:
         tree = grammar.parse(
-            stream, grammar.lex,
-            lambda t, s, c, m: ast.AstNode(t, span=s, attrs={
-                f"{k:02}": v for k, v in enumerate(c)
-            }))
+            stream,
+            grammar.lex,
+            lambda t, s, c, m: ast.AstNode(
+                t, span=s, attrs={f"{k:02}": v for k, v in enumerate(c)}
+            ),
+        )
     return tree.transform(simplify.Simplify())
 
 
@@ -65,12 +67,11 @@ def translate(unit):
 
     archive = blum.Archive()
     for node in obj.select("toplevels", "stmt"):
-        if node.t == 'fun_symbol':
-            sym_name = '{}.{}'.format(unit.stem, node.attrs['name'])
+        if node.t == "fun_symbol":
+            sym_name = "{}.{}".format(unit.stem, node.attrs["name"])
             sym = blum.Symbol(
-                section='text',
-                data=node.attrs['text'],
-                type_info=node.attrs['type'])
+                section="text", data=node.attrs["text"], type_info=node.attrs["type"]
+            )
             archive.symbols[sym_name] = sym
 
     return archive

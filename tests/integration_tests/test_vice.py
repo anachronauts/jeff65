@@ -1,11 +1,8 @@
-import functools
 import os
 import pathlib
 import sys
 import tempfile
-import unittest
-from nose.plugins.attrib import attr as nose_attr
-from nose.tools import (assert_equal)
+import pytest
 import jeff65
 
 
@@ -19,7 +16,7 @@ def compile_run_dump(path):
 
     # This doesn't work on all platforms, so we import it locally to give the
     # decorator a chance to decide if we're even going to run the test.
-    from . import vicectl
+    import vicectl
 
     try:
         fd, outpath = tempfile.mkstemp()
@@ -32,33 +29,29 @@ def compile_run_dump(path):
         # Run the program under VICE, and use the monitor to dump the machine
         # memory
         with vicectl.Vice(outpath, 0x0810) as vice:
-            assert_equal(0x0810, vice.wait_for_break())
+            assert vice.wait_for_break() == 0x0810
             mem = vice.dump()
-            assert_equal(0x10000, len(mem))
-            assert_equal(0, vice.quit())
+            assert len(mem) == 0x10000
+            assert vice.quit() == 0
             return mem
 
     finally:
         os.remove(outpath)
 
 
-def with_dump_of(path):
+@pytest.fixture
+def mem_dump(path):
     if sys.platform != "linux":
-        return unittest.skip("VICE-based tests are Linux-only")
+        pytest.skip("VICE-based tests are Linux-only")
 
-    def _decorate_test(f):
-        @nose_attr("vice")
-        def _test_with_dump():
-            fullpath = pathlib.Path(__file__).parent / path
-            return f(compile_run_dump(fullpath))
-        functools.update_wrapper(_test_with_dump, f)
-        return _test_with_dump
-    return _decorate_test
+    fullpath = pathlib.Path(__file__).parent / path
+    return compile_run_dump(fullpath)
 
 
-@with_dump_of("heart.gold")
-def test_heart_gold(mem):
+@pytest.mark.vice
+@pytest.mark.parametrize("path", ["heart.gold"])
+def test_heart_gold(mem_dump):
     # Check if there's a heart in the corner. reading from color RAM (0xd800)
     # doesn't actually produce anything useful, so we can't check that it's
     # red.
-    assert_equal(0x53, mem[0x0400])
+    assert mem_dump[0x0400] == 0x53

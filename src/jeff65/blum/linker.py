@@ -27,10 +27,9 @@ def link(name, archive, output_path):
     # Create a temporary file to write to so that if we have a link error, we
     # don't clobber the existing program image. We create this in the same
     # directory to avoid cross-device renaming problems.
-    im_fd, im_tmp = tempfile.mkstemp(prefix=output_path.name,
-                                     dir=output_path.parent)
+    im_fd, im_tmp = tempfile.mkstemp(prefix=output_path.name, dir=output_path.parent)
     try:
-        with open(im_fd, 'wb') as im_file:
+        with open(im_fd, "wb") as im_file:
             im = image.Image(im_file)
             im.add_archive(image.make_startup_for(name, 0x0100))
             im.add_archive(archive)

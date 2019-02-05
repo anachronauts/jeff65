@@ -28,11 +28,11 @@ fmt_type_info = Fmt.union(known)
 class PhantomType:
     """An unreferenceable type."""
 
-    discriminator = Fmt.make_cc('Ph')
+    discriminator = Fmt.make_cc("Ph")
     fields = []
 
     def __repr__(self):
-        return '???'
+        return "???"
 
     def __eq__(self, other):
         return isinstance(other, PhantomType)
@@ -48,11 +48,11 @@ class PhantomType:
 class VoidType:
     """A type with no values."""
 
-    discriminator = Fmt.make_cc('Vd')
+    discriminator = Fmt.make_cc("Vd")
     fields = []
 
     def __repr__(self):
-        return 'void'
+        return "void"
 
     def __eq__(self, other):
         return isinstance(other, VoidType)
@@ -68,10 +68,10 @@ class VoidType:
 class IntType:
     """An integral type."""
 
-    discriminator = Fmt.make_cc('In')
+    discriminator = Fmt.make_cc("In")
     fields = [
-        ('width', Fmt.u8, Fmt.make_cc('wd'), True),
-        ('signed', Fmt.bool, Fmt.make_cc('sg'), True),
+        ("width", Fmt.u8, Fmt.make_cc("wd"), True),
+        ("signed", Fmt.bool, Fmt.make_cc("sg"), True),
     ]
 
     def __init__(self, width, signed):
@@ -79,20 +79,22 @@ class IntType:
         self.signed = signed
 
     def can_assign_from(self, rtype):
-        return (type(rtype) is IntType
-                and self.signed == rtype.signed
-                and self.width >= rtype.width)
+        return (
+            type(rtype) is IntType
+            and self.signed == rtype.signed
+            and self.width >= rtype.width
+        )
 
     def encode(self, value):
         if self.signed:
-            return struct.pack('<q', value)
-        return struct.pack('<Q', value)
+            return struct.pack("<q", value)
+        return struct.pack("<Q", value)
 
     def decode(self, data):
         if self.signed:
-            val, = struct.unpack('<q', data)
+            val, = struct.unpack("<q", data)
         else:
-            val, = struct.unpack('<Q', data)
+            val, = struct.unpack("<Q", data)
         assert val in self, "{} not in range for {}".format(val, repr(self))
         return val
 
@@ -102,22 +104,22 @@ class IntType:
 
         bits = self.width * 8
         if self.signed:
-            upper = (1 << (bits - 1))
+            upper = 1 << (bits - 1)
             lower = -upper
         else:
-            upper = (1 << bits)
+            upper = 1 << bits
             lower = 0
         return lower <= value < upper
 
     def __eq__(self, other):
-        return (type(other) is IntType
-                and self.signed == other.signed
-                and self.width == other.width)
+        return (
+            type(other) is IntType
+            and self.signed == other.signed
+            and self.width == other.width
+        )
 
     def __repr__(self):
-        return "{}{}".format(
-            'i' if self.signed else 'u',
-            self.width * 8)
+        return "{}{}".format("i" if self.signed else "u", self.width * 8)
 
     def validate(self):
         assert isinstance(self.width, int)
@@ -132,32 +134,27 @@ class IntType:
 class RefType:
     """A reference type."""
 
-    discriminator = Fmt.make_cc('Rf')
-    fields = [
-        ('target', fmt_type_info, Fmt.make_cc('tg'), True),
-    ]
+    discriminator = Fmt.make_cc("Rf")
+    fields = [("target", fmt_type_info, Fmt.make_cc("tg"), True)]
 
     def __init__(self, target):
         self.target = target
         self.width = 2
 
     def encode(self, value):
-        return struct.pack('<H6x', value)
+        return struct.pack("<H6x", value)
 
     def decode(self, data):
-        val, = struct.unpack('<H6x', data)
+        val, = struct.unpack("<H6x", data)
         return val
 
     def can_assign_from(self, rtype):
         # Pointer assignment has to be equal unless the rhs is a mystery
         # pointer, in which case we just allow it to go through.
-        return (self == rtype or
-                (type(rtype) is RefType
-                 and rtype.target is None))
+        return self == rtype or (type(rtype) is RefType and rtype.target is None)
 
     def __eq__(self, other):
-        return (type(other) is RefType
-                and self.target == other.target)
+        return type(other) is RefType and self.target == other.target
 
     def __repr__(self):
         return "&{}".format(repr(self.target))
@@ -174,10 +171,10 @@ class RefType:
 class FunctionType:
     """A function type."""
 
-    discriminator = Fmt.make_cc('Fn')
+    discriminator = Fmt.make_cc("Fn")
     fields = [
-        ('ret', fmt_type_info, Fmt.make_cc('rt'), True),
-        ('args', Fmt.array(fmt_type_info), Fmt.make_cc('as'), True),
+        ("ret", fmt_type_info, Fmt.make_cc("rt"), True),
+        ("args", Fmt.array(fmt_type_info), Fmt.make_cc("as"), True),
     ]
 
     def __init__(self, ret, *args):
@@ -192,7 +189,8 @@ class FunctionType:
         return (
             isinstance(other, FunctionType)
             and self.ret == other.ret
-            and self.args == other.args)
+            and self.args == other.args
+        )
 
     def __repr__(self):
         args = ", ".join(repr(arg) for arg in self.args)
@@ -227,10 +225,4 @@ ptr = RefType(phantom)
 
 # Because we mutate this list, everywhere that uses it now knows about these
 # types.
-known.extend([
-    PhantomType,
-    VoidType,
-    IntType,
-    RefType,
-    FunctionType,
-])
+known.extend([PhantomType, VoidType, IntType, RefType, FunctionType])
