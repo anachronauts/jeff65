@@ -9,6 +9,14 @@ authors = [
 readme = "README.md"
 repository = "https://github.com/anachronauts/jeff65"
 license = "GPL-3.0+"
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Compilers",
+]
 packages = [
   {include="jeff65", from="src"}
 ]
