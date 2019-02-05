@@ -33,7 +33,7 @@ class Vice:
         # LINUX-ONLY RIGHT NOW, SORRY
         self.dom, sub = pty.openpty()
         self.proc = subprocess.Popen(
-            ["x64", "-initbreak", str(initbreak), str(program)],
+            ["x64", "+sound", "-initbreak", str(initbreak), str(program)],
             stdin=sub,
             stdout=sub,
             stderr=subprocess.PIPE,

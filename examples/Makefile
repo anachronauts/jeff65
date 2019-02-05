@@ -4,7 +4,7 @@ ASFLAGS = -g -t c64
 LD = ld65
 LDFLAGS = -u __EXEHDR__ -m labels.txt -Ln symbols -C c64-asm.cfg c64.lib
 
-.PHONY: all run clean
+.PHONY: all run clean demo
 
 all: test.d64.gz
 
@@ -25,3 +25,9 @@ clean:
 
 run: test.d64.gz
 	x64 test.d64.gz
+
+demo: heart.prg
+	x64 $<
+
+heart.prg: heart.gold
+	jeff65 compile $<

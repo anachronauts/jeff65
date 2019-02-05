@@ -6,14 +6,15 @@ environment:
     - PYTHON: "C:\\Python37-x64"
 
 install:
-  - "%PYTHON%\\python.exe -m pip install -U setuptools pip virtualenv"
-  - "%PYTHON%\\python.exe -m pip install --pre poetry"
-  - "%PYTHON%\\python.exe -m poetry install"
+  - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+  - "python --version"
+  - "python -m pip install -U setuptools pip virtualenv tox"
+  - "python -m pip install --pre poetry"
 
 build: off
 
 test_script:
-  - "%PYTHON%\\python.exe -m poetry run pytest tests --junitxml=report.xml"
+  - "tox -e py-junit"
 
 on_finish:
   - ps: |
