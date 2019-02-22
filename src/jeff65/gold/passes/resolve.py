@@ -22,6 +22,10 @@ from ...pattern import Predicate as P
 
 @pattern.transform(pattern.Order.Descending)
 class ResolveStorage:
+    introduces = {"resolved:storage", "absolute_storage", "immediate_storage"}
+    uses = {"resolved:constants", "binding:types"}
+    deletes = {"deref", "numeric"}
+
     @pattern.match(
         ast.AstNode(
             "deref",
@@ -48,6 +52,10 @@ class ResolveStorage:
 class ResolveUnits(binding.ScopedPass):
     """Resolves external units identified in 'use' statements."""
 
+    introduces = {"binding:unit"}
+    uses = set()
+    deletes = {"use"}
+
     builtin_units = {"mem": mem.MemUnit()}
 
     def exit_use(self, node):
@@ -64,6 +72,10 @@ class ResolveUnits(binding.ScopedPass):
 
 class ResolveMembers(binding.ScopedPass):
     """Resolves members to functions."""
+
+    introduces = {"resolved:functions"}
+    uses = {"binding:unit"}
+    deletes = {"member_access"}
 
     def exit_member_access(self, node):
         member = node.attrs["member"]

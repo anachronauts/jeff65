@@ -44,15 +44,13 @@ class BraceMessage:
 BraceMessage.install()
 
 
+debugopts = {"log_debug": False, "unstable_pass_schedule": False}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
-
     parser.add_argument(
-        "--debug",
-        help="run in debug mode",
-        dest="debug",
-        action="store_true",
-        default=False,
+        "-Z", help="enable debug settings", dest="debugopt", action="append"
     )
     parser.add_argument(
         "-v",
@@ -80,7 +78,18 @@ def main(argv=None):
     objdump_parser.set_defaults(func=cmd_objdump)
 
     args = parser.parse_args(argv)
-    if args.debug:
+    if args.debugopt is not None:
+        unknown_opts = set(args.debugopt) - debugopts.keys()
+        if len(unknown_opts) > 0:
+            optlist = ", ".join(unknown_opts)
+            print(f"Unknown debugging options {optlist}", file=sys.stderr)
+            print(f"Allowed options are:", file=sys.stderr)
+            for opt in sorted(debugopts.keys()):
+                print(f"    {opt}", file=sys.stderr)
+            sys.exit(1)
+        debugopts.update({opt: True for opt in args.debugopt})
+
+    if debugopts["log_debug"]:
         logging.basicConfig(level=logging.DEBUG)
     elif args.verbose:
         logging.basicConfig(level=logging.INFO)

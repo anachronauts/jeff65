@@ -17,7 +17,7 @@
 import logging
 import sys
 from . import grammar
-from .. import ast, blum, parsing
+from .. import ast, blum, parsing, scheduler
 from .passes import asm, binding, lower, resolve, simplify, typepasses
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ def parse(fileobj, name):
 def translate(unit):
     # parse will close the file for us
     obj = parse(open_unit(unit), name=unit.name)
-    for p in passes:
+    for p in scheduler.create_schedule(passes):
         obj = obj.transform(p())
         logger.debug(__("Pass {}:\n{:p}", p.__name__, obj))
 

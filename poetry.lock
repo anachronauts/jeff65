@@ -201,6 +201,17 @@ coverage = ">=4.4"
 pytest = ">=3.6"
 
 [[package]]
+category = "dev"
+description = "pytest plugin for repeating tests"
+name = "pytest-repeat"
+optional = false
+python-versions = "*"
+version = "0.7.0"
+
+[package.dependencies]
+pytest = ">=2.8.7"
+
+[[package]]
 category = "main"
 description = "Alternative regular expression module, to replace re."
 name = "regex"
@@ -233,7 +244,7 @@ python-versions = "*"
 version = "0.2.9"
 
 [metadata]
-content-hash = "fb46675fefdeffe324484512a17b9911028e530bc52e73b420d97047fd5c2b78"
+content-hash = "e303f0e157e410cf7b716605edb015ae436b4dd15498d2bb3627095c20e765e0"
 python-versions = "^3.6"
 
 [metadata.hashes]
@@ -255,6 +266,7 @@ pycodestyle = ["95a2219d12372f05704562a14ec30bc76b05a5b297b21a5dfe3f6fac3491ae56
 pyflakes = ["5e8c00e30c464c99e0b501dc160b13a14af7f27d4dffb529c556e30a159e231d", "f277f9ca3e55de669fba45b7393a1449009cff5a37d1af10ebb76c52765269cd"]
 pytest = ["65aeaa77ae87c7fc95de56285282546cfa9c886dc8e5dc78313db1c25e21bc07", "6ac6d467d9f053e95aaacd79f831dbecfe730f419c6c7022cb316b365cd9199d"]
 pytest-cov = ["0ab664b25c6aa9716cbf203b17ddb301932383046082c081b9848a0edf5add33", "230ef817450ab0699c6cc3c9c8f7a829c34674456f2ed8df1fe1d39780f7c87f"]
+pytest-repeat = ["637e68dd615e850b47b2dee0edf72bcede44de6a5335837fe2980daaf0cdab2b", "c51e166d652cf779588801f8b57594a46e62f05877d3929b10aadb874a9faf04"]
 regex = ["03a42220f638f5b6e80f688645bb1e8598e074df16a33106126d3ccbe4c01bfd", "0be9a895dab15b1d31505680bf0fe2f717f602edeeeb46f87c44878c7910ece5", "1afef5d9ba1f29b369b4133571f2190bd918e3b7d572df0b922168aec209bbda", "33f8fa1561110cafcab93a53d37c77508e8ba8addf8b2a6ac31e4b2c1afa631b", "54ff106533b222eb0201f48cdeaa587e9e03a8767901e60bd6288239970d2b55", "b4d13198acfac8b96abeb72224075f4a043db203214d27c6309b1a778f2304ac", "c645a577c7b56fd592cff9b05e513bc077740f338d3e64d1364390ffc2a536d7", "e7a957eac79ec9318199f67bf7d041c3c55f2e8b780c68b2403bd29d1863d6d7", "f5707f7f30994e2b0bf9c62db43f8a8d04b940de89685c644deeb93733cafd7a"]
 six = ["3350809f0555b11f552448330d0b52d5f24c91a322ea4a15ef22629740f3761c", "d16a0141ec1a18405cd4ce8b4613101da75da0e9a7aec5bdd4fa804d0e0eba73"]
 toml = ["229f81c57791a41d65e399fc06bf0848bab550a9dfd5ed66df18ce5f05e73d5c", "235682dd292d5899d361a811df37e04a8828a5b1da3115886b73cf81ebc9100e", "f1db651f9657708513243e61e6cc67d101a39bad662eaa9b5546f789338e07a3"]

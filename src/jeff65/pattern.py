@@ -23,6 +23,7 @@ procedural DFS transform system.
 import attr
 import enum
 import inspect
+import sys
 from . import ast
 
 
@@ -92,6 +93,11 @@ class MatchError(Exception):
     pass
 
 
+class WrappedError(MatchError):
+    def __init__(self, wrapped):
+        self.wrapped = wrapped
+
+
 def dummy_handler(self, t, node):
     return node
 
@@ -99,7 +105,14 @@ def dummy_handler(self, t, node):
 def transform_handler(self, t, node):
     for predicate, template in self.ptpairs:
         captures = {}
-        if predicate._match(node, captures):
+        try:
+            m = predicate._match(node, captures)
+        except WrappedError as e:
+            exc_info = sys.exc_info()
+            raise e.wrapped.with_traceback(exc_info[2])
+        except Exception as e:
+            raise MatchError(f"Error in matcher decorating {template}") from e
+        if m:
             f = template.__get__(self, type)
             n = f(**captures)
             if isinstance(n, ast.AstNode) and n.span is None:
@@ -221,7 +234,7 @@ class Predicate:
 
         def _p_require(v, captures):
             if not predicate(v, captures):
-                raise exc(f"Expected {value} got {v}")
+                raise WrappedError(exc(f"Expected {value} got {v}"))
             return True
 
         return cls(None, _p_require)

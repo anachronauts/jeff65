@@ -20,6 +20,10 @@ from ...blum import types
 
 
 class ConstructTypes(ast.TranslationPass):
+    introduces = {"binding:typenames"}
+    uses = set()
+    deletes = {"ref"}
+
     builtin_types = {
         "u8": types.u8,
         "u16": types.u16,
@@ -42,6 +46,10 @@ class ConstructTypes(ast.TranslationPass):
 
 
 class PropagateTypes(binding.ScopedPass):
+    introduces = {"binding:types"}
+    uses = {"binding:constants", "binding:typenames"}
+    deletes = set()
+
     def enter_identifier(self, node):
         t = self.look_up_name(node.attrs["name"])
         return node.update_attrs({"type": t})

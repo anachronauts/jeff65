@@ -87,6 +87,10 @@ class ShadowNames(ScopedPass):
     constructing types.
     """
 
+    introduces = {"binding:shadows"}
+    uses = set()
+    deletes = set()
+
     def exit_constant(self, node):
         self.bind_name(node.attrs["name"], True)
         return node
@@ -95,12 +99,20 @@ class ShadowNames(ScopedPass):
 class BindNamesToTypes(ScopedPass):
     """Binds names to types. These are later overridden by the storage."""
 
+    introduces = {"binding:types"}
+    uses = {"constant", "binding:typenames"}
+    deletes = set()
+
     def exit_constant(self, node):
         self.bind_name(node.attrs["name"], node.attrs["type"])
         return node
 
 
 class EvaluateConstants(ScopedPass):
+    introduces = {"binding:constants"}
+    uses = {"resolved:functions"}
+    deletes = {"constant"}
+
     def __init__(self):
         super().__init__()
         self.evaluating = False
@@ -125,6 +137,10 @@ class EvaluateConstants(ScopedPass):
 
 
 class ResolveConstants(ScopedPass):
+    introduces = {"resolved:constants"}
+    uses = {"binding:constants", "binding:types"}
+    deletes = set()
+
     def exit_identifier(self, node):
         value = self.look_up_constant(node.attrs["name"])
         if not value:

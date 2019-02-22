@@ -119,6 +119,21 @@ class AstNode:
         return current
 
 
+class NullPass:
+    """Base class for null passes.
+
+    Inserting null passes is helpful when writing annotations for the
+    scheduler; in particular, it allows a set of tags to be reduced to a single
+    tag.
+    """
+
+    def transform_enter(self, t, node):
+        return node
+
+    def transform_exit(self, t, node):
+        return node
+
+
 class TranslationPass:
     """Base class for translation passes."""
 

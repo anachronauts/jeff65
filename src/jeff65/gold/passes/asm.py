@@ -30,6 +30,10 @@ def asmrun(fmt, *args):
 
 @pattern.transform(pattern.Order.Any)
 class AssembleWithRelocations:
+    introduces = {"asmrun"}
+    uses = set()
+    deletes = {"lda", "jmp", "rts", "sta"}
+
     @pattern.match(
         ast.AstNode(
             "lda",
@@ -74,6 +78,10 @@ class AssembleWithRelocations:
 
 @pattern.transform(pattern.Order.Ascending)
 class FlattenSymbol:
+    introduces = {"fun_symbol"}
+    uses = set()
+    deletes = {"fun", "asmrun"}
+
     @pattern.match(
         ast.AstNode(
             "block",

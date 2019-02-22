@@ -29,6 +29,7 @@ regex = ">=2018.08.29"
 [tool.poetry.dev-dependencies]
 pytest = ">=4.2"
 pytest-cov = ">=2.6.1"
+pytest-repeat = "^0.7.0"
 flake8 = "^3.7.4"
 coverage = "^4.5.2"
 hypothesis = "^4.5.0"

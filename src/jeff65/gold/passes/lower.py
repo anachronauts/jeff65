@@ -21,6 +21,10 @@ from ...pattern import Predicate as P
 
 @pattern.transform(pattern.Order.Any)
 class LowerAssignment:
+    introduces = {"lda"}
+    uses = {"binding:types", "resolved:storage"}
+    deletes = {"set"}
+
     @pattern.match(
         ast.AstNode(
             "block",
@@ -47,6 +51,10 @@ class LowerAssignment:
 
 
 class LowerFunctions(ast.TranslationPass):
+    introduces = {"rts"}
+    uses = {"fun"}
+    deletes = set()
+
     def exit_fun(self, node):
         children = node.select("body", "stmt")
         children.append(asm.rts(node.span))
