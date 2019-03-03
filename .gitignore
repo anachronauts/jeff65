@@ -1,0 +1,23 @@
+*.annot
+*.cmo
+*.cma
+*.cmi
+*.a
+*.o
+*.cmx
+*.cmxs
+*.cmxa
+
+# dune working directory
+_build/
+
+# dune targets
+*.bc
+*.exe
+
+# dune generated files
+*.install
+.merlin
+
+# OPAM switch directory
+_opam/

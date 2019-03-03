@@ -1,0 +1,21 @@
+(library
+ (name gold)
+ (libraries
+  base
+  core_kernel
+  stdio
+  sexplib0 sexplib
+  sedlex
+  menhirLib
+  jeff65_kernel)
+ (preprocess
+  (pps
+   ppx_let
+   ppx_fields_conv
+   ppx_sexp_conv
+   ppx_variants_conv
+   sedlex.ppx)))
+
+(menhir
+ (flags --explain --table)
+ (modules parser))

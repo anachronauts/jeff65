@@ -1,0 +1,20 @@
+opam-version: "2.0"
+name: "jeff65"
+version: "0.1"
+synopsis: "A compiler targeting the Commodore 64"
+maintainer: ["Jonathan David Page <jonathan@sleepingcyb.org>"
+             "Woodrow Barlow <wjbarlow@ncsu.edu>"]
+authors: ["Jonathan David Page <jonathan@sleepingcyb.org>"
+          "Woodrow Barlow <wjbarlow@ncsu.edu>"]
+license: "GPLv3+"
+homepage: "https://github.com/anachronauts/jeff65"
+bug-reports: "https://github.com/anachronauts/jeff65/issues"
+depends: [
+  "ocaml" {build & >= "4.07.1"}
+  "dune" {build & >= "1.0"}
+  "core_kernel" {>= "v0.12.0"}
+  "cmdliner" {>= "1.0.3" < "2.0"}
+  "menhir" {>= "20181113"}
+  "sedlex"
+]
+build: ["dune" "build" "-p" name]

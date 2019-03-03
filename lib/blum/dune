@@ -1,0 +1,3 @@
+(library
+ (name blum)
+ (libraries core_kernel.binary_packing jeff65_kernel))
