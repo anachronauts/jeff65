@@ -1,4 +1,4 @@
-(* jeff65 gold-syntax
+(* jeff65 AST manipulation
    Copyright (C) 2019  jeff65 maintainers
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,14 +13,19 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Jeff65_kernel
+type position = Lexing.position
+val position_of_sexp : Sexplib.Sexp.t -> position
+val sexp_of_position : position -> Sexplib.Sexp.t
 
-type syntax_error = Lexer.syntax_error
+type span = position * position
+[@@deriving sexp]
 
-val print_position : Stdio.Out_channel.t -> Sedlexing.lexbuf -> unit
+module Node : sig
+  type ('a, 'b) t = { form : 'a
+                    ; span : span Sexplib.Conv.sexp_option
+                    ; children : ('b * ('a, 'b) t) list
+                    }
+  [@@deriving fields, sexp]
 
-val parse_with_error :
-  Sedlexing.lexbuf
-  -> ((Syntax.Form.t, Syntax.Tag.t) Ast.Node.t, syntax_error list) result
-
-val sexp_of_syntax : ((Syntax.Form.t, Syntax.Tag.t) Ast.Node.t) -> Sexplib.Sexp.t
+  val create : ?span:span -> ?children:('b * ('a, 'b) t) list -> 'a -> ('a, 'b) t
+end

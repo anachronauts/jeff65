@@ -13,11 +13,13 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
+open Jeff65_kernel
+
 type token = Parser.token * Lexing.position * Lexing.position
 
 type syntax_error =
   | Lex_error of string * Ast.span
-  | Parse_error of (Ast.Form.t, Ast.Tag.t) Ast.Node.t Parser.MenhirInterpreter.env
+  | Parse_error of (Syntax.Form.t, Syntax.Tag.t) Ast.Node.t Parser.MenhirInterpreter.env
                    * Ast.span
 
 val read : Sedlexing.lexbuf -> (token, syntax_error) result

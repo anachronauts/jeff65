@@ -13,11 +13,10 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-module Ast = Ast
-
 type syntax_error = Lexer.syntax_error
 
 open Stdio
+open Jeff65_kernel
 
 let print_position outc lexbuf =
   let (ps, pe) = Sedlexing.lexing_positions lexbuf in
@@ -52,3 +51,5 @@ let parse_with_error lexbuf =
   Parser.Incremental.unit start
   |> loop []
 
+let sexp_of_syntax =
+  Ast.Node.sexp_of_t Syntax.Form.sexp_of_t Syntax.Tag.sexp_of_t

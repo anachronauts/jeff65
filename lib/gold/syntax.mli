@@ -13,37 +13,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Base
-open Sexplib.Conv
-open Sexplib.Std
+open Jeff65_kernel.Ast
 
-type position = Lexing.position
-
-let position_of_sexp exp =
-  let (pos_fname, pos_lnum, pos_bol, pos_cnum) =
-    [%of_sexp: string * int * int * int] exp
-  in
-  { Lexing.pos_fname; pos_lnum; pos_bol; pos_cnum }
-
-let sexp_of_position pos =
-  let { Lexing.pos_fname; pos_lnum; pos_bol; pos_cnum } = pos in
-  [%sexp_of: string * int * int * int] (pos_fname, pos_lnum, pos_bol, pos_cnum)
-
-type span = position * position
-[@@deriving sexp]
-
-module Node = struct
-  type ('a, 'b) t = { form : 'a
-                    ; span : span sexp_option
-                    ; children : ('b * ('a, 'b) t) sexp_list
-                    }
-  [@@deriving fields, sexp]
-
-  let create ?span ?(children = []) form =
-    { form; span; children }
-end
-
-module Tag = struct
+module Tag : sig
   type t = [
     | `Member
     | `Target
@@ -63,7 +35,7 @@ module Tag = struct
   [@@deriving variants, sexp]
 end
 
-module Form = struct
+module Form : sig
   type t = [
     | `Identifier of string
     | `Boolean of bool
@@ -93,15 +65,22 @@ module Form = struct
   [@@deriving variants, sexp]
 end
 
-let identifier ?span id =
-  Node.create (`Identifier id) ?span
+val identifier : ?span:span -> string -> ([> `Identifier of string], 'b) Node.t
 
-let block ?span statements =
-  let children = List.map statements ~f:(fun s -> (`Stmt, s)) in
-  Node.create `Block ~children ?span
+val block :
+  ?span:span
+  -> ([> `Block] as 'a, [> `Stmt] as 'b) Node.t list
+  -> ('a, 'b) Node.t
 
-let op_prefix ?span form right =
-  Node.create form ~children:[`Of, right] ?span
+val op_prefix :
+  ?span:span
+  -> 'a
+  -> ('a, [> `Of] as 'b) Node.t
+  -> ('a, 'b) Node.t
 
-let op_binary ?span form left right =
-  Node.create form ~children:[`Of, left; `Of, right] ?span
+val op_binary :
+  ?span:span
+  -> 'a
+  -> ('a, [> `Of] as 'b) Node.t
+  -> ('a, 'b) Node.t
+  -> ('a, 'b) Node.t

@@ -13,24 +13,11 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-type position = Lexing.position
-val position_of_sexp : Sexplib.Sexp.t -> position
-val sexp_of_position : position -> Sexplib.Sexp.t
+open Jeff65_kernel.Ast
+open Base
+open Sexplib.Std
 
-type span = position * position
-[@@deriving sexp]
-
-module Node : sig
-  type ('a, 'b) t = { form : 'a
-                    ; span : span Sexplib.Conv.sexp_option
-                    ; children : ('b * ('a, 'b) t) list
-                    }
-  [@@deriving fields, sexp]
-
-  val create : ?span:span -> ?children:('b * ('a, 'b) t) list -> 'a -> ('a, 'b) t
-end
-
-module Tag : sig
+module Tag = struct
   type t = [
     | `Member
     | `Target
@@ -50,7 +37,7 @@ module Tag : sig
   [@@deriving variants, sexp]
 end
 
-module Form : sig
+module Form = struct
   type t = [
     | `Identifier of string
     | `Boolean of bool
@@ -80,22 +67,15 @@ module Form : sig
   [@@deriving variants, sexp]
 end
 
-val identifier : ?span:span -> string -> ([> `Identifier of string], 'b) Node.t
+let identifier ?span id =
+  Node.create (`Identifier id) ?span
 
-val block :
-  ?span:span
-  -> ([> `Block] as 'a, [> `Stmt] as 'b) Node.t list
-  -> ('a, 'b) Node.t
+let block ?span statements =
+  let children = List.map statements ~f:(fun s -> (`Stmt, s)) in
+  Node.create `Block ~children ?span
 
-val op_prefix :
-  ?span:span
-  -> 'a
-  -> ('a, [> `Of] as 'b) Node.t
-  -> ('a, 'b) Node.t
+let op_prefix ?span form right =
+  Node.create form ~children:[`Of, right] ?span
 
-val op_binary :
-  ?span:span
-  -> 'a
-  -> ('a, [> `Of] as 'b) Node.t
-  -> ('a, 'b) Node.t
-  -> ('a, 'b) Node.t
+let op_binary ?span form left right =
+  Node.create form ~children:[`Of, left; `Of, right] ?span
