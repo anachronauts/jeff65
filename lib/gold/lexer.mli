@@ -17,6 +17,7 @@ type token = Parser.token * Lexing.position * Lexing.position
 
 type syntax_error =
   | Lex_error of string * Ast.span
-  | Parse_error of Ast.Node.t Parser.MenhirInterpreter.env * Ast.span
+  | Parse_error of (Ast.Form.t, Ast.Tag.t) Ast.Node.t Parser.MenhirInterpreter.env
+                   * Ast.span
 
 val read : Sedlexing.lexbuf -> (token, syntax_error) result

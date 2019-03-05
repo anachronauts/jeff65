@@ -16,6 +16,7 @@
 %{
 
 open Ast
+module List = Base.List
 
 %}
 
@@ -126,189 +127,243 @@ open Ast
 %nonassoc PAREN_OPEN
 %nonassoc BRACKET_OPEN
 
-%start <Ast.Node.t> unit
+%start <(Ast.Form.t, Ast.Tag.t) Ast.Node.t> unit
 %%
 
 let expr :=
   | ~ = delimited(PAREN_OPEN, expr, PAREN_CLOSE); <>
   | ~ = expr; OPERATOR_DOT; m = IDENTIFIER;
-    { `Member_access (expr, m) |> Spanning.loc $loc }
+    { Node.create `Member_access
+        ~children:[ `Target, expr
+                  ; `Member, identifier m ~span:$loc(m)]
+        ~span:$loc }
   | t = expr; a = delimited(BRACKET_OPEN, expr, BRACKET_CLOSE);
-    { `Subscript (t, a) |> Spanning.loc $loc }
+    { Node.create `Subscript ~children:[`Target, t; `Of, a] ~span:$loc }
   | target = expr; args = delimited(PAREN_OPEN, alist, PAREN_CLOSE);
-    { `Call { ValCall.target; args } |> Spanning.loc $loc }
+    { let args = List.map args ~f:(fun a -> (`Elem, a)) in
+      let args = Node.create `A_list ~children:args ~span:$loc(args) in
+      Node.create `Call ~children:[`Target, target; `Of, args] ~span:$loc }
   | OPERATOR_REF; ~ = expr;
-    { `Ref expr |> Spanning.loc $loc }
+    { op_prefix `Refer expr ~span:$loc }
   | OPERATOR_DEREF; ~ = expr;
-    { `Deref expr |> Spanning.loc $loc }
+    { op_prefix `Deref expr ~span:$loc }
   | OPERATOR_MINUS; ~ = expr;
-    { `Negate expr |> Spanning.loc $loc } %prec OPERATOR_UMINUS
+    { op_prefix `Negate expr ~span:$loc } %prec OPERATOR_UMINUS
   | OPERATOR_BITNOT; ~ = expr;
-    { `Bit_not expr |> Spanning.loc $loc }
+    { op_prefix `Bit_not expr ~span:$loc }
   | OPERATOR_NOT; ~ = expr;
-    { `Log_not expr |> Spanning.loc $loc }
+    { op_prefix `Log_not expr ~span:$loc }
   | l = expr; OPERATOR_BITAND; r = expr;
-    { `Bit_and (l, r) |> Spanning.loc $loc }
+    { op_binary `Bit_and l r ~span:$loc }
   | l = expr; OPERATOR_BITOR; r = expr;
-    { `Bit_or (l, r) |> Spanning.loc $loc }
+    { op_binary `Bit_or l r ~span:$loc }
   | l = expr; OPERATOR_BITXOR; r = expr;
-    { `Bit_xor (l, r) |> Spanning.loc $loc }
+    { op_binary `Bit_xor l r ~span:$loc }
   | l = expr; OPERATOR_SHL; r = expr;
-    { `Shl (l, r) |> Spanning.loc $loc }
+    { op_binary `Shl l r ~span:$loc }
   | l = expr; OPERATOR_SHR; r = expr;
-    { `Shr (l, r) |> Spanning.loc $loc }
+    { op_binary `Shr l r ~span:$loc }
   | l = expr; OPERATOR_TIMES; r = expr;
-    { `Mul (l, r) |> Spanning.loc $loc }
+    { op_binary `Mul l r ~span:$loc }
   | l = expr; OPERATOR_DIVIDE; r = expr;
-    { `Div (l, r) |> Spanning.loc $loc }
+    { op_binary `Div l r ~span:$loc }
   | l = expr; OPERATOR_PLUS; r = expr;
-    { `Add (l, r) |> Spanning.loc $loc }
+    { op_binary `Add l r ~span:$loc }
   | l = expr; OPERATOR_MINUS; r = expr;
-    { `Sub (l, r) |> Spanning.loc $loc }
+    { op_binary `Sub l r ~span:$loc }
   | l = expr; OPERATOR_EQ; r = expr;
-    { `Cmp_eq (l, r) |> Spanning.loc $loc }
+    { op_binary `Cmp_eq l r ~span:$loc }
   | l = expr; OPERATOR_NE; r = expr;
-    { `Cmp_ne (l, r) |> Spanning.loc $loc }
+    { op_binary `Cmp_ne l r ~span:$loc }
   | l = expr; OPERATOR_LE; r = expr;
-    { `Cmp_le (l, r) |> Spanning.loc $loc }
+    { op_binary `Cmp_le l r ~span:$loc }
   | l = expr; OPERATOR_GE; r = expr;
-    { `Cmp_ge (l, r) |> Spanning.loc $loc }
+    { op_binary `Cmp_ge l r ~span:$loc }
   | l = expr; OPERATOR_LT; r = expr;
-    { `Cmp_lt (l, r) |> Spanning.loc $loc }
+    { op_binary `Cmp_lt l r ~span:$loc }
   | l = expr; OPERATOR_GT; r = expr;
-    { `Cmp_gt (l, r) |> Spanning.loc $loc }
+    { op_binary `Cmp_gt l r ~span:$loc }
   | l = expr; OPERATOR_OR; r = expr;
-    { `Log_or (l, r) |> Spanning.loc $loc }
+    { op_binary `Log_or l r ~span:$loc }
   | l = expr; OPERATOR_AND; r = expr;
-    { `Log_and (l, r) |> Spanning.loc $loc }
-  | id = IDENTIFIER; { `Identifier id |> Spanning.loc $loc }
-  | num = NUMERIC; { `Numeric num |> Spanning.loc $loc }
+    { op_binary `Log_and l r ~span:$loc }
+  | id = IDENTIFIER; { identifier id ~span:$loc }
+  | num = NUMERIC; { Node.create (`Numeric num) ~span:$loc }
 
 let alist :=
   | ~ = separated_list(PUNCT_COMMA, expr); <>
 
 let array :=
   | alist = delimited(BRACKET_OPEN, alist, BRACKET_CLOSE);
-    { `Array alist |> Spanning.loc $loc }
+    { let children = List.map alist ~f:(fun a -> (`Elem, a)) in
+      Node.create `Array ~children ~span:$loc }
 
 let storage :=
-  | { Auto }
-  | STORAGE_MUT; { Mut }
-  | STORAGE_STASH; { Stash }
+  | { Node.create `Storage_default ~span:$loc }
+  | STORAGE_MUT; { Node.create `Storage_mut ~span:$loc }
+  | STORAGE_STASH; { Node.create `Storage_stash ~span:$loc }
 
 let range :=
   | f = expr; PUNCT_TO; t = expr; { (f, t) }
 
 let range_or_upper :=
-  | ~ = expr; { (`Numeric "0", expr) }
+  | ~ = expr; { (Node.create (`Numeric "0"), expr) }
   | ~ = range; <>
 
 let range_or_expr :=
-  | ~ = expr; <StmtFor.Iter>
-  | (f, t) = range; <StmtFor.Range>
+  | ~ = expr; { Node.create `Iterable ~children:[`Of, expr] ~span:$loc }
+  | (f, t) = range; { Node.create `Range ~children:[`From, f; `To, t] ~span:$loc }
 
 let inner_type_id :=
-  | id = IDENTIFIER; <Typename.Primitive>
-  | OPERATOR_REF; s = storage; p = inner_type_id;
-    { Typename.Ref { RefType.ty = p; storage = s } }
-  | OPERATOR_REF; BRACKET_OPEN; s = storage; t = inner_type_id; BRACKET_CLOSE;
-    { Typename.Slice { SliceType.ty = t; storage = s } }
+  | id = IDENTIFIER;
+    { let name = identifier id ~span:$loc(id) in
+      Node.create `Type_primitive ~children:[`Name, name] ~span:$loc }
+  | OPERATOR_REF; s = storage; b = inner_type_id;
+    { Node.create `Type_ref ~children:[`Storage, s; `Base, b] ~span:$loc }
+  | OPERATOR_REF; BRACKET_OPEN; s = storage; b = inner_type_id; BRACKET_CLOSE;
+    { Node.create `Type_slice ~children:[`Storage, s; `Base, b] ~span:$loc }
 
 let type_id :=
   | ~ = inner_type_id; <>
-  | BRACKET_OPEN; s = storage; t = inner_type_id; PUNCT_SEMICOLON;
-    r = range_or_upper; BRACKET_CLOSE;
-    { Typename.Array { ArrayType.ty = t; storage = s; range = r } }
+  | BRACKET_OPEN; s = storage; b = inner_type_id; PUNCT_SEMICOLON;
+    (f, t) = range_or_upper; BRACKET_CLOSE;
+    { Node.create `Type_array
+        ~children:[ `Storage, s
+                  ; `Base, b
+                  ; `From, f
+                  ; `To, t
+                  ]
+        ~span:$loc }
 
 let declaration :=
-  | name = IDENTIFIER; PUNCT_COLON; ty = type_id; { { Decl.name; ty } }
+  | name = IDENTIFIER; PUNCT_COLON; ty = type_id;
+    { (identifier name ~span:$loc(name), ty) }
 
 let expr_or_array ==
   | ~ = expr; <>
   | ~ = array; <>
 
 let stmt_constant :=
-  | STMT_CONSTANT; d = declaration; OPERATOR_ASSIGN; e = expr_or_array;
-    { `Stmt_constant { StmtConstant.decl = d; value = e } |> Spanning.loc $loc }
+  | STMT_CONSTANT; (n, t) = declaration; OPERATOR_ASSIGN; e = expr_or_array;
+    { Node.create `Stmt_constant
+        ~children:[ `Name, n
+                  ; `Type, t
+                  ; `Of, e ]
+        ~span:$loc }
     %prec STMT
 
 let stmt_use :=
   | STMT_USE; name = IDENTIFIER;
-    { `Stmt_use { StmtUse.name } |> Spanning.loc $loc }
+    { Node.create `Stmt_use ~children:[`Name, identifier name ~span:$loc(name)] ~span:$loc }
 
 let stmt_let :=
-  | STMT_LET; s = storage; d = declaration; OPERATOR_ASSIGN; e = expr_or_array;
-    { `Stmt_let { StmtLet.decl = d; storage = s; value = e } |> Spanning.loc $loc }
+  | STMT_LET; s = storage; (n, t) = declaration; OPERATOR_ASSIGN; e = expr_or_array;
+    { Node.create `Stmt_let
+        ~children:[ `Storage, s
+                  ; `Name, n
+                  ; `Type, t
+                  ; `Of, e ]
+        ~span:$loc }
     %prec STMT
 
 let do_block :=
-  | PUNCT_DO; ~ = body*; PUNCT_END; <>
+  | PUNCT_DO; body = body*; PUNCT_END;
+    { block body ~span:$loc }
 
 let stmt_while :=
   | STMT_WHILE; cond = expr; body = do_block;
-    { `Stmt_while { StmtWhile.cond; body } |> Spanning.loc $loc }
+    { Node.create `Stmt_while ~children:[`Cond, cond; `Body, body] ~span:$loc }
 
 let stmt_for :=
-  | STMT_FOR; var = declaration; PUNCT_IN; range = range_or_expr; body = do_block;
-    { `Stmt_for { StmtFor.var; range; body } |> Spanning.loc $loc }
+  | STMT_FOR; (n, t) = declaration; PUNCT_IN; range = range_or_expr; body = do_block;
+    { Node.create `Stmt_for
+        ~children:[ `Name, n
+                  ; `Type, t
+                  ; `Of, range
+                  ; `Body, body ]
+        ~span:$loc }
 
 let branch_elseif :=
   | PUNCT_ELSEIF; cond = expr; PUNCT_THEN; body = body*;
-    { { StmtIf.cond = cond; body = body } }
+    { let body = block body ~span:$loc(body) in
+      Node.create `Branch_if ~children:[`Cond, cond; `Body, body] ~span:$loc }
 
 let branch_else :=
   | PUNCT_ELSE; body = body*;
-    { { StmtIf.cond = `Boolean true; body = body } }
+    { let body = block body ~span:$loc(body) in
+      Node.create `Branch_else ~children:[`Body, body] ~span:$loc }
 
 let stmt_if :=
   | STMT_IF; cond = expr; PUNCT_THEN; body0 = body*;
     branchn = branch_elseif*;
     branchf = branch_else;
     PUNCT_END;
-    {
-      let branch0 = { StmtIf.cond; body = body0 } in
-      let branches = branch0 :: (branchn @ [branchf]) in
-      (`Stmt_if branches) |> Spanning.loc $loc
-    }
+    { let body0 = block body0 ~span:$loc(body0) in
+      let branch0 = Node.create `Branch_if
+                      ~children:[`Cond, cond; `Body, body0]
+                      ~span:($startpos, $endpos(body0))
+      in
+      let branch0 = (`Branch, branch0) in
+      let branchn = List.map branchn ~f:(fun b -> (`Branch, b)) in
+      let branchf = (`Branch, branchf) in
+      let children = branch0 :: (branchn @ [branchf]) in
+      Node.create `Stmt_if ~children ~span:$loc }
 
 let stmt_isr :=
   | STMT_ISR; name = IDENTIFIER; body = body*; PUNCT_ENDISR;
-    { `Stmt_isr { StmtIsr.name; body } |> Spanning.loc $loc }
+    { let name = identifier name ~span:$loc(name) in
+      let body = block body ~span:$loc(body) in
+      Node.create `Stmt_isr ~children:[`Name, name; `Body, body] ~span:$loc }
 
 let stmt_expr :=
   | ~ = expr;
-    { `Stmt_expr expr |> Spanning.loc $loc } %prec STMT
+    { Node.create `Stmt_expr ~children:[`Of, expr] ~span:$loc } %prec STMT
 
 let plist := ~ = separated_list(PUNCT_COMMA, declaration); <>
 
 let stmt_fun :=
   | STMT_FUN; name = IDENTIFIER; params = delimited(PAREN_OPEN, plist, PAREN_CLOSE);
     body = body*; PUNCT_ENDFUN;
-    { `Stmt_fun { StmtFun.name
-                ; return = Typename.Void
-                ; params; body }
-      |> Spanning.loc $loc }
+    { let name = identifier name ~span:$loc(name) in
+      let params = List.concat_map params ~f:(fun (n, t) -> [`Name, n; `Type, t]) in
+      let params = Node.create `P_list ~children:params ~span:$loc(params) in
+      let return = Node.create `Type_primitive ~children:[`Name, identifier "void"] in
+      let ty = Node.create `Type_fun ~children:[`From, params; `To, return] in
+      let body = block body ~span:$loc(body) in
+      Node.create `Stmt_fun
+        ~children:[ `Name, name
+                  ; `Type, ty
+                  ; `Body, body ]
+        ~span:$loc }
   | STMT_FUN; name = IDENTIFIER; params = delimited(PAREN_OPEN, plist, PAREN_CLOSE);
     PUNCT_ARROWR; return = type_id;
     body = body*; PUNCT_ENDFUN;
-    { `Stmt_fun { StmtFun.name; return; params; body }
-      |> Spanning.loc $loc }
+    { let name = identifier name ~span:$loc(name) in
+      let params = List.concat_map params ~f:(fun (n, t) -> [`Name, n; `Type, t]) in
+      let params = Node.create `P_list ~children:params ~span:$loc(params) in
+      let ty = Node.create `Type_fun ~children:[`From, params; `To, return] in
+      let body = block body ~span:$loc(body) in
+      Node.create `Stmt_fun
+        ~children:[ `Name, name
+                  ; `Type, ty
+                  ; `Body, body ]
+        ~span:$loc }
 
 let stmt_return :=
   | STMT_RETURN; ~ = expr;
-    { `Stmt_return (Some expr) |> Spanning.loc $loc }
+    { Node.create `Stmt_return ~children:[`Of, expr] ~span:$loc }
   | STMT_RETURN;
-    { `Stmt_return None |> Spanning.loc $loc }
+    { Node.create `Stmt_return ~span:$loc }
 
 let stmt_assign :=
   | lvalue = expr; OPERATOR_ASSIGN; rvalue = expr;
-    { `Stmt_assign { StmtAssign.lvalue; rvalue } |> Spanning.loc $loc }
+    { Node.create `Stmt_assign ~children:[`Target, lvalue; `Of, rvalue] ~span:$loc }
   | lvalue = expr; OPERATOR_ASSIGN_INC; rvalue = expr;
-    { `Stmt_assign { StmtAssign.lvalue; rvalue = `Add (lvalue, rvalue) }
-      |> Spanning.loc $loc }
+    { let sum = Node.create `Add ~children:[`Of, lvalue; `Of, rvalue] in
+      Node.create `Stmt_assign ~children:[`Target, lvalue; `Of, sum] ~span:$loc }
   | lvalue = expr; OPERATOR_ASSIGN_DEC; rvalue = expr;
-    { `Stmt_assign { StmtAssign.lvalue ; rvalue = `Sub (lvalue, rvalue) }
-      |> Spanning.loc $loc }
+    { let diff = Node.create `Sub ~children:[`Of, lvalue; `Of, rvalue] in
+      Node.create `Stmt_assign ~children:[`Target, lvalue; `Of, diff] ~span:$loc }
 
 let common_block ==
   | ~ = stmt_constant; <>
@@ -330,5 +385,7 @@ let toplevel :=
   | ~ = stmt_isr; <>
 
 let unit :=
-  | body = toplevel*; EOF; { `Unit body |> Spanning.loc $loc }
+  | body = toplevel*; EOF;
+    { let children = List.map body ~f:(fun b -> (`Body, b)) in
+      Node.create `Unit ~children ~span:$loc }
 

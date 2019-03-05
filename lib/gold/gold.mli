@@ -19,4 +19,6 @@ type syntax_error = Lexer.syntax_error
 
 val print_position : Stdio.Out_channel.t -> Sedlexing.lexbuf -> unit
 
-val parse_with_error : Sedlexing.lexbuf -> (Ast.Node.t, syntax_error list) result
+val parse_with_error :
+  Sedlexing.lexbuf
+  -> ((Ast.Form.t, Ast.Tag.t) Ast.Node.t, syntax_error list) result
