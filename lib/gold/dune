@@ -1,12 +1,12 @@
 (library
  (name gold)
  (libraries
-  base
   core_kernel
-  stdio
-  sexplib0 sexplib
   sedlex
   menhirLib
+  fpath
+  uunf
+  uutf
   jeff65_kernel)
  (preprocess
   (pps

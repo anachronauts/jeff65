@@ -13,10 +13,12 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Base
+open Core_kernel
 open Cmdliner
 
-type copts = { debugopts : string list }
+module Common_opts = struct
+  type t = { debug_opts : string list }
+end
 
 let help_secs = [
   `S Manpage.s_common_options;
@@ -25,7 +27,7 @@ let help_secs = [
   `P "Use `$(mname) $(i,COMMAND) --help' for help on a single command.";
 ]
 
-let copts debugopts = { debugopts }
+let copts debug_opts = { Common_opts.debug_opts }
 let copts_t =
   let docs = Manpage.s_common_options in
   let debugopts =
@@ -34,13 +36,43 @@ let copts_t =
   in
   Term.(const copts $ debugopts)
 
-let compile copts =
-  List.iter copts.debugopts ~f:(fun opt ->
-    Stdio.print_endline opt);
-  Stdio.print_endline "Compile"
+let convert_path path =
+  Fpath.of_string path
+  |> Result.map_error ~f:(fun (`Msg e) -> [Error.of_string e])
+
+let compile copts in_path out_path =
+  let open Gold in
+  match
+    let open Result.Let_syntax in
+    let%bind cwd = Sys.getcwd () |> convert_path in
+    let%bind debug_opts = Gold.Debug_opts.t_of_string_list
+        copts.Common_opts.debug_opts |> Result.map_error ~f:(fun e -> [e])
+    in
+    let%bind in_path = convert_path in_path in
+    let in_path = Fpath.(cwd // in_path |> normalize) in
+    let%bind out_path = match out_path with
+      | Some p -> convert_path p
+      | None -> Ok Fpath.(in_path + ".gold")
+    in
+    let out_path = Fpath.(cwd // out_path |> normalize) in
+    compile { in_path; out_path; debug_opts }
+  with
+  | Error errs -> List.iter errs ~f:(fun e ->
+      Out_channel.fprintf stderr "%s\n" (Error.to_string_hum e))
+  | Ok () -> ()
+
 let compile_cmd =
-  Term.(const compile $ copts_t),
-  Term.info "compile"
+  let in_path_t =
+    let doc = "The file to compile." in
+    Arg.(required & pos 0 (some file) None & info [] ~doc ~docv:"FILE")
+  in
+  let out_path_t =
+    let doc = "Place the output into OUTPUT" in
+    Arg.(value & opt (some file) None & info ["o"; "output"] ~docv:"OUTPUT" ~doc)
+  in
+  let doc = "Compile a source file" in
+  Term.(const compile $ copts_t $ in_path_t $ out_path_t),
+  Term.info "compile" ~doc
 
 let default_cmd =
   let sdocs = Manpage.s_common_options in

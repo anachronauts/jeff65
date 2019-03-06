@@ -67,6 +67,8 @@ module Form = struct
   [@@deriving variants, sexp]
 end
 
+type syntax_node = (Form.t, Tag.t) Node.t
+
 let identifier ?span id =
   Node.create (`Identifier id) ?span
 

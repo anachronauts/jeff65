@@ -65,6 +65,8 @@ module Form : sig
   [@@deriving variants, sexp]
 end
 
+type syntax_node = (Form.t, Tag.t) Node.t
+
 val identifier : ?span:span -> string -> ([> `Identifier of string], 'b) Node.t
 
 val block :

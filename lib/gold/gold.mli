@@ -13,14 +13,23 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Jeff65_kernel
+open Core_kernel
 
-type syntax_error = Lexer.syntax_error
+module Debug_opts : sig
+  type t = { log_debug : bool
+           ; show_spans : bool
+           }
+  [@@deriving fields]
 
-val print_position : Stdio.Out_channel.t -> Sedlexing.lexbuf -> unit
+  val t_of_string_list : string list -> t Or_error.t
+end
 
-val parse_with_error :
-  Sedlexing.lexbuf
-  -> ((Syntax.Form.t, Syntax.Tag.t) Ast.Node.t, syntax_error list) result
+module Compile_opts : sig
+  type t = { in_path : Fpath.t
+           ; out_path : Fpath.t
+           ; debug_opts : Debug_opts.t
+           }
+  [@@deriving fields]
+end
 
-val sexp_of_syntax : ((Syntax.Form.t, Syntax.Tag.t) Ast.Node.t) -> Sexplib.Sexp.t
+val compile : Compile_opts.t -> (unit, Base.Error.t list) result

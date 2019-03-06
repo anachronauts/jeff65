@@ -1,8 +1,6 @@
 (library
  (name jeff65_kernel)
- (libraries
-  base
-  sexplib0 sexplib)
+ (libraries base sexplib)
  (preprocess
   (pps
    ppx_fields_conv

@@ -128,7 +128,7 @@ module List = Base.List
 %nonassoc PAREN_OPEN
 %nonassoc BRACKET_OPEN
 
-%start <(Syntax.Form.t, Syntax.Tag.t) Jeff65_kernel.Ast.Node.t> unit
+%start <Syntax.syntax_node> unit
 %%
 
 let expr :=

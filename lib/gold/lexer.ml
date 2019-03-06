@@ -13,16 +13,16 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Jeff65_kernel
+open Core_kernel
 open Sedlexing
+open Jeff65_kernel
 open Parser
 
 type token = Parser.token * Lexing.position * Lexing.position
 
 type syntax_error =
   | Lex_error of string * Ast.span
-  | Parse_error of (Syntax.Form.t, Syntax.Tag.t) Ast.Node.t MenhirInterpreter.env
-                   * Ast.span
+  | Parse_error of Syntax.syntax_node MenhirInterpreter.env * Ast.span
 
 let specials =
   [%sedlex.regexp? '(' | ')' | '[' | ']' | '{' | '}'
@@ -37,6 +37,22 @@ let match_error buf =
     let loc = lexing_positions buf in
     Lex_error (bad_text, loc)
   | _ -> assert false
+
+let nfc_lexeme buf =
+  let w = lexeme buf in
+  let b = Buffer.create (Array.length w * 3) in
+  let nfc = Uunf.create `NFC in
+  let rec add v = match Uunf.add nfc v with
+    | `Uchar u -> Uutf.Buffer.add_utf_8 b u; add `Await
+    | `Await | `End -> ()
+  in
+  let add_uchar = function
+    | `Malformed _ -> add (`Uchar Uutf.u_rep)
+    | `Uchar _ as u -> add u
+  in
+  Array.iter w ~f:(fun u -> add_uchar (`Uchar u));
+  add `End;
+  Buffer.contents b
 
 let rec lex_main buf =
   match%sedlex buf with
@@ -67,8 +83,8 @@ let rec lex_main buf =
   | "to" -> Ok PUNCT_TO
   | "use" -> Ok STMT_USE
   | "while" -> Ok STMT_WHILE
-  | ('0' .. '9'), Star (Compl tok_end) -> Ok (NUMERIC (Utf8.lexeme buf))
-  | xid_start, Star(Compl tok_end) -> Ok (IDENTIFIER (Utf8.lexeme buf))
+  | ('0' .. '9'), Star (Compl tok_end) -> Ok (NUMERIC (nfc_lexeme buf))
+  | xid_start, Star(Compl tok_end) -> Ok (IDENTIFIER (nfc_lexeme buf))
   (* TODO comments *)
   (* TODO strings *)
   | "==" -> Ok OPERATOR_EQ
