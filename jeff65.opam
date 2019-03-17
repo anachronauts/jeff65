@@ -10,7 +10,7 @@ license: "GPLv3+"
 homepage: "https://github.com/anachronauts/jeff65"
 bug-reports: "https://github.com/anachronauts/jeff65/issues"
 depends: [
-  "ocaml" {build & >= "4.07.1"}
+  "ocaml" {build & >= "4.07.0"}
   "dune" {build & >= "1.0"}
   "astring" {>= "0.8.3"}
   "cmdliner" {>= "1.0.3" & < "2.0"}
