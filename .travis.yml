@@ -6,3 +6,7 @@ env:
   - OCAML_VERSION=4.07
 os:
   - linux
+cache:
+  apt: true
+  directories:
+    - $HOME/.opam
