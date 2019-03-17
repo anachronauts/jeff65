@@ -9,7 +9,7 @@ environment:
     - OPAM_SWITCH: 4.07.0+msvc64c
 
 cache:
-  - '.opam -> jeff65.opam'
+  - '%CYG_ROOT%/home/appveyor/.opam -> jeff65.opam'
 
 install:
   - ps: iex ((new-object net.webclient).DownloadString("https://raw.githubusercontent.com/$env:FORK_USER/ocaml-ci-scripts/$env:FORK_BRANCH/appveyor-install.ps1"))
