@@ -14,18 +14,19 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
 type position = Lexing.position
-val position_of_sexp : Sexplib.Sexp.t -> position
-val sexp_of_position : position -> Sexplib.Sexp.t
+val sexp_of_position : position -> CCSexp.t
 
 type span = position * position
-[@@deriving sexp]
+
+val sexp_of_span : span -> CCSexp.t
 
 module Node : sig
   type ('a, 'b) t = { form : 'a
-                    ; span : span Sexplib.Conv.sexp_option
+                    ; span : span option
                     ; children : ('b * ('a, 'b) t) list
                     }
-  [@@deriving fields, sexp]
+
+  val sexp_of_t : ('a -> CCSexp.t) -> ('b -> CCSexp.t) -> ('a, 'b) t -> CCSexp.t
 
   val create : ?span:span -> ?children:('b * ('a, 'b) t) list -> 'a -> ('a, 'b) t
 end

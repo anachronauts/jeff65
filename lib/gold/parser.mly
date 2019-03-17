@@ -15,9 +15,10 @@
 
 %{
 
+open! Containers
+open! Astring
 open Jeff65_kernel.Ast
 open Syntax
-module List = Base.List
 
 %}
 
@@ -141,7 +142,7 @@ let expr :=
   | t = expr; a = delimited(BRACKET_OPEN, expr, BRACKET_CLOSE);
     { Node.create `Subscript ~children:[`Target, t; `Of, a] ~span:$loc }
   | target = expr; args = delimited(PAREN_OPEN, alist, PAREN_CLOSE);
-    { let args = List.map args ~f:(fun a -> (`Elem, a)) in
+    { let args = List.map (fun a -> (`Elem, a)) args in
       let args = Node.create `A_list ~children:args ~span:$loc(args) in
       Node.create `Call ~children:[`Target, target; `Of, args] ~span:$loc }
   | OPERATOR_REF; ~ = expr;
@@ -196,7 +197,7 @@ let alist :=
 
 let array :=
   | alist = delimited(BRACKET_OPEN, alist, BRACKET_CLOSE);
-    { let children = List.map alist ~f:(fun a -> (`Elem, a)) in
+    { let children = List.map (fun a -> (`Elem, a)) alist in
       Node.create `Array ~children ~span:$loc }
 
 let storage :=
@@ -305,7 +306,7 @@ let stmt_if :=
                       ~span:($startpos, $endpos(body0))
       in
       let branch0 = (`Branch, branch0) in
-      let branchn = List.map branchn ~f:(fun b -> (`Branch, b)) in
+      let branchn = List.map (fun b -> (`Branch, b)) branchn in
       let branchf = (`Branch, branchf) in
       let children = branch0 :: (branchn @ [branchf]) in
       Node.create `Stmt_if ~children ~span:$loc }
@@ -326,7 +327,7 @@ let stmt_fun :=
   | STMT_FUN; name = IDENTIFIER; params = delimited(PAREN_OPEN, plist, PAREN_CLOSE);
     body = body*; PUNCT_ENDFUN;
     { let name = identifier name ~span:$loc(name) in
-      let params = List.concat_map params ~f:(fun (n, t) -> [`Name, n; `Type, t]) in
+      let params = List.flat_map (fun (n, t) -> [`Name, n; `Type, t]) params in
       let params = Node.create `P_list ~children:params ~span:$loc(params) in
       let return = Node.create `Type_primitive ~children:[`Name, identifier "void"] in
       let ty = Node.create `Type_fun ~children:[`From, params; `To, return] in
@@ -340,7 +341,7 @@ let stmt_fun :=
     PUNCT_ARROWR; return = type_id;
     body = body*; PUNCT_ENDFUN;
     { let name = identifier name ~span:$loc(name) in
-      let params = List.concat_map params ~f:(fun (n, t) -> [`Name, n; `Type, t]) in
+      let params = List.flat_map (fun (n, t) -> [`Name, n; `Type, t]) params in
       let params = Node.create `P_list ~children:params ~span:$loc(params) in
       let ty = Node.create `Type_fun ~children:[`From, params; `To, return] in
       let body = block body ~span:$loc(body) in
@@ -387,6 +388,6 @@ let toplevel :=
 
 let unit :=
   | body = toplevel*; EOF;
-    { let children = List.map body ~f:(fun b -> (`Body, b)) in
+    { let children = List.map (fun b -> (`Body, b)) body in
       Node.create `Unit ~children ~span:$loc }
 

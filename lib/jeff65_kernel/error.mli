@@ -1,4 +1,4 @@
-(* jeff65 blum image format
+(* jeff65 error type
    Copyright (C) 2019  jeff65 maintainers
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,12 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open! Containers
-open! Astring
-(* open Binary_packing *)
+type t = string lazy_t
 
-(* let make_cc code =
- *   unpack_unsigned_16_little_endian ~buf:(Bytes.of_string code) ~pos:0 *)
+val of_thunk : (unit -> string) -> t
+
+val of_string : string -> t
+
+val of_fmt : ('a, unit, string, string lazy_t) format4 -> 'a
+
+val to_string : t -> string

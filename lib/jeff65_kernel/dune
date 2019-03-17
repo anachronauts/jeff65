@@ -1,7 +1,3 @@
 (library
  (name jeff65_kernel)
- (libraries base sexplib)
- (preprocess
-  (pps
-   ppx_fields_conv
-   ppx_sexp_conv)))
+ (libraries astring containers containers.sexp))

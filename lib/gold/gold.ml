@@ -13,29 +13,33 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Core_kernel
+open! Containers
+open! Astring
 open Jeff65_kernel
-module Sexp = Sexplib.Sexp
 
 module Debug_opts = struct
   type t = { log_debug : bool
            ; show_spans : bool
            }
-  [@@deriving fields]
 
-  let all_opts = Set.of_list (module String) Fields.names
+  module S = Set.Make(String)
+
+  let all_opts = S.of_list ["log_debug"; "show_spans"]
 
   let fmt_opts () = String.concat ~sep:" "
 
   let t_of_string_list opts =
-    let opts = Set.of_list (module String) opts in
-    match Set.diff opts all_opts |> Set.to_list with
-    | [] -> Ok { log_debug = Set.mem opts "log_debug"
-               ; show_spans = Set.mem opts "show_spans"
+    let opts = S.of_list opts in
+    match S.diff opts all_opts |> S.to_list with
+    | [] -> Ok { log_debug = S.mem "log_debug" opts
+               ; show_spans = S.mem "show_spans" opts
                }
-    | _ as bad -> Or_error.errorf
-                    "No debug options matching any of: %a. Available options are: %a."
-                    fmt_opts bad fmt_opts (Set.to_list all_opts)
+    | _ as bad ->
+      let err = Error.of_fmt
+          "No debug options matching any of: %a. Available options are: %a."
+          fmt_opts bad fmt_opts (S.to_list all_opts)
+      in
+      Error err
 end
 
 module Compile_opts = struct
@@ -43,7 +47,6 @@ module Compile_opts = struct
            ; out_path : Fpath.t
            ; debug_opts : Debug_opts.t
            }
-  [@@deriving fields]
 end
 
 let parse_with_error lexbuf =
@@ -79,27 +82,30 @@ let sexp_of_syntax =
   Ast.Node.sexp_of_t Syntax.Form.sexp_of_t Syntax.Tag.sexp_of_t
 
 let fmt_position () { Lexing.pos_fname; pos_lnum; pos_cnum; pos_bol } =
-  sprintf "%s:%d:%d" pos_fname pos_lnum (pos_cnum - pos_bol)
+  Printf.sprintf "%s:%d:%d" pos_fname pos_lnum (pos_cnum - pos_bol)
 
 let error_of_syntax_error err =
   Error.of_thunk (fun () -> match err with
       | Lexer.Lex_error (msg, (lstart, _)) ->
-        sprintf "%a: %s" fmt_position lstart msg
+        Printf.sprintf "%a: %s" fmt_position lstart msg
       | Lexer.Parse_error (_, (lstart, _)) ->
         (* TODO real messages *)
-        sprintf "%a: syntax error" fmt_position lstart)
+        Printf.sprintf "%a: syntax error" fmt_position lstart)
 
 let rec remove_spans ({ Ast.Node.children; _ } as ast) =
   { ast with span = None
-           ; children = List.map children ~f:(fun (t, n) -> (t, remove_spans n)) }
+           ; children = List.map (fun (t, n) -> (t, remove_spans n)) children }
 
 let compile opts =
   let in_path = Fpath.to_string opts.Compile_opts.in_path in
-  In_channel.with_file in_path ~f:(fun in_file ->
+  IO.with_in in_path (fun in_file ->
       let lexbuf = Sedlexing.Utf8.from_channel in_file in
       Sedlexing.set_filename lexbuf in_path;
       match parse_with_error lexbuf with
       | Ok ast ->
-        (if Debug_opts.show_spans opts.debug_opts then ast else remove_spans ast)
-        |> sexp_of_syntax |> Sexp.to_string_hum |> print_endline |> Result.return
-      | Error errs -> List.map errs ~f:error_of_syntax_error |> Result.fail)
+        (if opts.debug_opts.show_spans then ast else remove_spans ast)
+        |> sexp_of_syntax
+        |> CCSexp.pp Format.stdout
+        |> print_newline
+        |> Result.return
+      | Error errs -> List.map error_of_syntax_error errs |> Result.fail)

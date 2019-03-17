@@ -1,7 +1,8 @@
 (library
  (name gold)
  (libraries
-  core_kernel
+  astring
+  containers
   sedlex
   menhirLib
   fpath
@@ -9,12 +10,7 @@
   uutf
   jeff65_kernel)
  (preprocess
-  (pps
-   ppx_let
-   ppx_fields_conv
-   ppx_sexp_conv
-   ppx_variants_conv
-   sedlex.ppx)))
+  (pps sedlex.ppx)))
 
 (menhir
  (flags --explain --table)

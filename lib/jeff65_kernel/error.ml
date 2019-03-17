@@ -1,4 +1,4 @@
-(* jeff65 blum image format
+(* jeff65 error type
    Copyright (C) 2019  jeff65 maintainers
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,14 @@
 
 open! Containers
 open! Astring
-(* open Binary_packing *)
 
-(* let make_cc code =
- *   unpack_unsigned_16_little_endian ~buf:(Bytes.of_string code) ~pos:0 *)
+type t = string lazy_t
+
+let of_thunk = Lazy.from_fun
+
+let of_string = Lazy.from_val
+
+let of_fmt format =
+  Printf.ksprintf of_string format
+
+let to_string = Lazy.force

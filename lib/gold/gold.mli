@@ -13,15 +13,14 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Core_kernel
+open Jeff65_kernel
 
 module Debug_opts : sig
   type t = { log_debug : bool
            ; show_spans : bool
            }
-  [@@deriving fields]
 
-  val t_of_string_list : string list -> t Or_error.t
+  val t_of_string_list : string list -> (t, Error.t) result
 end
 
 module Compile_opts : sig
@@ -29,7 +28,6 @@ module Compile_opts : sig
            ; out_path : Fpath.t
            ; debug_opts : Debug_opts.t
            }
-  [@@deriving fields]
 end
 
-val compile : Compile_opts.t -> (unit, Base.Error.t list) result
+val compile : Compile_opts.t -> (unit, Error.t list) result

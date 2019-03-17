@@ -1,5 +1,4 @@
 (executable
  (name jeff65)
  (public_name jeff65)
- (libraries core_kernel result cmdliner gold)
- (preprocess (pps ppx_let)))
+ (libraries astring cmdliner gold))

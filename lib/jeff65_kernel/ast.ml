@@ -13,31 +13,50 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Base
-open Sexplib.Conv
-open Sexplib.Std
+open! Containers
+open! Astring
 
 type position = Lexing.position
 
-let position_of_sexp exp =
-  let (pos_fname, pos_lnum, pos_bol, pos_cnum) =
-    [%of_sexp: string * int * int * int] exp
-  in
-  { Lexing.pos_fname; pos_lnum; pos_bol; pos_cnum }
-
 let sexp_of_position pos =
   let { Lexing.pos_fname; pos_lnum; pos_bol; pos_cnum } = pos in
-  [%sexp_of: string * int * int * int] (pos_fname, pos_lnum, pos_bol, pos_cnum)
+  CCSexp.(of_quad ( (atom pos_fname)
+                  , (of_int pos_lnum)
+                  , (of_int pos_bol)
+                  , (of_int pos_cnum)
+                  )
+         )
 
 type span = position * position
-[@@deriving sexp]
+
+let sexp_of_span (pos1, pos2) =
+  CCSexp.of_pair ( sexp_of_position pos1
+                 , sexp_of_position pos2
+                 )
 
 module Node = struct
   type ('a, 'b) t = { form : 'a
-                    ; span : span sexp_option
-                    ; children : ('b * ('a, 'b) t) sexp_list
+                    ; span : span option
+                    ; children : ('b * ('a, 'b) t) list
                     }
-  [@@deriving fields, sexp]
+
+  let rec sexp_of_t sexp_of_a sexp_of_b node =
+    let fields = match node.children with
+      | [] -> []
+      | cs ->
+        let children = List.map
+            (fun (b, n) ->
+               CCSexp.of_pair (sexp_of_b b, sexp_of_t sexp_of_a sexp_of_b n))
+            cs
+        in
+        [("children", CCSexp.of_list children)]
+    in
+    let fields = match node.span with
+      | None -> fields
+      | Some value -> ("span", sexp_of_span value) :: fields
+    in
+    let fields = ("form", sexp_of_a node.form) :: fields in
+    CCSexp.of_record fields
 
   let create ?span ?(children = []) form =
     { form; span; children }

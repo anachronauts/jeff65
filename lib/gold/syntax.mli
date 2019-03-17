@@ -32,7 +32,8 @@ module Tag : sig
     | `Type
     | `Branch
   ]
-  [@@deriving variants, sexp]
+
+  val sexp_of_t : t -> CCSexp.t
 end
 
 module Form : sig
@@ -62,7 +63,8 @@ module Form : sig
     | `Type_primitive | `Type_ref | `Type_slice | `Type_array | `Type_fun
     | `Storage_default | `Storage_mut | `Storage_stash
   ]
-  [@@deriving variants, sexp]
+
+  val sexp_of_t : t -> CCSexp.t
 end
 
 type syntax_node = (Form.t, Tag.t) Node.t

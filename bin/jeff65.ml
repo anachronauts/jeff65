@@ -13,7 +13,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Core_kernel
+open! Containers
+open! Astring
+open Jeff65_kernel
 open Cmdliner
 
 module Common_opts = struct
@@ -38,27 +40,28 @@ let copts_t =
 
 let convert_path path =
   Fpath.of_string path
-  |> Result.map_error ~f:(fun (`Msg e) -> [Error.of_string e])
+  |> Result.map_err (fun (`Msg e) -> [Error.of_string e])
 
 let compile copts in_path out_path =
   let open Gold in
   match
-    let open Result.Let_syntax in
-    let%bind cwd = Sys.getcwd () |> convert_path in
-    let%bind debug_opts = Gold.Debug_opts.t_of_string_list
-        copts.Common_opts.debug_opts |> Result.map_error ~f:(fun e -> [e])
-    in
-    let%bind in_path = convert_path in_path in
-    let in_path = Fpath.(cwd // in_path |> normalize) in
-    let%bind out_path = match out_path with
-      | Some p -> convert_path p
-      | None -> Ok Fpath.(in_path + ".gold")
-    in
-    let out_path = Fpath.(cwd // out_path |> normalize) in
-    compile { in_path; out_path; debug_opts }
+    let open Result in
+    Sys.getcwd () |> convert_path >>=
+    (fun cwd ->
+       Debug_opts.t_of_string_list copts.Common_opts.debug_opts
+       |> Result.map_err (fun e -> [e]) >>=
+       (fun debug_opts -> convert_path in_path >>=
+         (fun in_path -> (match out_path with
+              | Some p -> convert_path p
+              | None -> Ok Fpath.(in_path + ".gold")) >>=
+            (fun out_path -> compile
+                { in_path = Fpath.(cwd // in_path |> normalize)
+                ; out_path = Fpath.(cwd // out_path |> normalize)
+                ; debug_opts
+                }))))
   with
-  | Error errs -> List.iter errs ~f:(fun e ->
-      Out_channel.fprintf stderr "%s\n" (Error.to_string_hum e))
+  | Error errs -> List.iter (fun e ->
+      Printf.fprintf stderr "%s\n" (Error.to_string e)) errs
   | Ok () -> ()
 
 let compile_cmd =

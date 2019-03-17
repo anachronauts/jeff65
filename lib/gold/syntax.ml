@@ -13,9 +13,9 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
+open! Containers
+open! Astring
 open Jeff65_kernel.Ast
-open Base
-open Sexplib.Std
 
 module Tag = struct
   type t = [
@@ -34,7 +34,24 @@ module Tag = struct
     | `Type
     | `Branch
   ]
-  [@@deriving variants, sexp]
+
+  let sexp_of_t (tag : t) =
+    let open CCSexp in
+    match tag with
+    | `Member -> atom "Member"
+    | `Target -> atom "Target"
+    | `Of -> atom "Of"
+    | `From -> atom "From"
+    | `To -> atom "To"
+    | `Body -> atom "Body"
+    | `Stmt -> atom "Stmt"
+    | `Elem -> atom "Elem"
+    | `Storage -> atom "Storage"
+    | `Base -> atom "Base"
+    | `Cond -> atom "Cond"
+    | `Name -> atom "Name"
+    | `Type -> atom "Type"
+    | `Branch -> atom "Branch"
 end
 
 module Form = struct
@@ -64,7 +81,67 @@ module Form = struct
     | `Type_primitive | `Type_ref | `Type_slice | `Type_array | `Type_fun
     | `Storage_default | `Storage_mut | `Storage_stash
   ]
-  [@@deriving variants, sexp]
+
+  let sexp_of_t (form : t) =
+    let open CCSexp in
+    match form with
+    | `Identifier id -> of_variant "Identifier" [atom id]
+    | `Boolean b -> of_variant "Boolean" [of_bool b]
+    | `Numeric n -> of_variant "Numeric" [atom n]
+    | `String s -> of_variant "String" [atom s]
+    | `A_list -> atom "A_list"
+    | `P_list -> atom "P_list"
+    | `Refer -> atom "Refer"
+    | `Deref -> atom "Deref"
+    | `Log_not -> atom "Log_not"
+    | `Log_and -> atom "Log_and"
+    | `Log_or -> atom "Log_or"
+    | `Bit_not -> atom "Bit_not"
+    | `Bit_and -> atom "Bit_and"
+    | `Bit_or -> atom "Bit_or"
+    | `Bit_xor -> atom "Bit_xor"
+    | `Shl -> atom "Shl"
+    | `Shr -> atom "Shr"
+    | `Negate -> atom "Negate"
+    | `Add -> atom "Add"
+    | `Sub -> atom "Sub"
+    | `Mul -> atom "Mul"
+    | `Div -> atom "Div"
+    | `Cmp_eq -> atom "Cmp_eq"
+    | `Cmp_ne -> atom "Cmp_ne"
+    | `Cmp_le -> atom "Cmp_le"
+    | `Cmp_ge -> atom "Cmp_ge"
+    | `Cmp_lt -> atom "Cmp_lt"
+    | `Cmp_gt -> atom "Cmp_gt"
+    | `Member_access -> atom "Member_access"
+    | `Subscript -> atom "Subscript"
+    | `Call -> atom "Call"
+    | `Array -> atom "Array"
+    | `Range -> atom "Range"
+    | `Iterable -> atom "Iterable"
+    | `Block -> atom "Block"
+    | `Stmt_use -> atom "Stmt_use"
+    | `Stmt_constant -> atom "Stmt_constant"
+    | `Stmt_let -> atom "Stmt_let"
+    | `Stmt_while -> atom "Stmt_while"
+    | `Stmt_for -> atom "Stmt_for"
+    | `Stmt_isr -> atom "Stmt_isr"
+    | `Stmt_assign -> atom "Stmt_assign"
+    | `Stmt_fun -> atom "Stmt_fun"
+    | `Stmt_expr -> atom "Stmt_expr"
+    | `Stmt_return -> atom "Stmt_return"
+    | `Stmt_if -> atom "Stmt_if"
+    | `Branch_if -> atom "Branch_if"
+    | `Branch_else -> atom "Branch_else"
+    | `Unit -> atom "Unit"
+    | `Type_primitive -> atom "Type_primitive"
+    | `Type_ref -> atom "Type_ref"
+    | `Type_slice -> atom "Type_slice"
+    | `Type_array -> atom "Type_array"
+    | `Type_fun -> atom "Type_fun"
+    | `Storage_default -> atom "Storage_default"
+    | `Storage_mut -> atom "Storage_mut"
+    | `Storage_stash -> atom "Storage_stash"
 end
 
 type syntax_node = (Form.t, Tag.t) Node.t
@@ -73,7 +150,7 @@ let identifier ?span id =
   Node.create (`Identifier id) ?span
 
 let block ?span statements =
-  let children = List.map statements ~f:(fun s -> (`Stmt, s)) in
+  let children = List.map (fun s -> (`Stmt, s)) statements in
   Node.create `Block ~children ?span
 
 let op_prefix ?span form right =

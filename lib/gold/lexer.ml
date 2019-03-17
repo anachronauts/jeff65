@@ -13,7 +13,8 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Core_kernel
+open! Containers
+open! Astring
 open Sedlexing
 open Jeff65_kernel
 open Parser
@@ -50,7 +51,7 @@ let nfc_lexeme buf =
     | `Malformed _ -> add (`Uchar Uutf.u_rep)
     | `Uchar _ as u -> add u
   in
-  Array.iter w ~f:(fun u -> add_uchar (`Uchar u));
+  Array.iter (fun u -> add_uchar (`Uchar u)) w;
   add `End;
   Buffer.contents b
 
@@ -122,5 +123,4 @@ let read lexbuf =
   | Ok token ->
     let (ts, te) = lexing_positions lexbuf in
     Ok (token, ts, te)
-
   | Error _ as e -> e
