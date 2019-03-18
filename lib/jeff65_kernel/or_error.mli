@@ -13,12 +13,32 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-type t = string lazy_t
+type error
 
-val of_thunk : (unit -> string) -> t
+type 'a t = ('a, error) result
 
-val of_string : string -> t
+val return : 'a -> 'a t
 
-val of_fmt : ('a, unit, string, string lazy_t) format4 -> 'a
+val fail : error -> 'a t
 
-val to_string : t -> string
+val of_thunk : (unit -> string list) -> 'a t
+
+val of_strings : string list -> 'a t
+
+val of_thunks : (unit -> string) list -> 'a t
+
+val of_string : string -> 'a t
+
+val of_thunk1 : (unit -> string) -> 'a t
+
+val of_fmt : ('a, unit, string, 'b t) format4 -> 'a
+
+val to_strings : error -> string list
+
+val choose : 'a t list -> 'a t
+
+val map_err : (string -> string) -> 'a t -> 'a t
+
+val iter_err : (string -> unit) -> 'a t -> unit
+
+val to_channel : out_channel -> 'a t -> unit

@@ -39,30 +39,27 @@ let copts_t =
   Term.(const copts $ debugopts)
 
 let convert_path path =
-  Fpath.of_string path
-  |> Result.map_err (fun (`Msg e) -> [Error.of_string e])
+  match Fpath.of_string path with
+  | Error (`Msg e) -> Or_error.of_string e
+  | Ok _ as ok -> ok
+
+let out_path_of in_path out_path =
+  Option.map convert_path out_path
+  |> Option.get_lazy (fun () -> Ok Fpath.(in_path + ".gold"))
 
 let compile copts in_path out_path =
-  let open Gold in
-  match
-    let open Result in
-    Sys.getcwd () |> convert_path >>=
-    (fun cwd ->
-       Debug_opts.t_of_string_list copts.Common_opts.debug_opts
-       |> Result.map_err (fun e -> [e]) >>=
-       (fun debug_opts -> convert_path in_path >>=
-         (fun in_path -> (match out_path with
-              | Some p -> convert_path p
-              | None -> Ok Fpath.(in_path + ".gold")) >>=
-            (fun out_path -> compile
-                { in_path = Fpath.(cwd // in_path |> normalize)
-                ; out_path = Fpath.(cwd // out_path |> normalize)
-                ; debug_opts
-                }))))
-  with
-  | Error errs -> List.iter (fun e ->
-      Printf.fprintf stderr "%s\n" (Error.to_string e)) errs
-  | Ok () -> ()
+  let bind = (Result.(>>=)) in
+  let res =
+    let%m cwd = Sys.getcwd () |> convert_path in
+    let%m debug_opts = Gold.Debug_opts.t_of_string_list copts.Common_opts.debug_opts in
+    let%m in_path = convert_path in_path in
+    let%m out_path = out_path_of in_path out_path in
+    Gold.compile { in_path = Fpath.(cwd // in_path |> normalize)
+                 ; out_path = Fpath.(cwd // out_path |> normalize)
+                 ; debug_opts
+                 }
+  in
+  Or_error.to_channel stderr res
 
 let compile_cmd =
   let in_path_t =

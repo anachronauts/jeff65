@@ -35,11 +35,9 @@ module Debug_opts = struct
                ; show_spans = S.mem "show_spans" opts
                }
     | _ as bad ->
-      let err = Error.of_fmt
-          "No debug options matching any of: %a. Available options are: %a."
-          fmt_opts bad fmt_opts (S.to_list all_opts)
-      in
-      Error err
+      Or_error.of_fmt
+        "No debug options matching any of: %a. Available options are: %a."
+        fmt_opts bad fmt_opts (S.to_list all_opts)
 end
 
 module Compile_opts = struct
@@ -85,7 +83,7 @@ let fmt_position () { Lexing.pos_fname; pos_lnum; pos_cnum; pos_bol } =
   Printf.sprintf "%s:%d:%d" pos_fname pos_lnum (pos_cnum - pos_bol)
 
 let error_of_syntax_error err =
-  Error.of_thunk (fun () -> match err with
+  Or_error.of_thunk1 (fun () -> match err with
       | Lexer.Lex_error (msg, (lstart, _)) ->
         Printf.sprintf "%a: %s" fmt_position lstart msg
       | Lexer.Parse_error (_, (lstart, _)) ->
@@ -108,4 +106,4 @@ let compile opts =
         |> CCSexp.pp Format.stdout
         |> print_newline
         |> Result.return
-      | Error errs -> List.map error_of_syntax_error errs |> Result.fail)
+      | Error errs -> List.map error_of_syntax_error errs |> Or_error.choose)

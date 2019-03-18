@@ -1,4 +1,6 @@
 (executable
  (name jeff65)
  (public_name jeff65)
- (libraries astring cmdliner gold))
+ (libraries astring cmdliner gold)
+ (preprocess
+  (pps ppx_monadic)))

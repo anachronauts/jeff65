@@ -20,7 +20,7 @@ module Debug_opts : sig
            ; show_spans : bool
            }
 
-  val t_of_string_list : string list -> (t, Error.t) result
+  val t_of_string_list : string list -> t Or_error.t
 end
 
 module Compile_opts : sig
@@ -30,4 +30,4 @@ module Compile_opts : sig
            }
 end
 
-val compile : Compile_opts.t -> (unit, Error.t list) result
+val compile : Compile_opts.t -> unit Or_error.t
