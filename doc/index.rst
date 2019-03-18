@@ -10,6 +10,9 @@ Welcome to jeff65's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   gold.rst
+   blum.rst
+
 
 
 Indices and tables

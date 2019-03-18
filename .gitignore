@@ -1,3 +1,9 @@
+# jeff65 / VICE outputs
+*.blum
+*.prg
+*.d64
+
+# ocamlc intermediate files
 *.annot
 *.cmo
 *.cma
