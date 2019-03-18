@@ -29,4 +29,11 @@ module Node : sig
   val sexp_of_t : ('a -> CCSexp.t) -> ('b -> CCSexp.t) -> ('a, 'b) t -> CCSexp.t
 
   val create : ?span:span -> ?children:('b * ('a, 'b) t) list -> 'a -> ('a, 'b) t
+
+  val strip_spans : ('a, 'b) t -> ('a, 'b) t
+
+  val select : 'b list -> ('a, 'b) t list -> ('a, 'b) t list
+
+  val select1 : 'b list -> ('a, 'b) t -> ('a, 'b) t list
 end
+

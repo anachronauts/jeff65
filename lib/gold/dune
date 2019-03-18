@@ -5,6 +5,7 @@
   containers
   sedlex
   menhirLib
+  fmt
   fpath
   uunf
   uutf

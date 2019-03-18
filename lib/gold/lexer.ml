@@ -23,7 +23,7 @@ type token = Parser.token * Lexing.position * Lexing.position
 
 type syntax_error =
   | Lex_error of string * Ast.span
-  | Parse_error of Syntax.syntax_node MenhirInterpreter.env * Ast.span
+  | Parse_error of Syntax.t MenhirInterpreter.env * Ast.span
 
 let specials =
   [%sedlex.regexp? '(' | ')' | '[' | ']' | '{' | '}'

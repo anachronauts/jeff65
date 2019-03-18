@@ -60,4 +60,22 @@ module Node = struct
 
   let create ?span ?(children = []) form =
     { form; span; children }
+
+  let rec strip_spans ({ children; _ } as ast) =
+    { ast with span = None
+             ; children = List.map (fun (t, n) -> (t, strip_spans n)) children }
+
+  let rec select sel nodes =
+    let rec sel_one vs key = function
+      | (k, v) :: tl when Equal.poly key k -> sel_one (v :: vs) key tl
+      | _ :: tl -> sel_one vs key tl
+      | [] -> vs
+    in
+    match sel with
+    | hd :: tl -> List.flat_map (fun n -> sel_one [] hd n.children) nodes
+                  |> select tl
+    | [] -> nodes
+
+  let select1 sel node =
+    select sel [node]
 end

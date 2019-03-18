@@ -67,7 +67,9 @@ module Form : sig
   val sexp_of_t : t -> CCSexp.t
 end
 
-type syntax_node = (Form.t, Tag.t) Node.t
+type t = (Form.t, Tag.t) Node.t
+
+val sexp_of_t : t -> CCSexp.t
 
 val identifier : ?span:span -> string -> ([> `Identifier of string], 'b) Node.t
 
@@ -88,3 +90,5 @@ val op_binary :
   -> ('a, [> `Of] as 'b) Node.t
   -> ('a, 'b) Node.t
   -> ('a, 'b) Node.t
+
+val pp : t Fmt.t

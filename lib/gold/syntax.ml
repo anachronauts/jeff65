@@ -144,7 +144,10 @@ module Form = struct
     | `Storage_stash -> atom "Storage_stash"
 end
 
-type syntax_node = (Form.t, Tag.t) Node.t
+type t = (Form.t, Tag.t) Node.t
+
+let sexp_of_t =
+  Node.sexp_of_t Form.sexp_of_t Tag.sexp_of_t
 
 let identifier ?span id =
   Node.create (`Identifier id) ?span
@@ -158,3 +161,7 @@ let op_prefix ?span form right =
 
 let op_binary ?span form left right =
   Node.create form ~children:[`Of, left; `Of, right] ?span
+
+let pp formatter ast =
+  sexp_of_t ast
+  |> CCSexp.pp formatter

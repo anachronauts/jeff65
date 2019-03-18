@@ -17,6 +17,8 @@ open! Containers
 open! Astring
 open Jeff65_kernel
 
+module Syntax = Syntax
+
 module Debug_opts = struct
   type t = { log_debug : bool
            ; show_spans : bool
@@ -76,9 +78,6 @@ let parse_with_error lexbuf =
   Parser.Incremental.unit start
   |> loop []
 
-let sexp_of_syntax =
-  Ast.Node.sexp_of_t Syntax.Form.sexp_of_t Syntax.Tag.sexp_of_t
-
 let fmt_position () { Lexing.pos_fname; pos_lnum; pos_cnum; pos_bol } =
   Printf.sprintf "%s:%d:%d" pos_fname pos_lnum (pos_cnum - pos_bol)
 
@@ -90,10 +89,6 @@ let error_of_syntax_error err =
         (* TODO real messages *)
         Printf.sprintf "%a: syntax error" fmt_position lstart)
 
-let rec remove_spans ({ Ast.Node.children; _ } as ast) =
-  { ast with span = None
-           ; children = List.map (fun (t, n) -> (t, remove_spans n)) children }
-
 let compile opts =
   let in_path = Fpath.to_string opts.Compile_opts.in_path in
   IO.with_in in_path (fun in_file ->
@@ -101,9 +96,8 @@ let compile opts =
       Sedlexing.set_filename lexbuf in_path;
       match parse_with_error lexbuf with
       | Ok ast ->
-        (if opts.debug_opts.show_spans then ast else remove_spans ast)
-        |> sexp_of_syntax
-        |> CCSexp.pp Format.stdout
+        (if opts.debug_opts.show_spans then ast else Ast.Node.strip_spans ast)
+        |> Syntax.pp Format.stdout
         |> print_newline
         |> Result.return
       | Error errs -> List.map error_of_syntax_error errs |> Or_error.choose)

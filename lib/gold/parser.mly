@@ -129,7 +129,7 @@ open Syntax
 %nonassoc PAREN_OPEN
 %nonassoc BRACKET_OPEN
 
-%start <Syntax.syntax_node> unit
+%start <Syntax.t> unit
 %%
 
 let expr :=

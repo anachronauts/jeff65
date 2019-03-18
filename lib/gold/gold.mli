@@ -15,6 +15,8 @@
 
 open Jeff65_kernel
 
+module Syntax = Syntax
+
 module Debug_opts : sig
   type t = { log_debug : bool
            ; show_spans : bool
@@ -31,3 +33,8 @@ module Compile_opts : sig
 end
 
 val compile : Compile_opts.t -> unit Or_error.t
+
+val parse_with_error : Sedlexing.lexbuf ->
+  (Syntax.t, Lexer.syntax_error list) result
+
+val error_of_syntax_error : Lexer.syntax_error -> 'a Or_error.t
