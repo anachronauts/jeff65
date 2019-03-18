@@ -1,0 +1,4 @@
+(test
+ (name test)
+ (libraries alcotest containers astring fmt sedlex
+            jeff65_kernel gold blum))
