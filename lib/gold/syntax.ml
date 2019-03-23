@@ -144,8 +144,6 @@ module Form = struct
     | `Storage_stash -> atom "Storage_stash"
 end
 
-type t = (Form.t, Tag.t) Node.t
-
 let sexp_of_t =
   Node.sexp_of_t Form.sexp_of_t Tag.sexp_of_t
 

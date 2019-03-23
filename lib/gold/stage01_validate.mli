@@ -1,4 +1,4 @@
-(* jeff65 gold-syntax lexer
+(* jeff65 gold-syntax validation passes
    Copyright (C) 2019  jeff65 maintainers
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,10 +15,21 @@
 
 open Jeff65_kernel
 
-type token = Parser.token * Lexing.position * Lexing.position
+module Form : sig
+  type t = [
+    | `Type_obj of Type.t
+    | `Integer of int
+  ]
 
-type 'a syntax_error =
-  | Lex_error of string * Ast.span
-  | Parse_error of 'a Parser.MenhirInterpreter.env * Ast.span
+  type xt = [t | Syntax.Form.t]
 
-val read : Sedlexing.lexbuf -> (token, 'a syntax_error) result
+  val sexp_of_t : t -> CCSexp.t
+
+  val sexp_of_xt : xt -> CCSexp.t
+end
+
+val run :
+  (Syntax.Form.t, Syntax.Tag.t) Ast.Node.t ->
+  (Form.xt, Syntax.Tag.t) Ast.Node.t Ast.or_error
+
+val pp : ((Form.xt, Syntax.Tag.t) Ast.Node.t) Fmt.t

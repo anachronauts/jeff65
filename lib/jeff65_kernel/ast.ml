@@ -29,34 +29,22 @@ let sexp_of_position pos =
 
 type span = position * position
 
+type 'a or_error = ('a, span) Or_error.t
+
 let sexp_of_span (pos1, pos2) =
   CCSexp.of_pair ( sexp_of_position pos1
                  , sexp_of_position pos2
                  )
 
-module Node = struct
-  type ('a, 'b) t = { form : 'a
-                    ; span : span option
-                    ; children : ('b * ('a, 'b) t) list
-                    }
+let span_pp formatter loc =
+  let ({ Lexing.pos_fname; pos_lnum; pos_cnum; pos_bol }, _) = loc in
+  Format.fprintf formatter "%s:%d:%d" pos_fname pos_lnum (pos_cnum - pos_bol)
 
-  let rec sexp_of_t sexp_of_a sexp_of_b node =
-    let fields = match node.children with
-      | [] -> []
-      | cs ->
-        let children = List.map
-            (fun (b, n) ->
-               CCSexp.of_pair (sexp_of_b b, sexp_of_t sexp_of_a sexp_of_b n))
-            cs
-        in
-        [("children", CCSexp.of_list children)]
-    in
-    let fields = match node.span with
-      | None -> fields
-      | Some value -> ("span", sexp_of_span value) :: fields
-    in
-    let fields = ("form", sexp_of_a node.form) :: fields in
-    CCSexp.of_record fields
+module Node = struct
+  type ('f, 'k) t = { form : 'f
+                    ; span : span option
+                    ; children : ('k * ('f, 'k) t) list
+                    }
 
   let create ?span ?(children = []) form =
     { form; span; children }
@@ -78,4 +66,169 @@ module Node = struct
 
   let select1 sel node =
     select sel [node]
+
+  let patch_loc left right =
+    match (left.span, right.span) with
+    | (_, Some _) | (None, _) -> right
+    | (Some _ as span, None) -> { right with span }
+
+  let mapc f node =
+    let f ((_, n) as kn) =
+      let (k, r) = f kn in
+      (k, patch_loc n r)
+    in
+    { node with children = List.map f node.children }
+
+  let mapcf f node =
+    let f ((_, n) as kn) =
+      let open Result.Infix in
+      f kn >|= (fun (k, r) -> (k, patch_loc n r))
+    in
+    List.map f node.children
+    |> Or_error.all_ok
+    |> Result.map (fun children -> { node with children })
+    |> Or_error.with_loc node.span
+
+  let rec walkx_post f node =
+    List.map (fun (t, n) -> (t, walkx_post f n)) node.children
+    |> f node.form node.span
+    |> patch_loc node
+
+  let rec walkxr_post f node =
+    List.map (fun (t, n) -> (t, walkxr_post f n)) node.children
+    |> f node.form node.span
+
+  let rec walkxf_post f node =
+    let open Result.Infix in
+    List.map (fun (t, n) ->
+        walkxf_post f n
+        |> Result.map (fun n -> (t, n)))
+      node.children
+    |> Or_error.all_ok
+    >>= f node.form node.span
+    >|= patch_loc node
+    |> Or_error.with_loc node.span
+
+  let rec walkxrf_post f node =
+    let open Result.Infix in
+    List.map (fun (t, n) ->
+        walkxrf_post f n
+        |> Result.map (fun n -> (t, n)))
+      node.children
+    |> Or_error.all_ok
+    >>= f node.form node.span
+    |> Or_error.with_loc node.span
+
+  let rec walkx_pre f node =
+    f node.form node.span node.children
+    |> mapc (fun (t, n) -> (t, walkx_pre f n))
+    |> patch_loc node
+
+  let rec walkxf_pre f node =
+    let open Result.Infix in
+    f node.form node.span node.children
+    >>= mapcf (fun (t, n) ->
+        walkxf_pre f n
+        |> Result.map (fun n -> (t, n)))
+    >|= patch_loc node
+    |> Or_error.with_loc node.span
+
+  let rec walk_post f node =
+    mapc (fun (t, n) -> (t, walk_post f n)) node
+    |> f |> patch_loc node
+
+  let rec walkf_post f node =
+    let open Result.Infix in
+    mapcf (fun (t, n) ->
+        walkf_post f n
+        |> Result.map (fun n -> (t, n)))
+      node
+    >>= f
+    >|= patch_loc node
+    |> Or_error.with_loc node.span
+
+  let rec walk_pre f node =
+    f node |> mapc (fun (t, n) -> (t, walk_pre f n))
+    |> patch_loc node
+
+  let rec walkf_pre f node =
+    let open Result.Infix in
+    f node >>= mapcf (fun (t, n) ->
+        walkf_pre f n
+        |> Result.map (fun n -> (t, n)))
+    >|= patch_loc node
+    |> Or_error.with_loc node.span
+
+  let rec mapt f node =
+    List.map (fun (t, n) -> (t, mapt f n)) node.children
+    |> f node
+    |> patch_loc node
+
+  let rec maptr f node =
+    List.map (fun (t, n) -> (t, maptr f n)) node.children
+    |> f node
+
+  let rec maptf f node =
+    let open Result.Infix in
+    List.map (fun (t, n) ->
+        maptf f n
+        |> Result.map (fun n -> (t, n)))
+      node.children
+    |> Or_error.all_ok
+    >>= f node
+    >|= patch_loc node
+    |> Or_error.with_loc node.span
+
+  let rec maptrf f node =
+    let open Result.Infix in
+    List.map (fun (t, n) ->
+        maptrf f n
+        |> Result.map (fun n -> (t, n)))
+      node.children
+    |> Or_error.all_ok
+    >>= f node
+    |> Or_error.with_loc node.span
+
+  let rec foldt_left f init tag node =
+    List.fold_left (fun acc (t, n) -> foldt_left f acc t n)
+      init node.children
+    |> (fun acc -> f acc tag node)
+
+  let rec foldtf_left f init tag node =
+    let open Result.Infix in
+    Result.fold_l
+      (fun acc (t, n) -> foldtf_left f acc t n)
+      init node.children
+    >>= (fun acc -> f acc tag node)
+    |> Or_error.with_loc node.span
+
+  let rec foldt_right f tag node init =
+    List.fold_right (fun (t, n) -> foldt_right f t n) node.children init
+    |> f tag node
+
+  let rec foldtf_right f tag node init =
+    let open Result.Infix in
+    List.fold_right (fun (t, n) acc ->
+        acc >>= foldtf_right f t n)
+      node.children (Ok init)
+    >>= f tag node
+    |> Or_error.with_loc node.span
+
+  let sexp_of_t sexp_of_f sexp_of_k =
+    let with_form f = List.cons ("form", sexp_of_f f) in
+    let with_span s =
+      Option.map (fun s -> ("span", sexp_of_span s)) s |> List.cons_maybe
+    in
+    let with_children cs =
+      match
+        List.map (fun (k, e) -> CCSexp.of_pair (sexp_of_k k, e)) cs
+      with
+      | [] -> Fun.id
+      | cs -> List.cons ("children", CCSexp.of_list cs)
+    in
+    walkxr_post (fun f s c ->
+        with_children c []
+        |> with_span s
+        |> with_form f
+        |> CCSexp.of_record)
 end

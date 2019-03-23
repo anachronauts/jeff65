@@ -13,32 +13,45 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-type error
+type 'p error
 
-type 'a t = ('a, error) result
+type ('a, 'p) t = ('a, 'p error) result
 
-val return : 'a -> 'a t
+val return : 'a -> ('a, 'p) t
 
-val fail : error -> 'a t
+val fail : 'p error -> ('a, 'p) t
 
-val of_thunk : (unit -> string list) -> 'a t
+val of_thunk : (unit -> string list) -> ('a, 'p) t
 
-val of_strings : string list -> 'a t
+val of_lit : ('p option * string) list -> ('a, 'p) t
 
-val of_thunks : (unit -> string) list -> 'a t
+val of_lit_thunk : (unit -> ('p option * string) list) -> ('a, 'p) t
 
-val of_string : string -> 'a t
+val of_strings : string list -> ('a, 'p) t
 
-val of_thunk1 : (unit -> string) -> 'a t
+val of_thunks : (unit -> string) list -> ('a, 'p) t
 
-val of_fmt : ('a, unit, string, 'b t) format4 -> 'a
+val of_string : string -> ('a, 'p) t
 
-val to_strings : error -> string list
+val of_option : string -> 'a option -> ('a, 'p) t
 
-val choose : 'a t list -> 'a t
+val of_thunk1 : (unit -> string) -> ('a, 'p) t
 
-val map_err : (string -> string) -> 'a t -> 'a t
+val of_fmt : ('a, unit, string, ('b, 'p) t) format4 -> 'a
 
-val iter_err : (string -> unit) -> 'a t -> unit
+val with_loc : 'p option -> ('a, 'p) t -> ('a, 'p) t
 
-val to_channel : out_channel -> 'a t -> unit
+val get : 'p error -> ('p option * string) list
+
+val choose : ('a, 'p) t list -> ('a, 'p) t
+
+val all_ok : ('a, 'p) t list -> ('a list, 'p) t
+
+val map_err :
+  ('p option * string -> 'q option * string) ->
+  ('a, 'p) t ->
+  ('a, 'q) t
+
+val iter_err : ('p option * string -> unit) -> ('a, 'p) t -> unit
+
+val pp : 'p Fmt.t -> ('a, 'p) t Fmt.t

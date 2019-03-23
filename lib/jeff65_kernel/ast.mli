@@ -18,22 +18,134 @@ val sexp_of_position : position -> CCSexp.t
 
 type span = position * position
 
+type 'a or_error = ('a, span) Or_error.t
+
 val sexp_of_span : span -> CCSexp.t
 
+val span_pp : span Fmt.t
+
 module Node : sig
-  type ('a, 'b) t = { form : 'a
+  type ('f, 'k) t = { form : 'f
                     ; span : span option
-                    ; children : ('b * ('a, 'b) t) list
+                    ; children : ('k * ('f, 'k) t) list
                     }
 
-  val sexp_of_t : ('a -> CCSexp.t) -> ('b -> CCSexp.t) -> ('a, 'b) t -> CCSexp.t
+  val sexp_of_t : ('f -> CCSexp.t) -> ('k -> CCSexp.t) -> ('f, 'k) t -> CCSexp.t
 
-  val create : ?span:span -> ?children:('b * ('a, 'b) t) list -> 'a -> ('a, 'b) t
+  val create : ?span:span -> ?children:('k * ('f, 'k) t) list -> 'f -> ('f, 'k) t
 
-  val strip_spans : ('a, 'b) t -> ('a, 'b) t
+  val strip_spans : ('f, 'k) t -> ('f, 'k) t
 
-  val select : 'b list -> ('a, 'b) t list -> ('a, 'b) t list
+  val select : 'k list -> ('f, 'k) t list -> ('f, 'k) t list
 
-  val select1 : 'b list -> ('a, 'b) t -> ('a, 'b) t list
+  val select1 : 'k list -> ('f, 'k) t -> ('f, 'k) t list
+
+  val mapc :
+    ('k * ('f, 'k) t -> 'j * ('f, 'j) t) ->
+    ('f, 'k) t ->
+    ('f, 'j) t
+
+  val mapcf :
+    ('k * ('f, 'k) t -> ('j * ('f, 'j) t) or_error) ->
+    ('f, 'k) t ->
+    ('f, 'j) t or_error
+
+  val walkx_post :
+    ('f -> span option -> ('k * (('g, 'j) t as 'a)) list -> 'a) ->
+    ('f, 'k) t ->
+    'a
+
+  val walkxr_post :
+    ('f -> span option -> ('k * 'a) list -> 'a) ->
+    ('f, 'k) t ->
+    'a
+
+  val walkxf_post :
+    ('f -> span option -> ('k * (('g, 'j) t as 'a)) list -> 'a or_error) ->
+    ('f, 'k) t ->
+    'a or_error
+
+  val walkxrf_post :
+    ('f -> span option -> ('k * 'a) list -> 'a or_error) ->
+    ('f, 'k) t ->
+    'a or_error
+
+  val walkx_pre :
+    ('f -> span option -> ('k * ('f, 'k) t) list -> ('f, 'k) t) ->
+    ('f, 'k) t ->
+    ('f, 'k) t
+
+  val walkxf_pre :
+    ('f -> span option -> ('k * ('f, 'k) t) list -> ('f, 'k) t or_error) ->
+    ('f, 'k) t ->
+    ('f, 'k) t or_error
+
+  val walk_post :
+    (('f, 'k) t -> ('f, 'k) t) ->
+    ('f, 'k) t ->
+    ('f, 'k) t
+
+  val walkf_post :
+    (('f, 'k) t -> ('f, 'k) t or_error) ->
+    ('f, 'k) t ->
+    ('f, 'k) t or_error
+
+  val walk_pre :
+    (('f, 'k) t -> ('f, 'k) t) ->
+    ('f, 'k) t ->
+    ('f, 'k) t
+
+  val walkf_pre :
+    (('f, 'k) t -> ('f, 'k) t or_error) ->
+    ('f, 'k) t ->
+    ('f, 'k) t or_error
+
+  val mapt :
+    (('f, 'k) t -> ('k * (('g, 'j) t as 'a)) list -> 'a) ->
+    ('f, 'k) t ->
+    'a
+
+  val maptr :
+    (('f, 'k) t -> ('k * 'a) list -> 'a) ->
+    ('f, 'k) t ->
+    'a
+
+  val maptf :
+    (('f, 'k) t -> ('k * (('g, 'j) t as 'a)) list -> 'a or_error) ->
+    ('f, 'k) t ->
+    'a or_error
+
+  val maptrf :
+    (('f, 'k) t -> ('k * 'a) list -> 'a or_error) ->
+    ('f, 'k) t ->
+    'a or_error
+
+  val foldt_left :
+    ('a -> 'k -> ('f, 'k) t -> 'a) ->
+    'a ->
+    'k ->
+    ('f, 'k) t ->
+    'a
+
+  val foldtf_left :
+    ('a -> 'k -> ('f, 'k) t -> 'a or_error) ->
+    'a ->
+    'k ->
+    ('f, 'k) t ->
+    'a or_error
+
+  val foldt_right :
+    ('k -> ('f, 'k) t -> 'a -> 'a) ->
+    'k ->
+    ('f, 'k) t ->
+    'a ->
+    'a
+
+  val foldtf_right :
+    ('k -> ('f, 'k) t -> 'a -> 'a or_error) ->
+    'k ->
+    ('f, 'k) t ->
+    'a ->
+    'a or_error
 end
 

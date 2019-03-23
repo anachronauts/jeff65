@@ -49,6 +49,13 @@ module Compile_opts = struct
            }
 end
 
+let error_of_syntax_error = function
+  | Lexer.Lex_error (msg, loc) -> Or_error.of_string msg
+                                  |> Or_error.with_loc (Some loc)
+  (* TODO real messages *)
+  | Lexer.Parse_error (_, loc) -> Or_error.of_string "syntax error"
+                                  |> Or_error.with_loc (Some loc)
+
 let parse_with_error lexbuf =
   let module I = Parser.MenhirInterpreter in
   let rec loop errors checkpoint =
@@ -77,27 +84,19 @@ let parse_with_error lexbuf =
   let (start, _) = Sedlexing.lexing_positions lexbuf in
   Parser.Incremental.unit start
   |> loop []
-
-let fmt_position () { Lexing.pos_fname; pos_lnum; pos_cnum; pos_bol } =
-  Printf.sprintf "%s:%d:%d" pos_fname pos_lnum (pos_cnum - pos_bol)
-
-let error_of_syntax_error err =
-  Or_error.of_thunk1 (fun () -> match err with
-      | Lexer.Lex_error (msg, (lstart, _)) ->
-        Printf.sprintf "%a: %s" fmt_position lstart msg
-      | Lexer.Parse_error (_, (lstart, _)) ->
-        (* TODO real messages *)
-        Printf.sprintf "%a: syntax error" fmt_position lstart)
+  |> function
+  | Ok _ as ok -> ok
+  | Error errs -> List.map error_of_syntax_error errs |> Or_error.choose
 
 let compile opts =
+  let open Result.Infix in
   let in_path = Fpath.to_string opts.Compile_opts.in_path in
   IO.with_in in_path (fun in_file ->
       let lexbuf = Sedlexing.Utf8.from_channel in_file in
       Sedlexing.set_filename lexbuf in_path;
-      match parse_with_error lexbuf with
-      | Ok ast ->
-        (if opts.debug_opts.show_spans then ast else Ast.Node.strip_spans ast)
-        |> Syntax.pp Format.stdout
-        |> print_newline
-        |> Result.return
-      | Error errs -> List.map error_of_syntax_error errs |> Or_error.choose)
+      parse_with_error lexbuf
+      >>= Stage01_validate.run
+      >|= (fun ast -> if opts.debug_opts.show_spans then ast else Ast.Node.strip_spans ast)
+      >|= Stage01_validate.pp Format.stdout
+      (* >|= Syntax.pp Format.stdout *)
+      >|= print_newline)

@@ -22,7 +22,7 @@ module Debug_opts : sig
            ; show_spans : bool
            }
 
-  val t_of_string_list : string list -> t Or_error.t
+  val t_of_string_list : string list -> (t, 'p) Or_error.t
 end
 
 module Compile_opts : sig
@@ -32,9 +32,8 @@ module Compile_opts : sig
            }
 end
 
-val compile : Compile_opts.t -> unit Or_error.t
+val compile : Compile_opts.t -> unit Ast.or_error
 
-val parse_with_error : Sedlexing.lexbuf ->
-  (Syntax.t, Lexer.syntax_error list) result
+val parse_with_error : Sedlexing.lexbuf -> (Syntax.Form.t, Syntax.Tag.t) Ast.Node.t Ast.or_error
 
-val error_of_syntax_error : Lexer.syntax_error -> 'a Or_error.t
+val error_of_syntax_error : 'a Lexer.syntax_error -> 'b Ast.or_error

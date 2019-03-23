@@ -47,9 +47,42 @@ let out_path_of in_path out_path =
   Option.map convert_path out_path
   |> Option.get_lazy (fun () -> Ok Fpath.(in_path + ".gold"))
 
+let shorten_path root path =
+  let open Result.Infix in
+  convert_path path >>= (fun path ->
+      Fpath.relativize ~root path
+      |> Option.get_or ~default:path
+      |> Fpath.to_string
+      |> Result.return)
+
+let shorten_loc root = function
+  | None -> Ok None
+  | Some (start, finish) ->
+    let bind = Result.(>>=) in
+    let%m start_fname = shorten_path root start.Lexing.pos_fname in
+    let%m finish_fname = shorten_path root finish.Lexing.pos_fname in
+    Result.return (Some ( { start with pos_fname = start_fname }
+                        , { finish with pos_fname = finish_fname }
+                        ))
+
+let shorten_locs errs =
+  let bind = Result.(>>=) in
+  let%m root = Sys.getcwd () |> convert_path in
+  match errs with
+  | Ok _ as ok -> ok
+  | Error errs ->
+    Or_error.get errs
+    |> List.map (fun (loc, msg) ->
+        let%m loc = shorten_loc root loc in
+        Ok (loc, msg))
+    |> Or_error.all_ok
+    |> function
+    | Ok e -> Or_error.of_lit e
+    | Error _ as e -> e
+
 let compile copts in_path out_path =
   let bind = (Result.(>>=)) in
-  let res =
+  begin
     let%m cwd = Sys.getcwd () |> convert_path in
     let%m debug_opts = Gold.Debug_opts.t_of_string_list copts.Common_opts.debug_opts in
     let%m in_path = convert_path in_path in
@@ -58,8 +91,9 @@ let compile copts in_path out_path =
                  ; out_path = Fpath.(cwd // out_path |> normalize)
                  ; debug_opts
                  }
-  in
-  Or_error.to_channel stderr res
+  end
+  |> shorten_locs
+  |> Or_error.pp Ast.span_pp Format.stderr
 
 let compile_cmd =
   let in_path_t =

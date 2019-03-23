@@ -1,4 +1,4 @@
-(* jeff65 gold-syntax lexer
+(* jeff65 type system
    Copyright (C) 2019  jeff65 maintainers
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +13,26 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open Jeff65_kernel
+type t =
+  | Phantom
+  | Void
+  | Int of { width: int; signed: bool }
+  | Ref of { target: t }
+  | Function of { ret: t; args: t list }
 
-type token = Parser.token * Lexing.position * Lexing.position
+val to_string : t -> string
 
-type 'a syntax_error =
-  | Lex_error of string * Ast.span
-  | Parse_error of 'a Parser.MenhirInterpreter.env * Ast.span
+(* TODO support other types *)
+val can_assign : lhs:t -> rhs:t -> bool
 
-val read : Sedlexing.lexbuf -> (token, 'a syntax_error) result
+val u8 : t
+val u16 : t
+val u24 : t
+val u32 : t
+val i8 : t
+val i16 : t
+val i24 : t
+val i32 : t
+val ref : t -> t
+val ptr : t
+
