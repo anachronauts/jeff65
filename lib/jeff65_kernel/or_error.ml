@@ -13,9 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open! Containers
-open! Astring
-
 type 'p error = ('p option * string) list lazy_t
 
 type ('a, 'p) t = ('a, 'p error) result

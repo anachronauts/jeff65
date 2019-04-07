@@ -13,8 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open! Containers
-open! Astring
 open Jeff65_kernel
 
 module Syntax = Syntax
@@ -28,7 +26,7 @@ module Debug_opts = struct
 
   let all_opts = S.of_list ["log_debug"; "show_spans"]
 
-  let fmt_opts () = String.concat ~sep:" "
+  let fmt_opts () = String.concat " "
 
   let t_of_string_list opts =
     let opts = S.of_list opts in

@@ -13,9 +13,6 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <https://www.gnu.org/licenses/>. *)
 
-open! Containers
-open! Astring
-
 type t =
   | Phantom
   | Void
@@ -36,7 +33,7 @@ let rec to_string =
       in
       let a =
         List.map to_string args
-        |> String.concat ~sep:", "
+        |> String.concat ", "
       in
       sprintf "fun(%s)%s" a r
 

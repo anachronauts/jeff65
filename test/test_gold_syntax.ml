@@ -1,5 +1,3 @@
-open! Containers
-open! Astring
 open Jeff65_kernel
 
 let parse source =

@@ -1,12 +1,12 @@
 (library
  (name gold)
  (libraries
-  astring
   containers
   sedlex
   menhirLib
   fmt
   fpath
+  gen
   uunf
   uutf
   jeff65_kernel)

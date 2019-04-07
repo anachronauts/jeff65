@@ -15,8 +15,6 @@
 
 %{
 
-open! Containers
-open! Astring
 open Jeff65_kernel.Ast
 open Syntax
 
